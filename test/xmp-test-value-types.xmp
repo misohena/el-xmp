@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<!-- 値の種類別 -->
+<x:xmpmeta
+    xmlns:x="adobe:ns:meta/"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:ns1="http://misohena.jp/ns1/">
+  <rdf:RDF>
+    <!-- Simple(Text) -->
+    <rdf:Description rdf:about="" ns1:SimpleProp1="SimpleValue">
+      <!-- emptyPropertyElt -->
+      <ns1:SimpleProp2 xml:lang="ja"/><!-- ×SDK -->
+      <ns1:SimpleProp3 xml:lang="ja" ns1:Qual1="Qual1Val" rdf:value="SimpleValue" />
+      <!-- literalPropertyElt -->
+      <ns1:SimpleProp4 xml:lang="ja">SimpleValue</ns1:SimpleProp4>
+      <!-- これがよく分からない。C.2.7には「Attributes of the element become qualifiers in the XMP data model」と書かれているが、C.2.5の振り分けルールにおいてはemptyPropertyEltになってしまう。 -->
+      <ns1:SimpleProp5 xml:lang="ja" ns1:Qual1="Qual1Val">SimpleValue</ns1:SimpleProp5><!-- ×SDK -->
+      <!-- resourcePropertyElt -->
+      <ns1:SimpleProp6 xml:lang="ja">
+        <rdf:Description>
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+          <rdf:value>SimpleValue</rdf:value>
+        </rdf:Description>
+      </ns1:SimpleProp6>
+      <ns1:SimpleProp7 xml:lang="ja"><!-- typed --><!--要確認:許容される？(SDK OK)-->
+        <ns1:SimpleType>
+          <rdf:value>SimpleValue</rdf:value>
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+        </ns1:SimpleType>
+      </ns1:SimpleProp7>
+      <!-- parseTypeResourcePropertyElt -->
+      <ns1:SimpleProp8 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Qual1>Qual1Val</ns1:Qual1>
+        <rdf:value>SimpleValue</rdf:value>
+      </ns1:SimpleProp8>
+    </rdf:Description>
+
+
+    <!-- Simple(URI) -->
+    <rdf:Description rdf:about="">
+      <!-- emptyPropertyElt -->
+      <ns1:URIProp1 xml:lang="ja" ns1:Qual1="Qual1Val" rdf:resource="URIValue" />
+      <!-- literalPropertyElt -->
+      <!-- resourcePropertyElt -->
+      <ns1:URIProp2 xml:lang="ja">
+        <rdf:Description><!-- With qualifiers -->
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+          <rdf:value rdf:resource="URIValue" />
+        </rdf:Description>
+      </ns1:URIProp2>
+      <ns1:URIProp3 xml:lang="ja"><!-- typed --><!--要確認(SDK OK)-->
+        <ns1:URIType>
+          <rdf:value rdf:resource="URIValue" />
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+        </ns1:URIType>
+      </ns1:URIProp3>
+      <!-- parseTypeResourcePropertyElt -->
+      <ns1:URIProp4 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Qual1>Qual1Val</ns1:Qual1>
+        <rdf:value rdf:resource="URIValue" />
+      </ns1:URIProp4>
+    </rdf:Description>
+
+
+    <!-- Struct -->
+    <rdf:Description rdf:about="">
+      <!-- emptyPropertyElt -->
+      <ns1:StructProp1 xml:lang="ja" ns1:Field1="Field1Val" ns1:Field2="Field2Val" />
+      <!-- literalPropertyElt -->
+      <!-- resourcePropertyElt -->
+      <ns1:StructProp2 xml:lang="ja">
+        <rdf:Description>
+          <ns1:Field1>Field1Val</ns1:Field1>
+          <ns1:Field2>Field2Val</ns1:Field2>
+        </rdf:Description>
+      </ns1:StructProp2>
+      <ns1:StructProp3 xml:lang="ja"><!--要確認:この書き方の例が無い-->
+        <rdf:Description><!-- With qualifiers -->
+          <rdf:value>
+            <rdf:Description>
+              <ns1:Field1>Field1Val</ns1:Field1>
+              <ns1:Field2>Field2Val</ns1:Field2>
+            </rdf:Description>
+          </rdf:value>
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+        </rdf:Description>
+      </ns1:StructProp3>
+      <ns1:StructProp4 xml:lang="ja"><!-- typed -->
+        <ns1:StructType>
+          <ns1:Field1>Field1Val</ns1:Field1>
+          <ns1:Field2>Field2Val</ns1:Field2>
+        </ns1:StructType>
+      </ns1:StructProp4>
+      <!-- parseTypeResourcePropertyElt -->
+      <ns1:StructProp5 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Field1>Field1Val</ns1:Field1>
+        <ns1:Field2>Field2Val</ns1:Field2>
+      </ns1:StructProp5>
+      <ns1:StructProp6 rdf:parseType="Resource" xml:lang="ja"><!--要確認:この書き方の例が無い-->
+        <rdf:value><!-- With qualifiers -->
+          <rdf:Description>
+            <ns1:Field1>Field1Val</ns1:Field1>
+            <ns1:Field2>Field2Val</ns1:Field2>
+          </rdf:Description>
+        </rdf:value>
+        <ns1:Qual1>Qual1Val</ns1:Qual1>
+      </ns1:StructProp6>
+    </rdf:Description>
+
+
+    <!-- Array -->
+    <rdf:Description rdf:about="">
+      <!-- emptyPropertyElt -->
+      <!-- literalPropertyElt -->
+      <!-- resourcePropertyElt -->
+      <ns1:ArrayProp1 xml:lang="ja">
+        <rdf:Bag>
+          <rdf:li xml:lang="ja">BagItem1Val</rdf:li>
+          <rdf:li xml:lang="ja">BagItem2Val</rdf:li>
+        </rdf:Bag>
+      </ns1:ArrayProp1>
+      <ns1:ArrayProp2 xml:lang="ja">
+        <rdf:Alt>
+          <rdf:li xml:lang="ja">AltItem1Val</rdf:li>
+          <rdf:li xml:lang="ja">AltItem2Val</rdf:li>
+        </rdf:Alt>
+      </ns1:ArrayProp2>
+      <ns1:ArrayProp3 xml:lang="ja"><!--要確認:この書き方の例が無い-->
+        <rdf:Description><!-- With qualifiers -->
+          <rdf:value>
+            <rdf:Seq>
+              <rdf:li xml:lang="ja">SeqItem1Val</rdf:li>
+              <rdf:li xml:lang="ja">SeqItem2Val</rdf:li>
+            </rdf:Seq>
+          </rdf:value>
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+        </rdf:Description>
+      </ns1:ArrayProp3>
+      <!-- parseTypeResourcePropertyElt -->
+      <!-- Struct in Array -->
+      <ns1:ArrayProp4 xml:lang="ja">
+        <rdf:Bag>
+          <rdf:li xml:lang="ja">
+            <rdf:Description>
+              <ns1:Field1>Field1-1Val</ns1:Field1>
+              <ns1:Field2>Field1-2Val</ns1:Field2>
+            </rdf:Description>
+          </rdf:li>
+          <rdf:li xml:lang="ja">
+            <rdf:Description>
+              <ns1:Field1>Field2-1Val</ns1:Field1>
+              <ns1:Field2>Field2-2Val</ns1:Field2>
+            </rdf:Description>
+          </rdf:li>
+        </rdf:Bag>
+      </ns1:ArrayProp4>
+    </rdf:Description>
+
+    <!-- Ambiguous -->
+    <rdf:Description rdf:about="">
+      <ns1:Ambiguous1 xml:lang="ja" ns1:Qual1="Qual1"><!-- Must be no attributes -->
+        <rdf:Description>
+          <ns1:Field1>Field1</ns1:Field1>
+          <ns1:Field2>Field2</ns1:Field2>
+        </rdf:Description>
+      </ns1:Ambiguous1>
+    </rdf:Description>
+
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="r"?>

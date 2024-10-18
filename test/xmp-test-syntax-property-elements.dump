@@ -1,0 +1,56 @@
+
+// ------------------------------------------------------------
+// Dumping main XMP for xmp-test-syntax-property-elements.xmp :
+
+File info : format = 20202020, handler flags = 00000260
+Packet info : offset = 40, length = 3265
+
+Initial XMP from xmp-test-syntax-property-elements.xmp
+Dumping XMPMeta object ""  (0x0)
+
+   ns1:  http://misohena.jp/ns1/  (0x80000000 : schema)
+      ns1:PropAttr1 = "PropAttr1Val"
+      ns1:PropAttr2 = "PropAttr2Val"
+      ns1:EmptyPropElt2 = "EmptyPropElt2Val"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Value"  (0x20 : isQual)
+      ns1:EmptyPropElt3 = "https://misohena.jp/EmptyPropElt3URI"  (0x52 : hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Value"  (0x20 : isQual)
+      ns1:EmptyPropElt4  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:LiteralPropElt1 = "
+        LiteralPropElt1Val
+      "
+      ns1:LiteralPropElt2 = "
+        LiteralPropElt1Val
+      "  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+      ns1:ResPropElt1  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "ResPropElt1Field1Val"
+         ns1:Field2 = "ResPropElt2Field1Val"
+      ns1:ResPropElt2 = "ResPropElt2Val"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:ResPropElt3  (0x250 : isArray hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         [1] = "ResPropElt3Item1"
+         [2] = "ResPropElt3Item2"
+      ns1:ResPropElt4  (0x1D0 : isStruct hasType hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? rdf:type = "http://misohena.jp/ns1/Type"  (0x22 : isQual URI)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:ParseTypeResourcePropElt1  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "PTRPropElt1Field1Val"
+         ns1:Field2 = "PTRPropElt1Field2Val"
+      ns1:ParseTypeResourcePropElt2 = "PTRPropElt2Val"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:ParseTypeResourcePropElt3 = "URIValue"  (0x52 : hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)

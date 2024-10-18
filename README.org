@@ -1,0 +1,151 @@
+* Emacs Extensible Metadata Platform Library
+
+(machine translated from [[file:README-ja.org][README-ja.org]])
+
+el-xmp is an Emacs library for getting and setting metadata based on the XMP (Extensible Metadata Platform) specification, and some application commands. For example, it can be used to get and set the rating of a photo, or to get author information in a PDF.
+
+** xmp-commands.el
+xmp-commands.el provides a set of commands for manipulating the XMP properties of any file.
+
+The target file of those commands is inferred from the current point, buffer, etc. by ~xmp-file-name-at-point~ function. By default, filename inference from Dired, Image Dired, org-mode links, thing-at-point, buffer-file-name, and read-file-name is supported.
+
+When the command modifies a property, it does not directly modify the target file, but instead creates a sidecar file (.xmp) to record the new property value. This method protects the contents of the target file while facilitating the sharing of properties, e.g., via network storage.
+
+Commands to change properties:
+
+- ~xmp-rate-file~
+- ~xmp-rate-file-1~
+- ~xmp-rate-file-2~
+- ~xmp-rate-file-3~
+- ~xmp-rate-file-4~
+- ~xmp-rate-file-5~
+- ~xmp-rate-file-0~
+- ~xmp-rate-file--1~
+- ~xmp-set-file-label~
+- ~xmp-set-file-subjects~
+- ~xmp-set-file-title~
+- ~xmp-set-file-description~
+- ~xmp-set-file-creators~
+
+Commands to display properties:
+- ~xmp-show-file-properties~
+- ~xmp-show-file-rating~
+- ~xmp-show-file-label~
+- ~xmp-show-file-subjects~
+- ~xmp-show-file-title~
+- ~xmp-show-file-description~
+- ~xmp-show-file-creators~
+
+** xmp-dired.el
+
+xmp-dired.el adds XMP-related features to Dired.
+
+Currently, it provides the following commands:
+
+- ~xmp-dired-mark-rating~
+- ~xmp-dired-mark-label~
+- ~xmp-dired-mark-subjects~
+- ~xmp-dired-mark-title~
+- ~xmp-dired-mark-description~
+- ~xmp-dired-mark-creator~
+
+In addition to these, xmp-commands.el provides commands that can be used in Dired.
+
+** xmp.el
+
+xmp.el provides basic functions for manipulating XMP.
+
+The following code is an example of getting properties from a file.
+
+#+begin_src elisp
+(require 'xmp)
+
+(xmp-file-enumerate-properties "test/xmp-test-value-types.xmp" nil nil t)
+
+(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg")
+
+(xmp-file-enumerate-properties "XMPSpecificationPart1.pdf")
+
+(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg"
+  (list (xmp-xml-ename xmp-xmp: "Rating")
+        (xmp-xml-ename xmp-dc: "title")))
+
+(xmp-pvalue-as-text
+  (xmp-file-get-property "test/xmp-test-uzumaki.jpg"
+    (xmp-xml-ename xmp-xmp: "Rating")))
+#+end_src
+
+The following code is an example of setting properties to a file.
+
+#+begin_src elisp
+(xmp-file-set-properties "tmp-example.xmp"
+  (list
+    (cons xmp-xmp:Rating "5")
+    (cons xmp-dc:title
+          (xmp-pvalue-make-alt
+            (list
+              (xmp-pvalue-make-text
+                "Test Title"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "x-default")))
+              (xmp-pvalue-make-text
+                "Test Title"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "en")))
+              (xmp-pvalue-make-text
+                "テストタイトル"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "ja"))))))))
+
+(xmp-file-set-property "tmp-example.xmp" xmp-xmp:Rating "3")
+#+end_src
+
+There are also lower level functions for the DOM after parsing the XML, and functions for manipulating the XMP property values ​​(Parsed Values) after parsing the DOM.
+
+#+begin_src elisp
+(let* ((dom (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg")) ;; File to XML DOM
+       (property-elements (xmp-enumerate-property-elements dom)) ;; XML DOM to Property Element List
+       (property-pvalues (mapcar #'xmp-parse-property-element property-elements)) ;; Property Element List to Parsed Value List
+       (rating-pvalue (xmp-xml-ename-alist-get xmp-xmp:Rating property-pvalues))) ;; Pick xmp:Rating property
+  ;; PValue to String
+  (xmp-pvalue-as-text rating-pvalue))
+#+end_src
+
+** xmp-xml.el
+
+xmp-xml.el is the library that xmp.el uses to process XML. Since xmp.el needs to process XML namespaces correctly, it does not use Emacs' libxml support. xml.el also had bugs so it was not used. We used nxml-parse.el which had the fewest problems. We did not use dom.el either as it cannot handle expanded names.
+
+The most important thing about xmp-xml.el is how it handles XML expanded names. Element names and attribute names are represented not as strings or symbols but as expanded names, which are pairs of namespace names and local names.
+
+The following code creates an object that represents the expanded name whose namespace name is ~http://ns.adobe.com/xap/1.0/~ and whose local name is ~Label~.
+
+#+begin_src elisp
+(xmp-xml-ename (xmp-xml-ns-name "http://ns.adobe.com/xap/1.0/") "Label")
+#+end_src
+
+Be sure to use the following functions to create expanded names, get elements, and compare them.
+
+- ~xmp-xml-ename~
+- ~xmp-xml-ename-ns~
+- ~xmp-xml-ename-local~
+- ~xmp-xml-ename-equal~
+- ~xmp-xml-ename<~
+- ~xmp-xml-ename-alist-get~
+- ~xmp-xml-ename-assoc~
+- ~xmp-xml-ename-member~
+
+Also, use the following functions to convert namespace names.
+
+- ~xmp-xml-ns-name~
+- ~xmp-xml-ns-name-string~
+
+Commonly used namespace names and expanded names are defined as variables.
+
+Namespace name:
+- ~xmp-xmlns:~
+- ~xmp-xml:~
+
+Expanded name:
+- ~xmp-xml:lang~
+- ~xmp-xml:space~
+- ~xmp-xml:base~
+- ~xmp-xml:id~
+
+Many namespaces and expanded names used in XMP are defined as variables in xmp.el (e.g. ~xmp-dc:title~, ~xmp-xmp:Rating~).

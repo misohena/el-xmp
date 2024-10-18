@@ -1,0 +1,149 @@
+* Emacs Extensible Metadata Platform Library
+
+el-xmpは、ファイル等に対するXMP(Extensible Metadata Platform)仕様に基づくメタデータを取得・設定するためのEmacs用ライブラリと、それを応用したいくつかコマンドです。例えば写真のレーティングを取得・設定したり、PDF内の著者情報を取得したりといった使い方ができます。
+
+** xmp-commands.el
+xmp-commands.elは任意のファイルのXMPプロパティを操作する一連のコマンドを提供します。
+
+それらのコマンドのターゲットファイルは、現在のポイントや現在のバッファ等から ~xmp-file-name-at-point~ 関数によって推測されます。デフォルトでは、DiredやImage Dired、org-modeリンク、thing-at-point、buffer-file-name、read-file-nameからのファイル名を推測します。
+
+コマンドがプロパティを変更するとき、ターゲットファイルを直接変更せず、代わりにサイドカーファイル(.xmpファイル)を作成して新しいプロパティ値を記録します。この方法はターゲットファイルの内容を保護すると同時に、ネットワークストレージ等を通じたプロパティの共有を可能にします。
+
+プロパティを変更するコマンド:
+
+- ~xmp-rate-file~
+- ~xmp-rate-file-1~
+- ~xmp-rate-file-2~
+- ~xmp-rate-file-3~
+- ~xmp-rate-file-4~
+- ~xmp-rate-file-5~
+- ~xmp-rate-file-0~
+- ~xmp-rate-file--1~
+- ~xmp-set-file-label~
+- ~xmp-set-file-subjects~
+- ~xmp-set-file-title~
+- ~xmp-set-file-description~
+- ~xmp-set-file-creators~
+
+プロパティを表示するコマンド:
+- ~xmp-show-file-properties~
+- ~xmp-show-file-rating~
+- ~xmp-show-file-label~
+- ~xmp-show-file-subjects~
+- ~xmp-show-file-title~
+- ~xmp-show-file-description~
+- ~xmp-show-file-creators~
+
+** xmp-dired.el
+
+xmp-dired.elはdiredにファイルにXMPに関連した機能を追加します。
+
+現在のところ、次のコマンドを提供しています。
+
+- ~xmp-dired-mark-rating~
+- ~xmp-dired-mark-label~
+- ~xmp-dired-mark-subjects~
+- ~xmp-dired-mark-title~
+- ~xmp-dired-mark-description~
+- ~xmp-dired-mark-creator~
+
+これらに加えて、xmp-commands.elが提供するコマンドがDired内で使用できます。
+
+** xmp.el
+
+xmp.elはXMPを操作するための基本となる関数等を提供します。
+
+次のコードはファイルからプロパティを取得する例です。
+
+#+begin_src elisp
+(require 'xmp)
+
+(xmp-file-enumerate-properties "test/xmp-test-value-types.xmp" nil nil t)
+
+(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg")
+
+(xmp-file-enumerate-properties "XMPSpecificationPart1.pdf")
+
+(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg"
+  (list (xmp-xml-ename xmp-xmp: "Rating")
+        (xmp-xml-ename xmp-dc: "title")))
+
+(xmp-pvalue-as-text
+  (xmp-file-get-property "test/xmp-test-uzumaki.jpg"
+    (xmp-xml-ename xmp-xmp: "Rating")))
+#+end_src
+
+次のコードはファイルへプロパティを設定する例です。
+
+#+begin_src elisp
+(xmp-file-set-properties "tmp-example.xmp"
+  (list
+    (cons xmp-xmp:Rating "5")
+    (cons xmp-dc:title
+          (xmp-pvalue-make-alt
+            (list
+              (xmp-pvalue-make-text
+                "Test Title"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "x-default")))
+              (xmp-pvalue-make-text
+                "Test Title"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "en")))
+              (xmp-pvalue-make-text
+                "テストタイトル"
+                (list (xmp-pvalue-make-named xmp-xml:lang 'text "ja"))))))))
+
+(xmp-file-set-property "tmp-example.xmp" xmp-xmp:Rating "3")
+#+end_src
+
+より低レベルな、XMLを解析した後のDOMに対する関数や、DOMを解析した後のXMPプロパティ値(Parsed Value)を操作する関数もあります。
+
+#+begin_src elisp
+(let* ((dom (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg")) ;; File to XML DOM
+       (property-elements (xmp-enumerate-property-elements dom)) ;; XML DOM to Property Element List
+       (property-pvalues (mapcar #'xmp-parse-property-element property-elements)) ;; Property Element List to Parsed Value List
+       (rating-pvalue (xmp-xml-ename-alist-get xmp-xmp:Rating property-pvalues))) ;; Pick xmp:Rating property
+  ;; PValue to String
+  (xmp-pvalue-as-text rating-pvalue))
+#+end_src
+
+** xmp-xml.el
+
+xmp-xml.elはxmp.elがXMLを処理するために使用するライブラリです。xmp.elではXML名前空間を正しく処理する必要があるため、Emacsのlibxmlサポートは使用していません。xml.elも不具合があったので使用していません。最も問題が少なかったnxml-parse.elを使用しています。dom.elは展開名を扱えないため、これも使用していません。
+
+xmp-xml.elで最も重要となる事は、XML展開名の取扱方法です。要素名や属性名は文字列やシンボルではなく、名前空間名とローカル名の対である展開名で表されます。
+
+次のコードは名前空間名が ~http://ns.adobe.com/xap/1.0/~ で、ローカル名が ~Label~ であるような展開名を表すオブジェクトを作成しています。
+
+#+begin_src elisp
+(xmp-xml-ename (xmp-xml-ns-name "http://ns.adobe.com/xap/1.0/") "Label")
+#+end_src
+
+展開名の作成、要素の取得、比較には必ず次の関数を使用してください。
+
+- ~xmp-xml-ename~
+- ~xmp-xml-ename-ns~
+- ~xmp-xml-ename-local~
+- ~xmp-xml-ename-equal~
+- ~xmp-xml-ename<~
+- ~xmp-xml-ename-alist-get~
+- ~xmp-xml-ename-assoc~
+- ~xmp-xml-ename-member~
+
+また、名前空間名の変換には次の関数を使用してください。
+
+- ~xmp-xml-ns-name~
+- ~xmp-xml-ns-name-string~
+
+よく使われる名前空間名や展開名は変数として定義されています。
+
+名前空間名:
+- ~xmp-xmlns:~
+- ~xmp-xml:~
+
+展開名:
+- ~xmp-xml:lang~
+- ~xmp-xml:space~
+- ~xmp-xml:base~
+- ~xmp-xml:id~
+
+その他xmp.el内ではXMPで使用する多数の名前空間や展開名が変数として定義されています(例: ~xmp-dc:title~, ~xmp-xmp:Rating~)。

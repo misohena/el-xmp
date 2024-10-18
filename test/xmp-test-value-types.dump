@@ -1,0 +1,96 @@
+
+// -----------------------------------------------
+// Dumping main XMP for xmp-test-value-types.xmp :
+
+File info : format = 20202020, handler flags = 00000260
+Packet info : offset = 40, length = 6503
+
+Initial XMP from xmp-test-value-types.xmp
+Dumping XMPMeta object ""  (0x0)
+
+   ns1:  http://misohena.jp/ns1/  (0x80000000 : schema)
+      ns1:SimpleProp1 = "SimpleValue"
+      ns1:SimpleProp3 = "SimpleValue"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:SimpleProp4 = "SimpleValue"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+      ns1:SimpleProp6 = "SimpleValue"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:SimpleProp7 = "SimpleValue"  (0xD0 : hasType hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? rdf:type = "http://misohena.jp/ns1/SimpleType"  (0x22 : isQual URI)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:SimpleProp8 = "SimpleValue"  (0x50 : hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:URIProp1 = "URIValue"  (0x52 : hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:URIProp2 = "URIValue"  (0x52 : hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:URIProp3 = "URIValue"  (0xD2 : hasType hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? rdf:type = "http://misohena.jp/ns1/URIType"  (0x22 : isQual URI)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:URIProp4 = "URIValue"  (0x52 : hasLang hasQual URI)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+      ns1:StructProp1  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:StructProp2  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:StructProp3  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:StructProp4  (0x1D0 : isStruct hasType hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? rdf:type = "http://misohena.jp/ns1/StructType"  (0x22 : isQual URI)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:StructProp5  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:StructProp6  (0x150 : isStruct hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+         ns1:Field1 = "Field1Val"
+         ns1:Field2 = "Field2Val"
+      ns1:ArrayProp1  (0x250 : isArray hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         [1] = "BagItem1Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+         [2] = "BagItem2Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+      ns1:ArrayProp2  (0x1E50 : isLangAlt isAlt isOrdered isArray hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         [1] = "AltItem1Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+         [2] = "AltItem2Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+      ns1:ArrayProp3  (0x650 : isOrdered isArray hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+            ? ns1:Qual1 = "Qual1Val"  (0x20 : isQual)
+         [1] = "SeqItem1Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+         [2] = "SeqItem2Val"  (0x50 : hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+      ns1:ArrayProp4  (0x250 : isArray hasLang hasQual)
+            ? xml:lang = "ja"  (0x20 : isQual)
+         [1]  (0x150 : isStruct hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+            ns1:Field1 = "Field1-1Val"
+            ns1:Field2 = "Field1-2Val"
+         [2]  (0x150 : isStruct hasLang hasQual)
+               ? xml:lang = "ja"  (0x20 : isQual)
+            ns1:Field1 = "Field2-1Val"
+            ns1:Field2 = "Field2-2Val"

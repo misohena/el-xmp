@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta
+    xmlns:x="adobe:ns:meta/"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:ns1="http://misohena.jp/ns1/">
+  <rdf:RDF>
+    <!-- Top-level nodeElement [C.2.3] -->
+    <rdf:Description
+        rdf:about=""
+        ns1:PropAttr1="PropAttr1Val"
+        ns1:PropAttr2="PropAttr2Val"><!-- Property Attribute [7.9.2.2] [C.2.4] -->
+      <!-- propertyElt(PE) ::
+           emptyPE | literalPE | resourcePE | parseTypeResourcePE -->
+
+      <!-- Empty Property Element [C.2.12] -->
+      <ns1:EmptyPropElt1 xml:lang="ja"/>
+      <ns1:EmptyPropElt2 rdf:value="EmptyPropElt2Val"
+                         ns1:Qual1="Qual1Value"
+                         xml:lang="ja"/>
+      <ns1:EmptyPropElt3 rdf:resource="https://misohena.jp/EmptyPropElt3URI"
+                         ns1:Qual1="Qual1Value"
+                         xml:lang="ja"/>
+      <ns1:EmptyPropElt4 ns1:Field1="Field1Val" ns1:Field2="Field2Val"
+                         xml:lang="ja"/><!-- [7.9.2.4] -->
+
+      <!-- Literal Property Element [C.2.7] -->
+      <!-- <LiteralPropElt>TextOnly</LiteralPropElt> -->
+      <ns1:LiteralPropElt1>
+        LiteralPropElt1Val
+      </ns1:LiteralPropElt1>
+      <ns1:LiteralPropElt2 xml:lang="ja">
+        LiteralPropElt1Val
+      </ns1:LiteralPropElt2>
+      <ns1:LiteralPropElt3 ns1:Qual1="Qual1Val"
+                           xml:lang="ja">
+        LiteralPropElt1Val
+      </ns1:LiteralPropElt3>
+
+      <!-- Resource Property Element [C.2.6] -->
+      <!-- <ResPropElt>nodeElement...</ResPropElt> -->
+      <ns1:ResPropElt1 xml:lang="ja">
+        <rdf:Description>
+          <ns1:Field1>ResPropElt1Field1Val</ns1:Field1>
+          <ns1:Field2>ResPropElt2Field1Val</ns1:Field2>
+        </rdf:Description>
+      </ns1:ResPropElt1>
+
+      <ns1:ResPropElt2 xml:lang="ja">
+        <rdf:Description>
+          <ns1:Qual1>Qual1Val</ns1:Qual1>
+          <rdf:value>ResPropElt2Val</rdf:value>
+        </rdf:Description>
+      </ns1:ResPropElt2>
+
+      <ns1:ResPropElt3 xml:lang="ja">
+        <rdf:Bag>
+          <rdf:li>ResPropElt3Item1</rdf:li>
+          <rdf:li>ResPropElt3Item2</rdf:li>
+        </rdf:Bag>
+      </ns1:ResPropElt3>
+
+      <ns1:ResPropElt4 xml:lang="ja"><!-- [7.9.2.5] -->
+        <ns1:Type>
+          <ns1:Field1>Field1Val</ns1:Field1>
+          <ns1:Field2>Field2Val</ns1:Field2>
+        </ns1:Type>
+      </ns1:ResPropElt4>
+
+      <!-- parseType="Resource" Property Element [C.2.9] [7.9.2.3] -->
+      <ns1:ParseTypeResourcePropElt1 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Field1>PTRPropElt1Field1Val</ns1:Field1>
+        <ns1:Field2>PTRPropElt1Field2Val</ns1:Field2>
+      </ns1:ParseTypeResourcePropElt1>
+      <ns1:ParseTypeResourcePropElt2 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Qual1>Qual1Val</ns1:Qual1>
+        <rdf:value>PTRPropElt2Val</rdf:value>
+      </ns1:ParseTypeResourcePropElt2>
+      <ns1:ParseTypeResourcePropElt3 rdf:parseType="Resource" xml:lang="ja">
+        <ns1:Qual1>Qual1Val</ns1:Qual1>
+        <rdf:value rdf:resource="URIValue" />
+      </ns1:ParseTypeResourcePropElt3>
+    </rdf:Description>
+
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="r"?>

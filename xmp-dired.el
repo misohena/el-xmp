@@ -31,7 +31,8 @@
 (require 'xmp-commands)
 
 (defun xmp-dired--mark-if (pred unflag-p &optional msg)
-  (let ((dired-marker-char (if unflag-p ?\s dired-marker-char)))
+  (let ((dired-marker-char (if unflag-p ?\s dired-marker-char))
+        (msg (or msg "matching file")))
     (dired-mark-if
      (and (not (looking-at-p dired-re-dot))
           (not (eolp)) ; empty line
@@ -41,8 +42,10 @@
                               (string-equal-ignore-case ext "xmp")))
                        ;; TODO: Mark directory ?
                        (file-regular-p fn))
+              (let ((message-log-max nil))
+                (message "%s %s" msg (file-name-nondirectory fn)))
               (funcall pred fn))))
-     (or msg "matching file"))))
+     msg)))
 
 ;;;###autoload
 (defun xmp-dired-mark-rating (condition unflag-p)

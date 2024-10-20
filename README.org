@@ -68,7 +68,7 @@ Currently, it provides the following commands:
   - ~xmp-image-dired-filter-clear~
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
-  - ~xmp-image-dired-filter-subject~
+  - ~xmp-image-dired-filter-subjects~
 - Change properties of marked files
   - ~xmp-image-dired-do-rate~
   - ~xmp-image-dired-do-set-label~

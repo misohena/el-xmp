@@ -66,7 +66,7 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
   - ~xmp-image-dired-filter-clear~
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
-  - ~xmp-image-dired-filter-subject~
+  - ~xmp-image-dired-filter-subjects~
 - マークされたファイルのプロパティの変更
   - ~xmp-image-dired-do-rate~
   - ~xmp-image-dired-do-set-label~

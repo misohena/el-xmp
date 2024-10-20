@@ -249,6 +249,7 @@ point is on the last image, move to the last one and vice versa."
 nil, it is considered a match. If all elements match, the whole is
 considered a match.")
 
+;;;###autoload
 (defun xmp-image-dired-filter-clear ()
   (interactive nil image-dired-thumbnail-mode)
   (setq xmp-image-dired-filter-alist nil)
@@ -294,7 +295,7 @@ considered a match.")
   (xmp-image-dired-filter-thumbnails))
 
 ;;;###autoload
-(defun xmp-image-dired-filter-subject (subjects)
+(defun xmp-image-dired-filter-subjects (subjects)
   (interactive
    (list
     (xmp-read-text-list

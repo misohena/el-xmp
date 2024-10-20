@@ -1,15 +1,15 @@
 * Emacs Extensible Metadata Platform Library
 
-el-xmp�́A�t�@�C�����ɑ΂���XMP(Extensible Metadata Platform)�d�l�Ɋ�Â����^�f�[�^���擾�E�ݒ肷�邽�߂�Emacs�p���C�u�����ƁA��������p�����������R�}���h�ł��B�Ⴆ�Ύʐ^�̃��[�e�B���O���擾�E�ݒ肵����APDF���̒��ҏ����擾������Ƃ������g�������ł��܂��B
+el-xmpは、ファイル等に対するXMP(Extensible Metadata Platform)仕様に基づくメタデータを取得・設定するためのEmacs用ライブラリと、それを応用したいくつかコマンドです。例えば写真のレーティングを取得・設定したり、PDF内の著者情報を取得したりといった使い方ができます。
 
 ** xmp-commands.el
-xmp-commands.el�͔C�ӂ̃t�@�C����XMP�v���p�e�B�𑀍삷���A�̃R�}���h��񋟂��܂��B
+xmp-commands.elは任意のファイルのXMPプロパティを操作する一連のコマンドを提供します。
 
-�����̃R�}���h�̃^�[�Q�b�g�t�@�C���́A���݂̃|�C���g�⌻�݂̃o�b�t�@������ ~xmp-file-name-at-point~ �֐��ɂ���Đ�������܂��B�f�t�H���g�ł́ADired��Image Dired�Aorg-mode�����N�Athing-at-point�Abuffer-file-name�Aread-file-name����̃t�@�C�����𐄑����܂��B
+それらのコマンドのターゲットファイルは、現在のポイントや現在のバッファ等から ~xmp-file-name-at-point~ 関数によって推測されます。デフォルトでは、DiredやImage Dired、org-modeリンク、thing-at-point、buffer-file-name、read-file-nameからのファイル名を推測します。
 
-�R�}���h���v���p�e�B��ύX����Ƃ��A�^�[�Q�b�g�t�@�C���𒼐ڕύX�����A����ɃT�C�h�J�[�t�@�C��(.xmp�t�@�C��)���쐬���ĐV�����v���p�e�B�l���L�^���܂��B���̕��@�̓^�[�Q�b�g�t�@�C���̓��e��ی삷��Ɠ����ɁA�l�b�g���[�N�X�g���[�W����ʂ����v���p�e�B�̋��L���\�ɂ��܂��B
+コマンドがプロパティを変更するとき、ターゲットファイルを直接変更せず、代わりにサイドカーファイル(.xmpファイル)を作成して新しいプロパティ値を記録します。この方法はターゲットファイルの内容を保護すると同時に、ネットワークストレージ等を通じたプロパティの共有を可能にします。
 
-�v���p�e�B��ύX����R�}���h:
+プロパティを変更するコマンド:
 
 - ~xmp-rate-file~
 - ~xmp-rate-file-1~
@@ -25,7 +25,7 @@ xmp-commands.el�͔C�ӂ̃t�@�C����XMP�v���p�e�B�𑀍삷���A�̃R�}���h��񋟂���
 - ~xmp-set-file-description~
 - ~xmp-set-file-creators~
 
-�v���p�e�B��\������R�}���h:
+プロパティを表示するコマンド:
 - ~xmp-show-file-properties~
 - ~xmp-show-file-rating~
 - ~xmp-show-file-label~
@@ -36,9 +36,9 @@ xmp-commands.el�͔C�ӂ̃t�@�C����XMP�v���p�e�B�𑀍삷���A�̃R�}���h��񋟂���
 
 ** xmp-dired.el
 
-xmp-dired.el��dired��XMP�Ɋ֘A�����@�\��ǉ����܂��B
+xmp-dired.elはdiredにXMPに関連した機能を追加します。
 
-���݂̂Ƃ���A���̃R�}���h��񋟂��Ă��܂��B
+現在のところ、次のコマンドを提供しています。
 
 - ~xmp-dired-mark-rating~
 - ~xmp-dired-mark-label~
@@ -47,24 +47,24 @@ xmp-dired.el��dired��XMP�Ɋ֘A�����@�\��ǉ����܂��B
 - ~xmp-dired-mark-description~
 - ~xmp-dired-mark-creator~
 
-�����ɉ����āAxmp-commands.el���񋟂���R�}���h��Dired���Ŏg�p�ł��܂��B
+これらに加えて、xmp-commands.elが提供するコマンドがDired内で使用できます。
 
 ** xmp-image-dired.el
 
-xmp-image-dired.el��image-dired��XMP�Ɋ֘A�����@�\��ǉ����܂��B
+xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
 
-���݂̂Ƃ���A���̃R�}���h��񋟂��Ă��܂��B
+現在のところ、次のコマンドを提供しています。
 
-- �t�B���^(�����ɂ���ăT���l�C�����ꎞ�I�ɔ�\���ɂ��܂�)
+- フィルタ(条件によってサムネイルを一時的に非表示にします)
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subject~
 
 ** xmp.el
 
-xmp.el��XMP�𑀍삷�邽�߂̊�{�ƂȂ�֐�����񋟂��܂��B
+xmp.elはXMPを操作するための基本となる関数等を提供します。
 
-���̃R�[�h�̓t�@�C������v���p�e�B���擾�����ł��B
+次のコードはファイルからプロパティを取得する例です。
 
 #+begin_src elisp
 (require 'xmp)
@@ -84,7 +84,7 @@ xmp.el��XMP�𑀍삷�邽�߂̊�{�ƂȂ�֐�����񋟂��܂��B
     (xmp-xml-ename xmp-xmp: "Rating")))
 #+end_src
 
-���̃R�[�h�̓t�@�C���փv���p�e�B��ݒ肷���ł��B
+次のコードはファイルへプロパティを設定する例です。
 
 #+begin_src elisp
 (xmp-file-set-properties "tmp-example.xmp"
@@ -100,13 +100,13 @@ xmp.el��XMP�𑀍삷�邽�߂̊�{�ƂȂ�֐�����񋟂��܂��B
                 "Test Title"
                 (list (xmp-pvalue-make-named xmp-xml:lang 'text "en")))
               (xmp-pvalue-make-text
-                "�e�X�g�^�C�g��"
+                "テストタイトル"
                 (list (xmp-pvalue-make-named xmp-xml:lang 'text "ja"))))))))
 
 (xmp-file-set-property "tmp-example.xmp" xmp-xmp:Rating "3")
 #+end_src
 
-���჌�x���ȁAXML����͂������DOM�ɑ΂���֐���ADOM����͂������XMP�v���p�e�B�l(Parsed Value)�𑀍삷��֐�������܂��B
+より低レベルな、XMLを解析した後のDOMに対する関数や、DOMを解析した後のXMPプロパティ値(Parsed Value)を操作する関数もあります。
 
 #+begin_src elisp
 (let* ((dom (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg")) ;; File to XML DOM
@@ -119,17 +119,17 @@ xmp.el��XMP�𑀍삷�邽�߂̊�{�ƂȂ�֐�����񋟂��܂��B
 
 ** xmp-xml.el
 
-xmp-xml.el��xmp.el��XML���������邽�߂Ɏg�p���郉�C�u�����ł��Bxmp.el�ł�XML���O��Ԃ𐳂�����������K�v�����邽�߁AEmacs��libxml�T�|�[�g�͎g�p���Ă��܂���Bxml.el���s����������̂Ŏg�p���Ă��܂���B�ł���肪���Ȃ�����nxml-parse.el���g�p���Ă��܂��Bdom.el�͓W�J���������Ȃ����߁A������g�p���Ă��܂���B
+xmp-xml.elはxmp.elがXMLを処理するために使用するライブラリです。xmp.elではXML名前空間を正しく処理する必要があるため、Emacsのlibxmlサポートは使用していません。xml.elも不具合があったので使用していません。最も問題が少なかったnxml-parse.elを使用しています。dom.elは展開名を扱えないため、これも使用していません。
 
-xmp-xml.el�ōł��d�v�ƂȂ鎖�́AXML�W�J���̎戵���@�ł��B�v�f���⑮�����͕������V���{���ł͂Ȃ��A���O��Ԗ��ƃ��[�J�����̑΂ł���W�J���ŕ\����܂��B
+xmp-xml.elで最も重要となる事は、XML展開名の取扱方法です。要素名や属性名は文字列やシンボルではなく、名前空間名とローカル名の対である展開名で表されます。
 
-���̃R�[�h�͖��O��Ԗ��� ~http://ns.adobe.com/xap/1.0/~ �ŁA���[�J������ ~Label~ �ł���悤�ȓW�J����\���I�u�W�F�N�g���쐬���Ă��܂��B
+次のコードは名前空間名が ~http://ns.adobe.com/xap/1.0/~ で、ローカル名が ~Label~ であるような展開名を表すオブジェクトを作成しています。
 
 #+begin_src elisp
 (xmp-xml-ename (xmp-xml-ns-name "http://ns.adobe.com/xap/1.0/") "Label")
 #+end_src
 
-�W�J���̍쐬�A�v�f�̎擾�A��r�ɂ͕K�����̊֐����g�p���Ă��������B
+展開名の作成、要素の取得、比較には必ず次の関数を使用してください。
 
 - ~xmp-xml-ename~
 - ~xmp-xml-ename-ns~
@@ -140,21 +140,21 @@ xmp-xml.el�ōł��d�v�ƂȂ鎖�́AXML�W�J���̎戵���@�ł��B�v�f���⑮�����͕�����
 - ~xmp-xml-ename-assoc~
 - ~xmp-xml-ename-member~
 
-�܂��A���O��Ԗ��̕ϊ��ɂ͎��̊֐����g�p���Ă��������B
+また、名前空間名の変換には次の関数を使用してください。
 
 - ~xmp-xml-ns-name~
 - ~xmp-xml-ns-name-string~
 
-�悭�g���閼�O��Ԗ���W�J���͕ϐ��Ƃ��Ē�`����Ă��܂��B
+よく使われる名前空間名や展開名は変数として定義されています。
 
-���O��Ԗ�:
+名前空間名:
 - ~xmp-xmlns:~
 - ~xmp-xml:~
 
-�W�J��:
+展開名:
 - ~xmp-xml:lang~
 - ~xmp-xml:space~
 - ~xmp-xml:base~
 - ~xmp-xml:id~
 
-���̑�xmp.el���ł�XMP�Ŏg�p���鑽���̖��O��Ԃ�W�J�����ϐ��Ƃ��Ē�`����Ă��܂�(��: ~xmp-dc:title~, ~xmp-xmp:Rating~)�B
+その他xmp.el内ではXMPで使用する多数の名前空間や展開名が変数として定義されています(例: ~xmp-dc:title~, ~xmp-xmp:Rating~)。

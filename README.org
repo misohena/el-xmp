@@ -76,6 +76,42 @@ Currently, it provides the following commands:
   - ~xmp-image-dired-do-add-subjects~
   - ~xmp-image-dired-do-remove-subjects~
 
+** xmp-setup.el
+
+xmp-setup.el provides an example of el-xmp configuration. You can use it by adding the following code to init.el.
+
+#+begin_src elisp
+(with-eval-after-load "dired"
+  (require 'xmp-setup)
+  (xmp-setup-default))
+#+end_src
+
+Assign keys to operate XMP properties to dired and image-dired.
+
+| Keys  | Function           |
+|-------+--------------------|
+| ' s r | Set rate           |
+| ' s l | Set label          |
+| ' s s | Set subjects       |
+| ' a s | Add subjects       |
+| ' r s | Remove subjects    |
+|-------+--------------------|
+| ' g r | Get rate           |
+| ' g l | Get label          |
+| ' g s | Get subjects       |
+| ' g a | Get all properties |
+|-------+--------------------|
+| ' m r | Mark by rate       |
+| ' m l | Mark by label      |
+| ' m s | Mark by subjects   |
+|-------+--------------------|
+| ' f r | Filter by rate     |
+| ' f l | Filter by label    |
+| ' f s | Filter by subjects |
+| ' f - | Clear filter       |
+
+You can also avoid using this and build your own user interface using Hydra, Transient, etc.
+
 ** xmp.el
 
 xmp.el provides basic functions for manipulating XMP.

@@ -151,15 +151,25 @@ determine the filename."
 (defconst xmp-rate-file-prompt
   (xmp-msg-n "Input rating (1-5, 0:Unrate, -:Reject) for `%s' (Current:%s): "))
 
-(defun xmp-read-file-rating (file current-rating)
+(defconst xmp-rate-file-prompt-without-current-value
+  (xmp-msg-n "Input rating (1-5, 0:Unrate, -:Reject) for `%s': "))
+
+(defun xmp-read-file-rating (file &optional current-rating)
   "Read the rating of FILE from user and return it.
 
 CURRENT-RATING is displayed in prompt."
-  (alist-get
-   (read-char-choice (format (xmp-msg xmp-rate-file-prompt) file current-rating)
-                     (mapcar #'car xmp-rating-char-map))
-   xmp-rating-char-map))
-;; EXAMPLE: (xmp-file-rating-read "file" "3")
+  (prog1
+      (alist-get
+       (read-char-choice
+        (if current-rating
+            (format (xmp-msg xmp-rate-file-prompt) file current-rating)
+          (format (xmp-msg xmp-rate-file-prompt-without-current-value) file))
+        (mapcar #'car xmp-rating-char-map))
+       xmp-rating-char-map)
+    ;; Clear prompt
+    (message nil)))
+;; EXAMPLE: (xmp-read-file-rating "file" "3")
+;; EXAMPLE: (xmp-read-file-rating "file")
 
 ;;;###autoload
 (defun xmp-rate-file (file rating)

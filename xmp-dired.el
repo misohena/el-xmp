@@ -30,6 +30,8 @@
 (require 'dired)
 (require 'xmp-commands)
 
+;;;; Mark
+
 (defun xmp-dired--mark-if (pred unflag-p &optional msg)
   (let ((dired-marker-char (if unflag-p ?\s dired-marker-char))
         (msg (or msg "matching file")))
@@ -148,6 +150,96 @@ A prefix argument means to unmark them instead."
                                     (string-match-p creator-regexp item))
                                   (xmp-get-file-creators file)))
                       unflag-p))
+
+;;;; Change properties
+
+(defun xmp-dired-make-prompt (msg arg files current-value)
+  (format msg
+          (dired-mark-prompt arg files)
+          (if current-value
+              (concat
+               " "
+               (format (xmp-msg "(Current:%s)") current-value))
+            "")))
+
+;;;###autoload
+(defun xmp-dired-do-rate (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (rating (xmp-read-file-rating (dired-mark-prompt arg files)
+                                       (unless (cdr files)
+                                         (xmp-get-file-rating (car files))))))
+    (dolist (file files)
+      (xmp-rate-file file rating))
+    (dired-post-do-command)))
+
+;;;###autoload
+(defun xmp-dired-do-set-label (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (label (completing-read
+                 (xmp-dired-make-prompt
+                  (xmp-msg "Change label of %s to%s: ")
+                  arg files
+                  (unless (cdr files)
+                    (xmp-get-file-label (car files))))
+                 (mapcar #'car xmp-label-strings))))
+    (dolist (file files)
+      (xmp-set-file-label file label))
+    (dired-post-do-command)))
+
+;;;###autoload
+(defun xmp-dired-do-set-subjects (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (subjects (xmp-read-text-list
+                    (xmp-dired-make-prompt
+                     (xmp-msg "Change subject of %s to: %%s\nSubject to toggle (empty to end): ") arg files nil)
+                    (unless (cdr files)
+                      (xmp-get-file-subjects (car files)))
+                    xmp-read-subjects-candidates
+                    'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects file subjects))
+    (dired-post-do-command)))
+
+;;;###autoload
+(defun xmp-dired-do-add-subjects (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (subjects
+          (xmp-read-text-list
+           (xmp-dired-make-prompt
+            (xmp-msg "Add %%s to subject of %s.\nSubject to toggle (empty to end): ")
+            arg files nil)
+           nil
+           xmp-read-subjects-candidates
+           'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects
+       file
+       (seq-union (xmp-get-file-subjects file) subjects)))
+    (dired-post-do-command)))
+
+;;;###autoload
+(defun xmp-dired-do-remove-subjects (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (subjects
+          (xmp-read-text-list
+           (xmp-dired-make-prompt
+            (xmp-msg "Remove %%s from subject of %s.\nSubject to toggle (empty to end): ")
+            arg files nil)
+           nil
+           xmp-read-subjects-candidates
+           'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects
+       file
+       (seq-difference (xmp-get-file-subjects file) subjects)))
+    (dired-post-do-command)))
+
+
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

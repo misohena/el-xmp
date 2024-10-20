@@ -27,7 +27,43 @@
 (require 'image-dired)
 (require 'xmp-commands)
 
-;;;; Override the line-up function to support invisible thumbnails
+;;;; Read metadata and set it to thumbnail
+
+(defconst xmp-image-dired-metadata-properties
+  '(("http://ns.adobe.com/xap/1.0/" "Rating")
+    ("http://ns.adobe.com/xap/1.0/" "Label")
+    ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
+    ;;("http://purl.org/dc/elements/1.1/" "title")
+    ;;("http://purl.org/dc/elements/1.1/" "description")
+    ("http://purl.org/dc/elements/1.1/" "subject")
+    ;;("http://purl.org/dc/elements/1.1/" "creator")
+    ))
+
+(defun xmp-image-dired-metadata-properties ()
+  (cl-loop for (ns-name local-name)
+           in xmp-image-dired-metadata-properties
+           collect (xmp-xml-ename (xmp-xml-ns-name ns-name) local-name)))
+
+(defun xmp-image-dired-get-metadata-at-point ()
+  (when (image-dired-image-at-point-p)
+    ;; To cache metadata as text properties, use thefollowing.
+    ;; However, it must be updated when the metadata changes.
+    ;; (unless (get-text-property (point) 'xmp-properties)
+    ;;   (let* ((file (get-text-property (point) 'original-file-name))
+    ;;          (props (xmp-enumerate-file-properties
+    ;;                  file (xmp-image-dired-metadata-properties))))
+    ;;     (put-text-property (point) (1+ (point)) 'xmp-properties props)))
+    ;; (get-text-property (point) 'xmp-properties)
+
+    ;; It's simpler to retrieve it every time, and since caching works
+    ;; it shouldn't be that slow.
+    (xmp-enumerate-file-properties
+     (get-text-property (point) 'original-file-name)
+     (xmp-image-dired-metadata-properties))))
+
+
+;;;; Filter thumbnails
+;;;;; Override the line-up function to support invisible thumbnails
 
 (defconst xmp-image-dired-invisible-display "")
 
@@ -96,7 +132,7 @@ See also `image-dired-line-up-dynamic'."
 ;;(advice-remove 'image-dired-line-up 'xmp-image-dired-line-up)
 
 
-;;;; Override navigation function
+;;;;; Override navigation function
 
 ;; Copy from Emacs 30.0.91
 (defun xmp-image-dired-forward-image (&optional arg wrap-around)
@@ -161,48 +197,13 @@ point is on the last image, move to the last one and vice versa."
 (advice-add 'image-dired--movement-ensure-point-pos :override 'xmp-image-dired--movement-ensure-point-pos)
 ;;(advice-remove 'image-dired--movement-ensure-point-pos 'xmp-image-dired--movement-ensure-point-pos)
 
-
-;;;; Read metadata and set it to thumbnail
-
-(defconst xmp-image-dired-metadata-properties
-  '(("http://ns.adobe.com/xap/1.0/" "Rating")
-    ("http://ns.adobe.com/xap/1.0/" "Label")
-    ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
-    ;;("http://purl.org/dc/elements/1.1/" "title")
-    ;;("http://purl.org/dc/elements/1.1/" "description")
-    ("http://purl.org/dc/elements/1.1/" "subject")
-    ;;("http://purl.org/dc/elements/1.1/" "creator")
-    ))
-
-(defun xmp-image-dired-metadata-properties ()
-  (cl-loop for (ns-name local-name)
-           in xmp-image-dired-metadata-properties
-           collect (xmp-xml-ename (xmp-xml-ns-name ns-name) local-name)))
-
-(defun xmp-image-dired-get-metadata-at-point ()
-  (when (image-dired-image-at-point-p)
-    ;; To cache metadata as text properties, use thefollowing.
-    ;; However, it must be updated when the metadata changes.
-    ;; (unless (get-text-property (point) 'xmp-properties)
-    ;;   (let* ((file (get-text-property (point) 'original-file-name))
-    ;;          (props (xmp-enumerate-file-properties
-    ;;                  file (xmp-image-dired-metadata-properties))))
-    ;;     (put-text-property (point) (1+ (point)) 'xmp-properties props)))
-    ;; (get-text-property (point) 'xmp-properties)
-
-    ;; It's simpler to retrieve it every time, and since caching works
-    ;; it shouldn't be that slow.
-    (xmp-enumerate-file-properties
-     (get-text-property (point) 'original-file-name)
-     (xmp-image-dired-metadata-properties))))
-
-;;;; Predicate to get thumbnail visibility state
+;;;;; Predicate to get thumbnail visibility state
 
 (defun xmp-image-dired-thumbnail-visible-at-point-p ()
   (and (image-dired-image-at-point-p)
        (eq (get-text-property (point) 'invisible) nil)))
 
-;;;; Change thumbnail visibilities
+;;;;; Change thumbnail visibilities
 
 (defun xmp-image-dired-set-visibility-at-point (visible)
   (when (image-dired-image-at-point-p)
@@ -229,7 +230,7 @@ point is on the last image, move to the last one and vice versa."
                          'invisible
                          t))))
 
-;;;; Filter thumbnails
+;;;;; Filter thumbnails
 
 (defun xmp-image-dired-filter-thumbnails ()
   (save-excursion
@@ -248,6 +249,11 @@ point is on the last image, move to the last one and vice versa."
 nil, it is considered a match. If all elements match, the whole is
 considered a match.")
 
+(defun xmp-image-dired-filter-clear ()
+  (interactive nil image-dired-thumbnail-mode)
+  (setq xmp-image-dired-filter-alist nil)
+  (xmp-image-dired-filter-thumbnails))
+
 (defun xmp-image-dired-filter-thumbnail-at-point-p ()
   (when (image-dired-image-at-point-p)
     (let ((props (xmp-image-dired-get-metadata-at-point)))
@@ -265,7 +271,8 @@ considered a match.")
     (let ((input (read-string (xmp-msg "Filter rating (e.g. 1 3 >=5): "))))
       (if (string-empty-p input)
           nil
-        input))))
+        input)))
+   image-dired-thumbnail-mode)
   (setf (xmp-xml-ename-alist-get xmp-xmp:Rating xmp-image-dired-filter-alist)
         (and condition
              (lambda (v) (xmp-rating-match-p v condition))))
@@ -279,7 +286,8 @@ considered a match.")
      (list
       (if (string-empty-p input)
           nil
-        input))))
+        input)))
+   image-dired-thumbnail-mode)
   (setf (xmp-xml-ename-alist-get xmp-xmp:Label xmp-image-dired-filter-alist)
         (and label
              (lambda (v) (equal (xmp-pvalue-as-text v) label))))
@@ -293,7 +301,8 @@ considered a match.")
      (xmp-msg "Filter subjects (AND): %s\nSubject to toggle (empty to end): ")
      nil
      xmp-read-subjects-candidates
-     'xmp-read-subjects--hist)))
+     'xmp-read-subjects--hist))
+   image-dired-thumbnail-mode)
   (setf (xmp-xml-ename-alist-get xmp-dc:subject xmp-image-dired-filter-alist)
         (and subjects
              (lambda (v)
@@ -301,6 +310,101 @@ considered a match.")
                 (lambda (sbj) (member sbj (xmp-pvalue-as-text-list v)))
                 subjects))))
   (xmp-image-dired-filter-thumbnails))
+
+;;;; Change properties
+
+(defun xmp-image-dired-get-marked-files ()
+  (let (files)
+    (image-dired--with-marked
+     (push (image-dired-original-file-name) files))
+    (unless files
+      (user-error "No files specified"))
+    (nreverse files)))
+
+(defun xmp-image-dired-make-prompt (msg files current-value)
+  (format msg
+          (if (cdr files)
+              (format (xmp-msg "%s files") (length files))
+            (car files))
+          (if current-value
+              (concat
+               " "
+               (format (xmp-msg "(Current:%s)") current-value))
+            "")))
+
+;;;###autoload
+(defun xmp-image-dired-do-rate ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (rating (xmp-read-file-rating
+                  (xmp-image-dired-make-prompt "%s" files nil)
+                  (unless (cdr files)
+                    (xmp-get-file-rating (car files))))))
+    (dolist (file files)
+      (xmp-rate-file file rating))))
+
+;;;###autoload
+(defun xmp-image-dired-do-set-label ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (label (completing-read
+                 (xmp-image-dired-make-prompt
+                  (xmp-msg "Change label of %s to%s: ") files
+                  (unless (cdr files)
+                    (xmp-get-file-label (car files))))
+                 (mapcar #'car xmp-label-strings))))
+    (dolist (file files)
+      (xmp-set-file-label file label))))
+
+;;;###autoload
+(defun xmp-image-dired-do-set-subjects ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (subjects (xmp-read-text-list
+                    (xmp-image-dired-make-prompt
+                     (xmp-msg "Change subject of %s to: %%s\nSubject to toggle (empty to end): ")
+                     files nil)
+                    (unless (cdr files)
+                      (xmp-get-file-subjects (car files)))
+                    xmp-read-subjects-candidates
+                    'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects file subjects))))
+
+;;;###autoload
+(defun xmp-image-dired-do-add-subjects ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (subjects
+          (xmp-read-text-list
+           (xmp-image-dired-make-prompt
+            (xmp-msg "Add %%s to subject of %s.\nSubject to toggle (empty to end): ")
+            files nil)
+           nil
+           xmp-read-subjects-candidates
+           'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects
+       file
+       (seq-union (xmp-get-file-subjects file) subjects)))))
+
+;;;###autoload
+(defun xmp-image-dired-do-remove-subjects ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (subjects
+          (xmp-read-text-list
+           (xmp-image-dired-make-prompt
+            (xmp-msg "Remove %%s from subject of %s.\nSubject to toggle (empty to end): ")
+            files nil)
+           nil
+           xmp-read-subjects-candidates
+           'xmp-read-subjects--hist)))
+    (dolist (file files)
+      (xmp-set-file-subjects
+       file
+       (seq-difference (xmp-get-file-subjects file) subjects)))))
+
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

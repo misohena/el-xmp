@@ -42,12 +42,19 @@ xmp-dired.el adds XMP-related features to Dired.
 
 Currently, it provides the following commands:
 
-- ~xmp-dired-mark-rating~
-- ~xmp-dired-mark-label~
-- ~xmp-dired-mark-subjects~
-- ~xmp-dired-mark-title~
-- ~xmp-dired-mark-description~
-- ~xmp-dired-mark-creator~
+- Mark files
+  - ~xmp-dired-mark-rating~
+  - ~xmp-dired-mark-label~
+  - ~xmp-dired-mark-subjects~
+  - ~xmp-dired-mark-title~
+  - ~xmp-dired-mark-description~
+  - ~xmp-dired-mark-creator~
+- Change properties of marked files
+  - ~xmp-dired-do-rate~
+  - ~xmp-dired-do-set-label~
+  - ~xmp-dired-do-set-subjects~
+  - ~xmp-dired-do-add-subjects~
+  - ~xmp-dired-do-remove-subjects~
 
 In addition to these, xmp-commands.el provides commands that can be used in Dired.
 
@@ -57,10 +64,17 @@ xmp-image-dired.el adds XMP-related features to image-dired.
 
 Currently, it provides the following commands:
 
-- Filter (temporarily hide thumbnails depending on conditions)
+- Filter thumbnails (temporarily hide thumbnails depending on conditions)
+  - ~xmp-image-dired-filter-clear~
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subject~
+- Change properties of marked files
+  - ~xmp-image-dired-do-rate~
+  - ~xmp-image-dired-do-set-label~
+  - ~xmp-image-dired-do-set-subjects~
+  - ~xmp-image-dired-do-add-subjects~
+  - ~xmp-image-dired-do-remove-subjects~
 
 ** xmp.el
 

@@ -253,8 +253,14 @@ RATING. Multiple condition expressions can be specified, separated by
 spaces, and a file will be marked if any of the conditions match (OR
 condition). A condition expression is an integer from -1 to 5,
 optionally preceded by a comparison operator (> >= = <= <)."
+  (when (xmp-pvalue-maybe-p rating)
+    (setq rating (xmp-pvalue-as-text rating)))
   (when (stringp rating)
     (setq rating (string-to-number rating)))
+  (unless rating
+    (setq rating 0))
+  (unless (numberp rating)
+    (signal 'wrong-type-argument (list 'numberp rating)))
   (let ((pos 0)
         (result nil))
     (while (and
@@ -287,6 +293,9 @@ optionally preceded by a comparison operator (> >= = <= <)."
 ;; TEST: (xmp-rating-match-p "5" "<=1 >=4  ") => t
 ;; TEST: (xmp-rating-match-p "2" "<3 error?") => t
 ;; TEST: (xmp-rating-match-p "5" "<3 error?") => error
+;; TEST: (xmp-rating-match-p nil "=0") => t
+;; TEST: (xmp-rating-match-p (xmp-pvalue-make-text "1") "=1") => t
+;; TEST: (xmp-rating-match-p 1 "=1") => t
 
 ;;;; xmp:Label
 ;; Type: Text

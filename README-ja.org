@@ -36,7 +36,7 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一連のコマンドを提供しま
 
 ** xmp-dired.el
 
-xmp-dired.elはdiredにファイルにXMPに関連した機能を追加します。
+xmp-dired.elはdiredにXMPに関連した機能を追加します。
 
 現在のところ、次のコマンドを提供しています。
 
@@ -48,6 +48,17 @@ xmp-dired.elはdiredにファイルにXMPに関連した機能を追加します。
 - ~xmp-dired-mark-creator~
 
 これらに加えて、xmp-commands.elが提供するコマンドがDired内で使用できます。
+
+** xmp-image-dired.el
+
+xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
+
+現在のところ、次のコマンドを提供しています。
+
+- フィルタ(条件によってサムネイルを一時的に非表示にします)
+  - ~xmp-image-dired-filter-rating~
+  - ~xmp-image-dired-filter-label~
+  - ~xmp-image-dired-filter-subject~
 
 ** xmp.el
 

@@ -51,6 +51,17 @@ Currently, it provides the following commands:
 
 In addition to these, xmp-commands.el provides commands that can be used in Dired.
 
+** xmp-image-dired.el
+
+xmp-image-dired.el adds XMP-related features to image-dired.
+
+Currently, it provides the following commands:
+
+- Filter (temporarily hide thumbnails depending on conditions)
+  - ~xmp-image-dired-filter-rating~
+  - ~xmp-image-dired-filter-label~
+  - ~xmp-image-dired-filter-subject~
+
 ** xmp.el
 
 xmp.el provides basic functions for manipulating XMP.

@@ -203,12 +203,13 @@ string, use `xmp-xml-ns-name-string'."
         (string< (xmp-xml-ename-local ename1)
                  (xmp-xml-ename-local ename2))))))
 
-(defmacro xmp-xml-ename-alist-get (ename-key ename-alist)
+(defmacro xmp-xml-ename-alist-get (ename-key ename-alist
+                                             &optional default remove)
   "Apply `alist-get' to the alist ENAME-ALIST whose keys are expanded-names.
 
 ENAME-KEY is the expanded name that is the key. It can be created with
 `xmp-xml-ename'."
-  `(alist-get ,ename-key ,ename-alist nil nil #'xmp-xml-ename-equal))
+  `(alist-get ,ename-key ,ename-alist ,default ,remove #'xmp-xml-ename-equal))
 
 (defmacro xmp-xml-ename-assoc (ename-key ename-alist)
   "Apply `assoc' to the alist ENAME-ALIST whose keys are expanded-names.

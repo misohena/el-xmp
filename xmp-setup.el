@@ -82,6 +82,8 @@
 (autoload 'xmp-dired-do-set-subjects "xmp-dired" nil t)
 (autoload 'xmp-dired-do-add-subjects "xmp-dired" nil t)
 (autoload 'xmp-dired-do-remove-subjects "xmp-dired" nil t)
+(autoload 'xmp-dired-do-set-title "xmp-dired" nil t)
+(autoload 'xmp-dired-do-set-description "xmp-dired" nil t)
 
 ;; xmp-image-dired.el
 (autoload 'xmp-image-dired-filter-clear "xmp-image-dired" nil t)
@@ -93,6 +95,8 @@
 (autoload 'xmp-image-dired-do-set-subjects "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-do-add-subjects "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-do-remove-subjects "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-do-set-title "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-do-set-description "xmp-image-dired" nil t)
 
 ;;;; xmp-dired-mode
 
@@ -109,6 +113,8 @@
     (define-key km (kbd "'ss") 'xmp-dired-do-set-subjects)
     (define-key km (kbd "'as") 'xmp-dired-do-add-subjects)
     (define-key km (kbd "'rs") 'xmp-dired-do-remove-subjects)
+    (define-key km (kbd "'st") 'xmp-dired-do-set-title)
+    (define-key km (kbd "'sd") 'xmp-dired-do-set-description)
     (define-key km (kbd "'ga") 'xmp-show-file-properties)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)
@@ -134,6 +140,8 @@
     (define-key km (kbd "'ss") 'xmp-image-dired-do-set-subjects)
     (define-key km (kbd "'as") 'xmp-image-dired-do-add-subjects)
     (define-key km (kbd "'rs") 'xmp-image-dired-do-remove-subjects)
+    (define-key km (kbd "'st") 'xmp-image-dired-do-set-title)
+    (define-key km (kbd "'sd") 'xmp-image-dired-do-set-description)
     (define-key km (kbd "'ga") 'xmp-show-file-properties)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)

@@ -53,6 +53,8 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-do-set-subjects~
   - ~xmp-dired-do-add-subjects~
   - ~xmp-dired-do-remove-subjects~
+  - ~xmp-dired-do-set-title~
+  - ~xmp-dired-do-set-description~
 
 これらに加えて、xmp-commands.elが提供するコマンドがDired内で使用できます。
 
@@ -73,6 +75,8 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
   - ~xmp-image-dired-do-set-subjects~
   - ~xmp-image-dired-do-add-subjects~
   - ~xmp-image-dired-do-remove-subjects~
+  - ~xmp-image-dired-do-set-title~
+  - ~xmp-image-dired-do-set-description~
 
 ** xmp-setup.el
 
@@ -93,10 +97,15 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' s s | Set subjects       |
 | ' a s | Add subjects       |
 | ' r s | Remove subjects    |
+| ' s t | Set title          |
+| ' s d | Set description    |
 |-------+--------------------|
 | ' g r | Get rate           |
 | ' g l | Get label          |
 | ' g s | Get subjects       |
+| ' g t | Get title          |
+| ' g d | Get description    |
+| ' g c | Get creators       |
 | ' g a | Get all properties |
 |-------+--------------------|
 | ' m r | Mark by rate       |

@@ -406,6 +406,31 @@ considered a match.")
        file
        (seq-difference (xmp-get-file-subjects file) subjects)))))
 
+;;;###autoload
+(defun xmp-image-dired-do-set-title ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (title (xmp-read-lang-alt
+                 (xmp-image-dired-make-prompt
+                  (xmp-msg "Change title of %s to%s: ")
+                  files nil)
+                 (unless (cdr files)
+                   (xmp-get-file-title-alist (car files))))))
+    (dolist (file files)
+      (xmp-set-file-title file title))))
+
+;;;###autoload
+(defun xmp-image-dired-do-set-description ()
+  (interactive nil image-dired-thumbnail-mode)
+  (let* ((files (xmp-image-dired-get-marked-files))
+         (description (xmp-read-lang-alt
+                       (xmp-image-dired-make-prompt
+                        (xmp-msg "Change description of %s to%s: ")
+                        files nil)
+                       (unless (cdr files)
+                         (xmp-get-file-description-alist (car files))))))
+    (dolist (file files)
+      (xmp-set-file-description file description))))
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

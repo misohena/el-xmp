@@ -55,6 +55,8 @@ Currently, it provides the following commands:
   - ~xmp-dired-do-set-subjects~
   - ~xmp-dired-do-add-subjects~
   - ~xmp-dired-do-remove-subjects~
+  - ~xmp-dired-do-set-title~
+  - ~xmp-dired-do-set-description~
 
 In addition to these, xmp-commands.el provides commands that can be used in Dired.
 
@@ -75,6 +77,8 @@ Currently, it provides the following commands:
   - ~xmp-image-dired-do-set-subjects~
   - ~xmp-image-dired-do-add-subjects~
   - ~xmp-image-dired-do-remove-subjects~
+  - ~xmp-image-dired-do-set-title~
+  - ~xmp-image-dired-do-set-description~
 
 ** xmp-setup.el
 
@@ -95,10 +99,15 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' s s | Set subjects       |
 | ' a s | Add subjects       |
 | ' r s | Remove subjects    |
+| ' s t | Set title          |
+| ' s d | Set description    |
 |-------+--------------------|
 | ' g r | Get rate           |
 | ' g l | Get label          |
 | ' g s | Get subjects       |
+| ' g t | Get title          |
+| ' g d | Get description    |
+| ' g c | Get creators       |
 | ' g a | Get all properties |
 |-------+--------------------|
 | ' m r | Mark by rate       |

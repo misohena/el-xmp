@@ -239,6 +239,34 @@ A prefix argument means to unmark them instead."
        (seq-difference (xmp-get-file-subjects file) subjects)))
     (dired-post-do-command)))
 
+;;;###autoload
+(defun xmp-dired-do-set-title (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (title (xmp-read-lang-alt
+                 (xmp-dired-make-prompt
+                  (xmp-msg "Change title of %s to%s: ")
+                  arg files nil)
+                 (unless (cdr files)
+                   (xmp-get-file-title-alist (car files))))))
+    (dolist (file files)
+      (xmp-set-file-title file title))
+    (dired-post-do-command)))
+
+;;;###autoload
+(defun xmp-dired-do-set-description (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (description (xmp-read-lang-alt
+                       (xmp-dired-make-prompt
+                        (xmp-msg "Change description of %s to%s: ")
+                        arg files nil)
+                       (unless (cdr files)
+                         (xmp-get-file-description-alist (car files))))))
+    (dolist (file files)
+      (xmp-set-file-description file description))
+    (dired-post-do-command)))
+
 
 
 (provide 'xmp-image-dired)

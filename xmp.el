@@ -146,7 +146,16 @@ text from source code."
        "stVer") ;;[XMP2 1.2.4.2]
       ("http://ns.adobe.com/xap/1.0/sType/Job#"
        "stJob") ;;[XMP2 1.2.5.1]
-      )))
+      ))
+
+  ;; Functions for predefined namespaces
+
+  (defun xmp-predefined-namespace-prefix (ns-name)
+    (nth 1 (assoc (xmp-xml-ns-name-string ns-name)
+                  xmp-predefined-namespaces #'string=)))
+  ;; (xmp-predefined-namespace-prefix :http://ns.adobe.com/xap/1.0/) => "xmp"
+  ;; (xmp-predefined-namespace-prefix "http://ns.adobe.com/xap/1.0/") => "xmp"
+  )
 
 ;; Define namespace name variables
 ;;     (defconst xmp-<ns-prefix>: <ns-name>)
@@ -229,59 +238,73 @@ text from source code."
 
 (eval-and-compile
   (defconst xmp-predefined-properties
-    ;; ( (<namespace name string> . ( (<local-name> ...more info)... ) )... )
+    ;; ( (<namespace prefix string> . ( (<local-name> ...more info)... ) )... )
     '(;; [XMP1 8.2.2.9 ResourceRef]
       ("stRef"
-       ("documentID") ;;GUID
-       ("filePath") ;;URI
-       ("instanceID") ;;GUID
-       ("renditionClass") ;;RenditionClass
-       ("renditionParams")) ;;Text
+       ("documentID" GUID)
+       ("filePath" URI)
+       ("instanceID" GUID)
+       ("renditionClass" RenditionClass)
+       ("renditionParams" Text))
       ;; [XMP1 8.3 Dublin Core namespace]
       ("dc"
-       ("contributor") ;;Unordered array of ProperName
-       ("coverage") ;;Text
-       ("creator") ;;Ordered array of ProperName
-       ("date") ;;Ordered array of Date
-       ("description") ;;Language Alternative
-       ("format") ;;MIMEType
-       ("identifier") ;;Text
-       ("language") ;;Unordered array of Locale
-       ("publisher") ;;Unordered array of ProperName
-       ("relation") ;;Unordered array of Text
-       ("rights") ;;Language Alternative
-       ("source") ;;Text
-       ("subject") ;;Unordered array of Text
-       ("title") ;;Language Alternative
-       ("type")) ;;Unordered array of Text
+       ("contributor" BagProperName)
+       ("coverage" Text)
+       ("creator" SeqProperName)
+       ("date" SeqDate)
+       ("description" LangAlt)
+       ("format" MIMEType)
+       ("identifier" Text)
+       ("language" BagLocale)
+       ("publisher" BagProperName)
+       ("relation" BagText)
+       ("rights" LangAlt)
+       ("source" Text)
+       ("subject" BagText)
+       ("title" LangAlt)
+       ("type" BagText))
       ;; [XMP1 8.4 XMP namespace]
       ("xmp"
-       ("CreateDate") ;;Date
-       ("CreatorTool") ;;AgentName
-       ("Identifier") ;;Unordered array of Text
-       ("Label") ;;Text
-       ("MetadataDate") ;;Date
-       ("ModifyDate") ;;Date
-       ("Rating")) ;;Closed Choice of Real
+       ("CreateDate" Date)
+       ("CreatorTool" AgentName)
+       ("Identifier" BagText)
+       ("Label" Text)
+       ("MetadataDate" Date)
+       ("ModifyDate" Date)
+       ("Rating" Real))
       ;; [XMP1 8.5 XMP Rights Management namespace]
       ("xmpRights"
-       ("Certificate") ;;Text
-       ("Marked") ;;Boolean
-       ("Owner") ;;Unordered array of ProperName
-       ("UsageTerms") ;;Language Alternative
-       ("WebStatement")) ;;Text
+       ("Certificate" Text)
+       ("Marked" Boolean)
+       ("Owner" BagProperName)
+       ("UsageTerms" LangAlt)
+       ("WebStatement" Text))
       ;; [XMP1 8.6 XMP Media Management namespace]
       ("xmpMM"
-       ("DerivedFrom") ;;ResourceRef
-       ("DocumentID") ;;GUID
-       ("InstanceID") ;;GUID
-       ("OriginalDocumentID") ;;GUID
-       ("RenditionClass") ;;RenditionClass
-       ("RenditionParams")) ;;Text
+       ("DerivedFrom" ResourceRef)
+       ("DocumentID" GUID)
+       ("InstanceID" GUID)
+       ("OriginalDocumentID" GUID)
+       ("RenditionClass" RenditionClass)
+       ("RenditionParams" Text))
       ;; [XMP1 8.7 xmpidq namespace]
       ("xmpidq"
-       ("Scheme")) ;;Text
-      )))
+       ("Scheme" Text))
+      ))
+
+  ;; Functions
+  (defun xmp-predefined-property-type (ename)
+    (when-let* ((ns-prefix-str (xmp-predefined-namespace-prefix
+                                (xmp-xml-ename-ns ename)))
+                (ns-info (assoc ns-prefix-str
+                                xmp-predefined-properties
+                                #'string=))
+                (prop-info (assoc (xmp-xml-ename-local ename)
+                                  (cdr ns-info)
+                                  #'string=)))
+      (nth 1 prop-info)))
+  ;; TEST: (xmp-predefined-property-type xmp-xmp:Rating) => Real
+  )
 
 ;; Define expanded name variables for properties
 (defmacro xmp-define-predefined-properties ()
@@ -937,6 +960,52 @@ The type of array is one of the following variable values (expanded names):
   pvalue)
 
 ;;;;; PValue Conversion
+;;;;;; Convert By Type Name
+
+(defconst xmp-pvalue-types
+  '((Text xmp-pvalue-as-text xmp-pvalue-make-text)
+    (URI xmp-pvalue-as-uri xmp-pvalue-make-uri)
+    (Boolean xmp-pvalue-as-boolean xmp-pvalue-make-boolean)
+    (Real xmp-pvalue-as-real xmp-pvalue-make-real)
+    (MIMEType xmp-pvalue-as-text xmp-pvalue-make-text)
+    (AgentName xmp-pvalue-as-text xmp-pvalue-make-text)
+    (LangAlt xmp-pvalue-as-lang-alt-alist xmp-pvalue-from-lang-alt-alist)
+    (BagText xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
+    (BagProperName xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
+    (BagLocale xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
+    (SeqText xmp-pvalue-as-text-list xmp-pvalue-make-seq-from-text-list)
+    (SeqProperName xmp-pvalue-as-text-list xmp-pvalue-make-seq-from-text-list)
+    (SeqLocale xmp-pvalue-as-text-list xmp-pvalue-make-seq-from-text-list)
+    ;;(SeqDate xmp-pvalue-as-text-list xmp-pvalue-make-seq-from-text-list)
+    ;; GUID
+    ;; Date
+    ;; Integer
+    ;; RenditionClass
+    ;; ResourceRef
+    ))
+
+(defun xmp-pvalue-make-by-type (type value)
+  (when-let* ((type-info (assq type xmp-pvalue-types))
+              (encoder (nth 2 type-info)))
+    (funcall encoder value)))
+;; TEST: (xmp-pvalue-make-by-type 'Real -1) => (:pv-type text :value "-1")
+
+(defun xmp-pvalue-as-type (type pvalue)
+  (when-let* ((type-info (assq type xmp-pvalue-types))
+              (decoder (nth 1 type-info)))
+    (funcall decoder pvalue)))
+;; TEST: (xmp-pvalue-as-type 'Real (xmp-pvalue-make-real 5)) => 5
+
+;;;;;; Convert Predefined Properties
+
+(defun xmp-predefined-property-pvalue-from-elisp (prop-ename value)
+  (when-let ((type (xmp-predefined-property-type prop-ename)))
+    (xmp-pvalue-make-by-type type value)))
+
+(defun xmp-predefined-property-pvalue-to-elisp (prop-ename pvalue)
+  (when-let ((type (xmp-predefined-property-type prop-ename)))
+    (xmp-pvalue-as-type type pvalue)))
+
 ;;;;;; Text Type
 
 (defun xmp-pvalue-make-text (text &optional qualifiers)
@@ -1030,7 +1099,12 @@ If the type of PVALUE is not \\='struct, return nil."
 ;;;;;; Real
 ;; [XMP1 8.2.1.4 Real]
 
-;; TODO: implement Real type conversion
+(defun xmp-pvalue-make-real (number)
+  (xmp-pvalue-make-text (number-to-string number)))
+
+(defun xmp-pvalue-as-real (pvalue)
+  (when-let ((text (xmp-pvalue-as-text pvalue)))
+    (string-to-number text)))
 
 ;;;;;; Language Alternative
 ;; [XMP1 8.2.2.4 Language Alternative]

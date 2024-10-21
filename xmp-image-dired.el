@@ -312,7 +312,7 @@ considered a match.")
                 subjects))))
   (xmp-image-dired-filter-thumbnails))
 
-;;;; Change properties
+;;;; Marked Files
 
 (defun xmp-image-dired-get-marked-files ()
   (let (files)
@@ -321,92 +321,6 @@ considered a match.")
     (unless files
       (user-error "No files specified"))
     (nreverse files)))
-
-;;;###autoload
-(defun xmp-image-dired-do-rate ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (rating (xmp-read-file-rating files
-                                       ;; current value
-                                       (unless (cdr files)
-                                         (xmp-get-file-rating (car files))))))
-    (dolist (file files)
-      (xmp-rate-file file rating))))
-
-;;;###autoload
-(defun xmp-image-dired-do-set-label ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (label (xmp-read-file-label
-                 nil files
-                 ;; current value
-                 (unless (cdr files)
-                   (xmp-get-file-label (car files))))))
-    (dolist (file files)
-      (xmp-set-file-label file label))))
-
-;;;###autoload
-(defun xmp-image-dired-do-set-subjects ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (subjects (xmp-read-file-subjects
-                    nil files
-                    ;; current value
-                    (unless (cdr files)
-                      (xmp-get-file-subjects (car files))))))
-    (dolist (file files)
-      (xmp-set-file-subjects file subjects))))
-
-;;;###autoload
-(defun xmp-image-dired-do-add-subjects ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (subjects (xmp-read-file-subjects
-                    (xmp-msg "Add %%s to subjects of %s.\nSubject to toggle (empty to end): ")
-                    files
-                    nil)))
-    (dolist (file files)
-      (xmp-set-file-subjects
-       file
-       (seq-union (xmp-get-file-subjects file) subjects)))))
-
-;;;###autoload
-(defun xmp-image-dired-do-remove-subjects ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (subjects (xmp-read-file-subjects
-                    (xmp-msg "Remove %%s from subjects of %s.\nSubject to toggle (empty to end): ")
-                    files
-                    nil)))
-    (dolist (file files)
-      (xmp-set-file-subjects
-       file
-       (seq-difference (xmp-get-file-subjects file) subjects)))))
-
-;;;###autoload
-(defun xmp-image-dired-do-set-title ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (title (xmp-read-file-title
-                 nil files
-                 ;; current value
-                 (unless (cdr files)
-                   (xmp-get-file-title-alist (car files))))))
-    (dolist (file files)
-      (xmp-set-file-title file title))))
-
-;;;###autoload
-(defun xmp-image-dired-do-set-description ()
-  (interactive nil image-dired-thumbnail-mode)
-  (let* ((files (xmp-image-dired-get-marked-files))
-         (description (xmp-read-file-description
-                       nil
-                       files
-                       ;; current value
-                       (unless (cdr files)
-                         (xmp-get-file-description-alist (car files))))))
-    (dolist (file files)
-      (xmp-set-file-description file description))))
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

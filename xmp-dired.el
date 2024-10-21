@@ -153,6 +153,9 @@ A prefix argument means to unmark them instead."
 
 ;;;; Change properties
 
+;; Although the commands in xmp-commands.el can handle this to some
+;; extent, we will create dedicated functions to handle prefix ARG.
+
 (defun xmp-dired-make-prompt (msg arg files current-value)
   (format msg
           (dired-mark-prompt arg files)
@@ -170,8 +173,7 @@ A prefix argument means to unmark them instead."
                                        ;; current value
                                        (unless (cdr files)
                                          (xmp-get-file-rating (car files))))))
-    (dolist (file files)
-      (xmp-rate-file file rating))
+    (xmp-rate-file files rating)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -183,8 +185,7 @@ A prefix argument means to unmark them instead."
                  ;; current value
                  (unless (cdr files)
                    (xmp-get-file-label (car files))))))
-    (dolist (file files)
-      (xmp-set-file-label file label))
+    (xmp-set-file-label files label)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -196,8 +197,7 @@ A prefix argument means to unmark them instead."
                     ;; current value
                     (unless (cdr files)
                       (xmp-get-file-subjects (car files))))))
-    (dolist (file files)
-      (xmp-set-file-subjects file subjects))
+    (xmp-set-file-subjects files subjects)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -208,10 +208,7 @@ A prefix argument means to unmark them instead."
                     (xmp-msg "Add %%s to subjects of %s.\nSubject to toggle (empty to end): ")
                     (dired-mark-prompt arg files)
                     nil)))
-    (dolist (file files)
-      (xmp-set-file-subjects
-       file
-       (seq-union (xmp-get-file-subjects file) subjects)))
+    (xmp-add-file-subjects files subjects)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -222,10 +219,7 @@ A prefix argument means to unmark them instead."
                     (xmp-msg "Remove %%s from subjects of %s.\nSubject to toggle (empty to end): ")
                     (dired-mark-prompt arg files)
                     nil)))
-    (dolist (file files)
-      (xmp-set-file-subjects
-       file
-       (seq-difference (xmp-get-file-subjects file) subjects)))
+    (xmp-remove-file-subjects files subjects)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -238,8 +232,7 @@ A prefix argument means to unmark them instead."
                  ;; current value
                  (unless (cdr files)
                    (xmp-get-file-title-alist (car files))))))
-    (dolist (file files)
-      (xmp-set-file-title file title))
+    (xmp-set-file-title files title)
     (dired-post-do-command)))
 
 ;;;###autoload
@@ -251,10 +244,20 @@ A prefix argument means to unmark them instead."
                        ;; current value
                        (unless (cdr files)
                          (xmp-get-file-description-alist (car files))))))
-    (dolist (file files)
-      (xmp-set-file-description file description))
+    (xmp-set-file-description files description)
     (dired-post-do-command)))
 
+;;;###autoload
+(defun xmp-dired-do-set-creators (&optional arg)
+  (interactive "P" dired-mode)
+  (let* ((files (dired-get-marked-files t arg nil nil t))
+         (creators (xmp-read-file-creators
+                    nil (dired-mark-prompt arg files)
+                    ;; current value
+                    (unless (cdr files)
+                      (xmp-get-file-creators (car files))))))
+    (xmp-set-file-creators files creators)
+    (dired-post-do-command)))
 
 
 (provide 'xmp-image-dired)

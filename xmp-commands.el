@@ -92,7 +92,7 @@
 
 ;;;; File name at point
 
-(defun xmp-file-name-at-point--fnapf ()
+(defun xmp-file-name-at-point--fnapf (&rest _)
   "Return the file name obtained using the `file-name-at-point-functions'."
   ;; The following modes support `file-name-at-point-functions':
   ;; - dired-mode
@@ -100,14 +100,14 @@
   ;; - ;;image-dired-image-mode ;; Bug
   (run-hook-with-args-until-success 'file-name-at-point-functions))
 
-(defun xmp-file-name-at-point--image-file-buffer ()
+(defun xmp-file-name-at-point--image-file-buffer (&rest _)
   "If the current buffer's file name matches `image-file-name-regexp',
 return it."
   (and (buffer-file-name)
        (string-match-p (image-file-name-regexp) (buffer-file-name))
        (buffer-file-name)))
 
-(defun xmp-file-name-at-point--org-link ()
+(defun xmp-file-name-at-point--org-link (&rest _)
   "Return the path of the file link at the current point in org-mode."
   (and (derived-mode-p 'org-mode)
        (fboundp 'org-element-context)
@@ -121,16 +121,25 @@ return it."
                (when (file-regular-p file)
                  file)))))))
 
-(defun xmp-file-name-at-point--thing-at-point ()
+(defun xmp-file-name-at-point--thing-at-point (&rest _)
   "Return the file name obtained using the `thing-at-point'."
   (thing-at-point 'existing-filename t))
 
-(defun xmp-file-name-at-point--read-file-name ()
+(defun xmp-file-name-at-point--read-file-name (&rest _)
   "Return the file name obtained using the `read-file-name'."
   (read-file-name "File: " nil (buffer-file-name) t nil #'file-regular-p))
 
+(autoload 'xmp-image-dired-get-marked-files "xmp-image-dired")
+
+(defun xmp-file-name-at-point--image-dired-marked (multiple-p &rest _)
+  "Return the list of files marked in image-dired-thumbnail-mode."
+  (and (derived-mode-p 'image-dired-thumbnail-mode)
+       multiple-p
+       (xmp-image-dired-get-marked-files)))
+
 (defcustom xmp-file-name-at-point-functions
-  '(xmp-file-name-at-point--fnapf
+  '(xmp-file-name-at-point--image-dired-marked
+    xmp-file-name-at-point--fnapf
     xmp-file-name-at-point--image-file-buffer
     xmp-file-name-at-point--org-link
     xmp-file-name-at-point--thing-at-point
@@ -144,7 +153,27 @@ return it."
 
 This function uses the `xmp-file-name-at-point-functions' hook to
 determine the filename."
-  (run-hook-with-args-until-success 'xmp-file-name-at-point-functions))
+  (let ((result
+         (run-hook-with-args-until-success 'xmp-file-name-at-point-functions
+                                           ;; multiple-p
+                                           nil)))
+    (if (listp result)
+        (car result)
+      result)))
+
+(defun xmp-file-name-list-at-point ()
+  "Return the target file name list.
+
+This function uses the `xmp-file-name-at-point-functions' hook to
+determine the filename."
+  (let ((result
+         (run-hook-with-args-until-success 'xmp-file-name-at-point-functions
+                                           ;; multiple-p
+                                           t)))
+    (if (stringp result)
+        (list result)
+      result)))
+
 
 ;;;; xmp:Rating
 ;; Type: Closed Choice of Real
@@ -186,8 +215,10 @@ CURRENT-RATING is displayed in prompt."
 ;; EXAMPLE: (xmp-read-file-rating '("file1" "file2"))
 
 ;;;###autoload
-(defun xmp-rate-file (file rating)
-  "Set the rating of FILE to RATING.
+(defun xmp-rate-file (files rating)
+  "Set the rating of FILES to RATING.
+
+FILES is a filename or a list of filenames.
 
 RATING is a number that conforms to the specification for the xmp:Rating
 property [XMP1 8.4 XMP namespace]. Valid numbers are -1 or a number
@@ -198,11 +229,13 @@ definition, see the description of xmp:Rating in URL
 
 If a prefix argument is specified, that number is used as RATING.
 
-Where the property value is saved depends on the type of FILE and the
+Where the property value is saved depends on the type of FILES and the
 settings."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-rating (xmp-get-file-rating file))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-rating (if (cdr files)
+                              nil
+                            (xmp-get-file-rating (car files))))
           (new-rating
            ;; From prefix argument
            (when current-prefix-arg
@@ -210,65 +243,70 @@ settings."
                (when (and (integerp n) (<= -1 n 5))
                  (number-to-string n))))))
      (while (null new-rating)
-       (setq new-rating (xmp-read-file-rating file
-                                              (or current-rating
-                                                  (xmp-msg "No property")))))
+       (setq new-rating (xmp-read-file-rating files
+                                              (if (cdr files)
+                                                  "-"
+                                                (or current-rating
+                                                    (xmp-msg "No property"))))))
      (when (equal new-rating current-rating)
        (error "No change"))
-     (list file new-rating)))
+     (list files new-rating)))
 
   (unless (numberp rating)
     (signal 'wrong-type-argument (list 'numberp rating)))
-  (xmp-set-file-property file xmp-xmp:Rating (xmp-pvalue-make-real rating)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property file xmp-xmp:Rating (xmp-pvalue-make-real rating))))
 
 ;;;###autoload
-(defun xmp-rate-file-1 (file)
-  "Set the rating of FILE to 1.
+(defun xmp-rate-file-1 (files)
+  "Set the rating of FILES to 1.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 1."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 1))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 1))
 
 ;;;###autoload
-(defun xmp-rate-file-2 (file)
+(defun xmp-rate-file-2 (files)
   "Set the rating of FILE to 2.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 2."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 2))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 2))
 
 ;;;###autoload
-(defun xmp-rate-file-3 (file)
+(defun xmp-rate-file-3 (files)
   "Set the rating of FILE to 3.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 3."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 3))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 3))
 
 ;;;###autoload
-(defun xmp-rate-file-4 (file)
+(defun xmp-rate-file-4 (files)
   "Set the rating of FILE to 4.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 4."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 4))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 4))
 
 ;;;###autoload
-(defun xmp-rate-file-5 (file)
+(defun xmp-rate-file-5 (files)
   "Set the rating of FILE to 5.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 5."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 5))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 5))
 
 ;;;###autoload
-(defun xmp-rate-file-0 (file)
+(defun xmp-rate-file-0 (files)
   "Set the rating of FILE to 0.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 0."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file 0))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files 0))
 
 ;;;###autoload
-(defun xmp-rate-file--1 (file)
+(defun xmp-rate-file--1 (files)
   "Set the rating of FILE to -1.
 Equivalent to calling `xmp-rate-file' with a RATING argument of -1."
-  (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file -1))
+  (interactive (list (xmp-file-name-list-at-point)))
+  (xmp-rate-file files -1))
 
 (defun xmp-rating-match-p (rating condition)
   "Return non-nil if RATING matches CONDITION.
@@ -363,10 +401,12 @@ optionally preceded by a comparison operator (> >= = <= <)."
 ;; EXAMPLE: (xmp-read-file-label nil "marked files" nil)
 
 ;;;###autoload
-(defun xmp-set-file-label (file label)
-  "Set the label of FILE to LABEL.
+(defun xmp-set-file-label (files label)
+  "Set the label of FILES to LABEL.
 
-A LABEL is a word or short phrase used to classify a FILE.
+FILES is a filename or a list of filenames.
+
+A LABEL is a word or short phrase used to classify a FILES.
 Some image viewers will display a color if the color name is specified
 in the label.
 For definition, see the description of xmp:label in
@@ -374,18 +414,23 @@ URL `https://developer.adobe.com/xmp/docs/XMPNamespaces/xmp/'.
 
 The variable `xmp-label-strings' is used as completion candidates.
 
-Where the property value is saved depends on the type of FILE and the
+Where the property value is saved depends on the type of FILES and the
 settings."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-label (xmp-get-file-label file))
-          (new-label (xmp-read-file-label nil file current-label)))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-label (if (cdr files)
+                             nil
+                           (xmp-get-file-label (car files))))
+          (new-label (xmp-read-file-label nil files current-label)))
      (when (equal new-label current-label)
        (error "No change"))
-     (list file new-label)))
+     (list files new-label)))
   (unless (stringp label)
     (signal 'wrong-type-argument (list 'stringp label)))
-  (xmp-set-file-property file xmp-xmp:Label label))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property file xmp-xmp:Label label)))
 
 ;;;; dc:subject (Tag)
 ;; Type: Unordered array of Text
@@ -451,31 +496,78 @@ settings."
    'xmp-read-subjects--hist))
 
 ;;;###autoload
-(defun xmp-set-file-subjects (file subjects)
-  "Set the subjects of FILE to SUBJECTS.
+(defun xmp-set-file-subjects (files subjects)
+  "Set the subjects of FILES to SUBJECTS.
+
+FILES is a filename or a list of filenames.
 
 SUBJECTS is a list of subject strings. The order of strings in the list
 has no meaning. A subject is a descriptive phrase, or keyword, that
-describes the content of a FILE.
+describes the content of a FILES.
 For definition, see the description of dc:subject in
 URL `https://developer.adobe.com/xmp/docs/XMPNamespaces/dc/' and
 URL `https://www.dublincore.org/specifications/dublin-core/dcmi-terms/terms/subject/'.
 
 The variable `xmp-read-subjects-candidates' is used as completion candidates.
 
-Where the property value is saved depends on the type of FILE and the
+Where the property value is saved depends on the type of FILES and the
 settings."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-subjects (xmp-get-file-subjects file))
-          (new-subjects (xmp-read-file-subjects nil file current-subjects)))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-subjects (if (cdr files)
+                                nil
+                              (xmp-get-file-subjects (car files))))
+          (new-subjects (xmp-read-file-subjects nil files current-subjects)))
      (when (equal new-subjects current-subjects)
        (error "No change"))
-     (list file new-subjects)))
-  (xmp-set-file-property
-   file
-   xmp-dc:subject
-   (xmp-pvalue-make-bag-from-text-list subjects)))
+     (list files new-subjects)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property
+     file
+     xmp-dc:subject
+     (xmp-pvalue-make-bag-from-text-list subjects))))
+
+;;;###autoload
+(defun xmp-add-file-subjects (files add-subjects)
+  (interactive
+   (let* ((files (xmp-file-name-list-at-point))
+          (subjects (xmp-read-file-subjects
+                     (xmp-msg "Add %%s to subjects of %s.\nSubject to toggle (empty to end): ")
+                     files nil)))
+     (unless subjects
+       (error "No change"))
+     (list files subjects)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (let* ((curr-subjects (xmp-get-file-subjects file))
+           (new-subjects (seq-union curr-subjects add-subjects)))
+      (xmp-set-file-property
+       file
+       xmp-dc:subject
+       (xmp-pvalue-make-bag-from-text-list new-subjects)))))
+
+;;;###autoload
+(defun xmp-remove-file-subjects (files remove-subjects)
+  (interactive
+   (let* ((files (xmp-file-name-list-at-point))
+          (subjects (xmp-read-file-subjects
+                     (xmp-msg "Remove %%s from subjects of %s.\nSubject to toggle (empty to end): ")
+                     files nil)))
+     (unless subjects
+       (error "No change"))
+     (list files subjects)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (let* ((curr-subjects (xmp-get-file-subjects file))
+           (new-subjects (seq-difference curr-subjects remove-subjects)))
+      (xmp-set-file-property
+       file
+       xmp-dc:subject
+       (xmp-pvalue-make-bag-from-text-list new-subjects)))))
 
 
 ;;;; dc:title
@@ -513,23 +605,29 @@ The results are returned in an alist with language code strings as keys."
 ;; EXAMPLE: (xmp-read-file-title nil "test.jpg" '(("x-default" . "The Title")))
 
 ;;;###autoload
-(defun xmp-set-file-title (file title)
-  "Set the title of FILE to TITLE.
+(defun xmp-set-file-title (files title)
+  "Set the title of FILES to TITLE.
+
+FILES is a filename or a list of filenames.
 
 TITLE is a string or an alist whose keys are language code strings and
 whose values ​​are strings (`xmp-pvalue-from-lang-alt-alist' accepts
 it). When specifying an alist, the first language code must be
 \"x-default\"."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-title-alist (xmp-get-file-title-alist file))
-          (new-title-alist (xmp-read-file-title nil file current-title-alist)))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-title-alist (if (cdr files)
+                                   nil
+                                 (xmp-get-file-title-alist (car files))))
+          (new-title-alist (xmp-read-file-title nil files current-title-alist)))
      (when (equal new-title-alist current-title-alist)
        (error "No change"))
-     (list file new-title-alist)))
-
-  (xmp-set-file-property
-   file xmp-dc:title (xmp-pvalue-from-lang-alt-alist title)))
+     (list files new-title-alist)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property
+     file xmp-dc:title (xmp-pvalue-from-lang-alt-alist title))))
 
 ;;;; dc:description
 ;; Type: Language Alternative
@@ -559,24 +657,31 @@ The results are returned in an alist with language code strings as keys."
 ;; EXAMPLE: (xmp-read-file-description nil "test.jpg" '(("x-default" . "The Description")))
 
 ;;;###autoload
-(defun xmp-set-file-description (file description)
-  "Set the description of FILE to DESCRTITLE.
+(defun xmp-set-file-description (files description)
+  "Set the description of FILES to DESCRTITLE.
+
+FILES is a filename or a list of filenames.
 
 DESCRIPTION is a string or an alist whose keys are language code strings
 and whose values ​​are strings (`xmp-pvalue-from-lang-alt-alist' accepts
 it). When specifying an alist, the first language code must be
 \"x-default\"."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-description-alist (xmp-get-file-description-alist file))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-description-alist
+           (if (cdr files)
+               nil
+             (xmp-get-file-description-alist (car files))))
           (new-description-alist (xmp-read-file-description
-                                  nil file current-description-alist)))
+                                  nil files current-description-alist)))
      (when (equal new-description-alist current-description-alist)
        (error "No change"))
-     (list file new-description-alist)))
-
-  (xmp-set-file-property
-   file xmp-dc:description (xmp-pvalue-from-lang-alt-alist description)))
+     (list files new-description-alist)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property
+     file xmp-dc:description (xmp-pvalue-from-lang-alt-alist description))))
 
 ;;;; dc:creator
 ;; Type: Ordered array of ProperName
@@ -615,20 +720,28 @@ The elements of the list are strings."
 ;; (xmp-read-file-creators nil "marked files" '("AKIYAMA"))
 
 ;;;###autoload
-(defun xmp-set-file-creators (file creators)
-  "Set the creators of FILE to CREATORS.
+(defun xmp-set-file-creators (files creators)
+  "Set the creators of FILES to CREATORS.
+
+FILES is a filename or a list of filenames.
+
 CREATORS is a list of strings."
   (interactive
-   (let* ((file (xmp-file-name-at-point))
-          (current-creators (xmp-get-file-creators file))
-          (new-creators (xmp-read-file-creators nil file current-creators)))
+   (let* ((files (xmp-file-name-list-at-point))
+          (current-creators (if (cdr files)
+                                nil
+                              (xmp-get-file-creators (car files))))
+          (new-creators (xmp-read-file-creators nil files current-creators)))
      (when (equal new-creators current-creators)
        (error "No change"))
-     (list file new-creators)))
-  (xmp-set-file-property
-   file
-   xmp-dc:creator
-   (xmp-pvalue-make-seq-from-text-list creators)))
+     (list files new-creators)))
+  (when (stringp files)
+    (setq files (list files)))
+  (dolist (file files)
+    (xmp-set-file-property
+     file
+     xmp-dc:creator
+     (xmp-pvalue-make-seq-from-text-list creators))))
 
 ;;;; Show properties
 

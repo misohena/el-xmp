@@ -21,6 +21,8 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-rate-file--1~
 - ~xmp-set-file-label~
 - ~xmp-set-file-subjects~
+- ~xmp-add-file-subjects~
+- ~xmp-remove-file-subjects~
 - ~xmp-set-file-title~
 - ~xmp-set-file-description~
 - ~xmp-set-file-creators~
@@ -55,8 +57,9 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-do-remove-subjects~
   - ~xmp-dired-do-set-title~
   - ~xmp-dired-do-set-description~
+  - ~xmp-dired-do-set-creators~
 
-これらに加えて、xmp-commands.elが提供するコマンドがDired内で使用できます。
+これらに加えて、xmp-commands.el内のコマンドがDiredで使用できます。
 
 ** xmp-image-dired.el
 
@@ -69,14 +72,8 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subjects~
-- マークされたファイルのプロパティの変更
-  - ~xmp-image-dired-do-rate~
-  - ~xmp-image-dired-do-set-label~
-  - ~xmp-image-dired-do-set-subjects~
-  - ~xmp-image-dired-do-add-subjects~
-  - ~xmp-image-dired-do-remove-subjects~
-  - ~xmp-image-dired-do-set-title~
-  - ~xmp-image-dired-do-set-description~
+
+これらに加えて、xmp-commands.el内のコマンドがimage-diredで使用できます。
 
 ** xmp-setup.el
 
@@ -92,15 +89,16 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 
 | キー  | 機能               |
 |-------+--------------------|
-| ' s r | Set rate           |
+| ' s r | Set rating         |
 | ' s l | Set label          |
 | ' s s | Set subjects       |
 | ' a s | Add subjects       |
 | ' r s | Remove subjects    |
 | ' s t | Set title          |
 | ' s d | Set description    |
+| ' s c | Set creators       |
 |-------+--------------------|
-| ' g r | Get rate           |
+| ' g r | Get rating         |
 | ' g l | Get label          |
 | ' g s | Get subjects       |
 | ' g t | Get title          |

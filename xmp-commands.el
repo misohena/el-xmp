@@ -134,7 +134,7 @@ determine the filename."
 
 (defun xmp-get-file-rating (file)
   "Return the rating of FILE."
-  (xmp-pvalue-as-text
+  (xmp-pvalue-as-real
    (xmp-get-file-property file xmp-xmp:Rating)))
 
 ;;;###autoload
@@ -145,8 +145,8 @@ determine the filename."
   (message "%s" (xmp-get-file-rating file)))
 
 (defconst xmp-rating-char-map
-  '((?1 . "1") (?2 . "2") (?3 . "3") (?4 . "4") (?5 . "5") (?0 . "0")
-    (?- . "-1")))
+  '((?1 . 1) (?2 . 2) (?3 . 3) (?4 . 4) (?5 . 5) (?0 . 0)
+    (?- . -1)))
 
 (defconst xmp-rate-file-prompt
   (xmp-msg-n "Input rating (1-5, 0:Unrate, -:Reject) for `%s' (Current:%s): "))
@@ -175,13 +175,12 @@ CURRENT-RATING is displayed in prompt."
 (defun xmp-rate-file (file rating)
   "Set the rating of FILE to RATING.
 
-RATING is a string that conforms to the specification for the xmp:Rating
-property [XMP1 8.4 XMP namespace]. Valid strings are \"-1\" or a number
-between \"0\" and \"5\". \"-1\" means Rejected and \"0\" means
-Unrated. The numeric value may be a real number, but an integer is
-recommended.
-For definition, see the description of xmp:Rating in
-URL `https://developer.adobe.com/xmp/docs/XMPNamespaces/xmp/'.
+RATING is a number that conforms to the specification for the xmp:Rating
+property [XMP1 8.4 XMP namespace]. Valid numbers are -1 or a number
+between 0 and 5. -1 means Rejected and 0 means Unrated. The numeric
+value may be a real number, but an integer is recommended.  For
+definition, see the description of xmp:Rating in URL
+`https://developer.adobe.com/xmp/docs/XMPNamespaces/xmp/'.
 
 If a prefix argument is specified, that number is used as RATING.
 
@@ -189,7 +188,7 @@ Where the property value is saved depends on the type of FILE and the
 settings."
   (interactive
    (let* ((file (xmp-file-name-at-point))
-          (current-rating (or (xmp-get-file-rating file) (xmp-msg "No property")))
+          (current-rating (xmp-get-file-rating file))
           (new-rating
            ;; From prefix argument
            (when current-prefix-arg
@@ -197,63 +196,65 @@ settings."
                (when (and (integerp n) (<= -1 n 5))
                  (number-to-string n))))))
      (while (null new-rating)
-       (setq new-rating (xmp-read-file-rating file current-rating)))
+       (setq new-rating (xmp-read-file-rating file
+                                              (or current-rating
+                                                  (xmp-msg "No property")))))
      (when (equal new-rating current-rating)
        (error "No change"))
      (list file new-rating)))
 
-  (unless (stringp rating)
-    (signal 'wrong-type-argument (list 'stringp rating)))
-  (xmp-set-file-property file xmp-xmp:Rating rating))
+  (unless (numberp rating)
+    (signal 'wrong-type-argument (list 'numberp rating)))
+  (xmp-set-file-property file xmp-xmp:Rating (xmp-pvalue-make-real rating)))
 
 ;;;###autoload
 (defun xmp-rate-file-1 (file)
   "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"1\"."
+Equivalent to calling `xmp-rate-file' with a RATING argument of 1."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "1"))
+  (xmp-rate-file file 1))
 
 ;;;###autoload
 (defun xmp-rate-file-2 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"2\"."
+  "Set the rating of FILE to 2.
+Equivalent to calling `xmp-rate-file' with a RATING argument of 2."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "2"))
+  (xmp-rate-file file 2))
 
 ;;;###autoload
 (defun xmp-rate-file-3 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"3\"."
+  "Set the rating of FILE to 3.
+Equivalent to calling `xmp-rate-file' with a RATING argument of 3."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "3"))
+  (xmp-rate-file file 3))
 
 ;;;###autoload
 (defun xmp-rate-file-4 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"4\"."
+  "Set the rating of FILE to 4.
+Equivalent to calling `xmp-rate-file' with a RATING argument of 4."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "4"))
+  (xmp-rate-file file 4))
 
 ;;;###autoload
 (defun xmp-rate-file-5 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"5\"."
+  "Set the rating of FILE to 5.
+Equivalent to calling `xmp-rate-file' with a RATING argument of 5."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "5"))
+  (xmp-rate-file file 5))
 
 ;;;###autoload
 (defun xmp-rate-file-0 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"0\"."
+  "Set the rating of FILE to 0.
+Equivalent to calling `xmp-rate-file' with a RATING argument of 0."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "0"))
+  (xmp-rate-file file 0))
 
 ;;;###autoload
 (defun xmp-rate-file--1 (file)
-  "Set the rating of FILE to 1.
-Equivalent to calling `xmp-rate-file' with a RATING argument of \"-1\"."
+  "Set the rating of FILE to -1.
+Equivalent to calling `xmp-rate-file' with a RATING argument of -1."
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-rate-file file "-1"))
+  (xmp-rate-file file -1))
 
 (defun xmp-rating-match-p (rating condition)
   "Return non-nil if RATING matches CONDITION.
@@ -291,21 +292,21 @@ optionally preceded by a comparison operator (> >= = <= <)."
       (error "Syntax error: %s" condition))
 
     result))
-;; TEST: (xmp-rating-match-p "3" "2") => nil
-;; TEST: (xmp-rating-match-p "3" "3") => t
-;; TEST: (xmp-rating-match-p "3" ">-") => t
-;; TEST: (xmp-rating-match-p "3" "<=2") => nil
-;; TEST: (xmp-rating-match-p "3" "<=3") => t
-;; TEST: (xmp-rating-match-p "-1" "<=3") => t
-;; TEST: (xmp-rating-match-p "3" "1 3 5") => t
-;; TEST: (xmp-rating-match-p "3" "0 2 4  ") => nil
-;; TEST: (xmp-rating-match-p "3" "<=1 >=4") => nil
-;; TEST: (xmp-rating-match-p "5" "<=1 >=4  ") => t
-;; TEST: (xmp-rating-match-p "2" "<3 error?") => t
-;; TEST: (xmp-rating-match-p "5" "<3 error?") => error
+;; TEST: (xmp-rating-match-p 3 "2") => nil
+;; TEST: (xmp-rating-match-p 3 "3") => t
+;; TEST: (xmp-rating-match-p 3 ">-") => t
+;; TEST: (xmp-rating-match-p 3 "<=2") => nil
+;; TEST: (xmp-rating-match-p 3 "<=3") => t
+;; TEST: (xmp-rating-match-p -1 "<=3") => t
+;; TEST: (xmp-rating-match-p 3 "1 3 5") => t
+;; TEST: (xmp-rating-match-p 3 "0 2 4  ") => nil
+;; TEST: (xmp-rating-match-p 3 "<=1 >=4") => nil
+;; TEST: (xmp-rating-match-p 5 "<=1 >=4  ") => t
+;; TEST: (xmp-rating-match-p 2 "<3 error?") => t
+;; TEST: (xmp-rating-match-p 5 "<3 error?") => error
 ;; TEST: (xmp-rating-match-p nil "=0") => t
 ;; TEST: (xmp-rating-match-p (xmp-pvalue-make-text "1") "=1") => t
-;; TEST: (xmp-rating-match-p 1 "=1") => t
+;; TEST: (xmp-rating-match-p "1" "=1") => t
 
 ;;;; xmp:Label
 ;; Type: Text

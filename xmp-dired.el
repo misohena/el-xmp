@@ -167,6 +167,7 @@ A prefix argument means to unmark them instead."
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
          (rating (xmp-read-file-rating (dired-mark-prompt arg files)
+                                       ;; current value
                                        (unless (cdr files)
                                          (xmp-get-file-rating (car files))))))
     (dolist (file files)
@@ -177,13 +178,11 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-set-label (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (label (completing-read
-                 (xmp-dired-make-prompt
-                  (xmp-msg "Change label of %s to%s: ")
-                  arg files
-                  (unless (cdr files)
-                    (xmp-get-file-label (car files))))
-                 (mapcar #'car xmp-label-strings))))
+         (label (xmp-read-file-label
+                 nil (dired-mark-prompt arg files)
+                 ;; current value
+                 (unless (cdr files)
+                   (xmp-get-file-label (car files))))))
     (dolist (file files)
       (xmp-set-file-label file label))
     (dired-post-do-command)))
@@ -192,13 +191,11 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-set-subjects (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (subjects (xmp-read-text-list
-                    (xmp-dired-make-prompt
-                     (xmp-msg "Change subject of %s to: %%s\nSubject to toggle (empty to end): ") arg files nil)
+         (subjects (xmp-read-file-subjects
+                    nil (dired-mark-prompt arg files)
+                    ;; current value
                     (unless (cdr files)
-                      (xmp-get-file-subjects (car files)))
-                    xmp-read-subjects-candidates
-                    'xmp-read-subjects--hist)))
+                      (xmp-get-file-subjects (car files))))))
     (dolist (file files)
       (xmp-set-file-subjects file subjects))
     (dired-post-do-command)))
@@ -207,14 +204,10 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-add-subjects (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (subjects
-          (xmp-read-text-list
-           (xmp-dired-make-prompt
-            (xmp-msg "Add %%s to subject of %s.\nSubject to toggle (empty to end): ")
-            arg files nil)
-           nil
-           xmp-read-subjects-candidates
-           'xmp-read-subjects--hist)))
+         (subjects (xmp-read-file-subjects
+                    (xmp-msg "Add %%s to subjects of %s.\nSubject to toggle (empty to end): ")
+                    (dired-mark-prompt arg files)
+                    nil)))
     (dolist (file files)
       (xmp-set-file-subjects
        file
@@ -225,14 +218,10 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-remove-subjects (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (subjects
-          (xmp-read-text-list
-           (xmp-dired-make-prompt
-            (xmp-msg "Remove %%s from subject of %s.\nSubject to toggle (empty to end): ")
-            arg files nil)
-           nil
-           xmp-read-subjects-candidates
-           'xmp-read-subjects--hist)))
+         (subjects (xmp-read-file-subjects
+                    (xmp-msg "Remove %%s from subjects of %s.\nSubject to toggle (empty to end): ")
+                    (dired-mark-prompt arg files)
+                    nil)))
     (dolist (file files)
       (xmp-set-file-subjects
        file
@@ -243,10 +232,10 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-set-title (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (title (xmp-read-lang-alt
-                 (xmp-dired-make-prompt
-                  (xmp-msg "Change title of %s to%s: ")
-                  arg files nil)
+         (title (xmp-read-file-title
+                 nil
+                 (dired-mark-prompt arg files)
+                 ;; current value
                  (unless (cdr files)
                    (xmp-get-file-title-alist (car files))))))
     (dolist (file files)
@@ -257,10 +246,9 @@ A prefix argument means to unmark them instead."
 (defun xmp-dired-do-set-description (&optional arg)
   (interactive "P" dired-mode)
   (let* ((files (dired-get-marked-files t arg nil nil t))
-         (description (xmp-read-lang-alt
-                       (xmp-dired-make-prompt
-                        (xmp-msg "Change description of %s to%s: ")
-                        arg files nil)
+         (description (xmp-read-file-description
+                       nil (dired-mark-prompt arg files)
+                       ;; current value
                        (unless (cdr files)
                          (xmp-get-file-description-alist (car files))))))
     (dolist (file files)

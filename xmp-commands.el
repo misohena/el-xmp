@@ -72,6 +72,24 @@
 
 (require 'xmp)
 
+;;;; Prompt
+
+(defun xmp-make-prompt-for-files (msg files-or-str current-value)
+  (format msg
+          ;; files
+          (cond
+           ((stringp files-or-str)
+            files-or-str)
+           ((listp files-or-str)
+            (if (cdr files-or-str)
+                (format (xmp-msg "%s files") (length files-or-str))
+              (car files-or-str)))
+           (t "-"))
+          ;; current value
+          (if current-value
+              (concat " " (format (xmp-msg "(Current:%s)") current-value))
+            "")))
+
 ;;;; File name at point
 
 (defun xmp-file-name-at-point--fnapf ()
@@ -148,28 +166,24 @@ determine the filename."
   '((?1 . 1) (?2 . 2) (?3 . 3) (?4 . 4) (?5 . 5) (?0 . 0)
     (?- . -1)))
 
-(defconst xmp-rate-file-prompt
-  (xmp-msg-n "Input rating (1-5, 0:Unrate, -:Reject) for `%s' (Current:%s): "))
-
-(defconst xmp-rate-file-prompt-without-current-value
-  (xmp-msg-n "Input rating (1-5, 0:Unrate, -:Reject) for `%s': "))
-
-(defun xmp-read-file-rating (file &optional current-rating)
+(defun xmp-read-file-rating (files-or-str &optional current-rating)
   "Read the rating of FILE from user and return it.
 
 CURRENT-RATING is displayed in prompt."
   (prog1
       (alist-get
        (read-char-choice
-        (if current-rating
-            (format (xmp-msg xmp-rate-file-prompt) file current-rating)
-          (format (xmp-msg xmp-rate-file-prompt-without-current-value) file))
+        (xmp-make-prompt-for-files
+         (xmp-msg "Input rating (1-5, 0:Unrate, -:Reject) for `%s'%s: ")
+         files-or-str
+         current-rating)
         (mapcar #'car xmp-rating-char-map))
        xmp-rating-char-map)
     ;; Clear prompt
     (message nil)))
-;; EXAMPLE: (xmp-read-file-rating "file" "3")
+;; EXAMPLE: (xmp-read-file-rating "file" 3)
 ;; EXAMPLE: (xmp-read-file-rating "file")
+;; EXAMPLE: (xmp-read-file-rating '("file1" "file2"))
 
 ;;;###autoload
 (defun xmp-rate-file (file rating)
@@ -338,6 +352,16 @@ optionally preceded by a comparison operator (> >= = <= <)."
    (list (xmp-file-name-at-point)))
   (message "%s" (xmp-get-file-label file)))
 
+(defun xmp-read-file-label (msg files-or-str current-label)
+  (completing-read
+   (xmp-make-prompt-for-files (or msg (xmp-msg "Change label of %s to%s: "))
+                              files-or-str
+                              current-label)
+   (mapcar #'car xmp-label-strings)))
+;; EXAMPLE: (xmp-read-file-label nil "foo.jpg" nil)
+;; EXAMPLE: (xmp-read-file-label nil "foo.jpg" "Red")
+;; EXAMPLE: (xmp-read-file-label nil "marked files" nil)
+
 ;;;###autoload
 (defun xmp-set-file-label (file label)
   "Set the label of FILE to LABEL.
@@ -355,9 +379,7 @@ settings."
   (interactive
    (let* ((file (xmp-file-name-at-point))
           (current-label (xmp-get-file-label file))
-          (new-label (completing-read
-                      (format (xmp-msg "Label (Current: %s): ") current-label)
-                      (mapcar #'car xmp-label-strings))))
+          (new-label (xmp-read-file-label nil file current-label)))
      (when (equal new-label current-label)
        (error "No change"))
      (list file new-label)))
@@ -417,6 +439,17 @@ settings."
   current-text-list)
 ;; EXAMPLE: (xmp-read-text-list "Current subjects: %s\nSubject to toggle (empty to end): " nil)
 
+(defun xmp-read-file-subjects (msg files-or-str current-subjects)
+  (xmp-read-text-list
+   (xmp-make-prompt-for-files
+    (or msg
+        (xmp-msg
+         "Change subject of %s to: %%s\nSubject to toggle (empty to end): "))
+    files-or-str nil)
+   current-subjects
+   xmp-read-subjects-candidates
+   'xmp-read-subjects--hist))
+
 ;;;###autoload
 (defun xmp-set-file-subjects (file subjects)
   "Set the subjects of FILE to SUBJECTS.
@@ -435,12 +468,7 @@ settings."
   (interactive
    (let* ((file (xmp-file-name-at-point))
           (current-subjects (xmp-get-file-subjects file))
-          (new-subjects
-           (xmp-read-text-list
-            (xmp-msg "Current subjects: %s\nSubject to toggle (empty to end): ")
-            current-subjects
-            xmp-read-subjects-candidates
-            'xmp-read-subjects--hist)))
+          (new-subjects (xmp-read-file-subjects nil file current-subjects)))
      (when (equal new-subjects current-subjects)
        (error "No change"))
      (list file new-subjects)))
@@ -473,8 +501,16 @@ The results are returned in an alist with language code strings as keys."
 (defun xmp-read-lang-alt (prompt current-alist)
   (list
    (cons "x-default"
+         ;; TODO: If empty string entered?
          (read-string prompt
                       (cdar current-alist)))))
+
+(defun xmp-read-file-title (msg files-or-str current-title-alist)
+  (xmp-read-lang-alt
+   (xmp-make-prompt-for-files (or msg (xmp-msg "Change title of %s to: "))
+                              files-or-str nil)
+   current-title-alist))
+;; EXAMPLE: (xmp-read-file-title nil "test.jpg" '(("x-default" . "The Title")))
 
 ;;;###autoload
 (defun xmp-set-file-title (file title)
@@ -487,8 +523,7 @@ it). When specifying an alist, the first language code must be
   (interactive
    (let* ((file (xmp-file-name-at-point))
           (current-title-alist (xmp-get-file-title-alist file))
-          (new-title-alist (xmp-read-lang-alt (xmp-msg "Title: ")
-                                              current-title-alist)))
+          (new-title-alist (xmp-read-file-title nil file current-title-alist)))
      (when (equal new-title-alist current-title-alist)
        (error "No change"))
      (list file new-title-alist)))
@@ -515,6 +550,14 @@ The results are returned in an alist with language code strings as keys."
   (message "%s" (xmp-lang-alt-alist-to-single-string
                  (xmp-get-file-description-alist file))))
 
+(defun xmp-read-file-description (msg files-or-str current-description-alist)
+  (xmp-read-lang-alt
+   (xmp-make-prompt-for-files (or msg (xmp-msg "Change description of %s to: "))
+                              files-or-str nil)
+   current-description-alist))
+;; EXAMPLE: (xmp-read-file-description nil "test.jpg" nil)
+;; EXAMPLE: (xmp-read-file-description nil "test.jpg" '(("x-default" . "The Description")))
+
 ;;;###autoload
 (defun xmp-set-file-description (file description)
   "Set the description of FILE to DESCRTITLE.
@@ -526,8 +569,8 @@ it). When specifying an alist, the first language code must be
   (interactive
    (let* ((file (xmp-file-name-at-point))
           (current-description-alist (xmp-get-file-description-alist file))
-          (new-description-alist (xmp-read-lang-alt (xmp-msg "Description: ")
-                                                    current-description-alist)))
+          (new-description-alist (xmp-read-file-description
+                                  nil file current-description-alist)))
      (when (equal new-description-alist current-description-alist)
        (error "No change"))
      (list file new-description-alist)))
@@ -559,6 +602,18 @@ The elements of the list are strings."
 
 (defvar xmp-read-creators--hist nil)
 
+(defun xmp-read-file-creators (msg files-or-str current-creators)
+  (xmp-read-text-list
+   (xmp-make-prompt-for-files
+    (or msg
+        (xmp-msg
+         "Change creators of %s to: %%s\nCreator to toggle (empty to end): "))
+    files-or-str nil)
+   current-creators
+   xmp-read-creators-candidates
+   'xmp-read-creators--hist))
+;; (xmp-read-file-creators nil "marked files" '("AKIYAMA"))
+
 ;;;###autoload
 (defun xmp-set-file-creators (file creators)
   "Set the creators of FILE to CREATORS.
@@ -566,12 +621,7 @@ CREATORS is a list of strings."
   (interactive
    (let* ((file (xmp-file-name-at-point))
           (current-creators (xmp-get-file-creators file))
-          (new-creators
-           (xmp-read-text-list
-            (xmp-msg "Current creators: %s\nCreator to toggle (empty to end): ")
-            current-creators
-            xmp-read-creators-candidates
-            'xmp-read-creators--hist)))
+          (new-creators (xmp-read-file-creators nil file current-creators)))
      (when (equal new-creators current-creators)
        (error "No change"))
      (list file new-creators)))

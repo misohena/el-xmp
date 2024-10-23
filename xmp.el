@@ -1587,6 +1587,38 @@ nil means to scan the entire file."
      (xmp-xml-parse-string
       (decode-coding-string xmp-packet 'utf-8)))))
 
+;;;;; PDF File
+
+(defcustom xmp-file-pdfinfo-program
+  (executable-find "pdfinfo")
+  "The path to pdfinfo command or nil if none.
+
+By default, this variable is set to the path where pdfinfo exists when
+elisp is loaded. If you install pdfinfo later, you should change this
+variable explicitly."
+  :group 'xmp
+  :type '(choice (const :tag "Do not use pdfinfo" nil)
+                 file))
+
+(defun xmp-file-read-xml-from-pdf (file)
+  (or
+   (and xmp-file-pdfinfo-program
+        (ignore-errors
+          (xmp-xml-move-nsdecls-to-root
+           (xmp-xml-parse-string
+            (with-temp-buffer
+              (let* ((default-process-coding-system '(utf-8 . utf-8))
+                     (status (call-process xmp-file-pdfinfo-program
+                                           nil t nil "-meta"
+                                           (expand-file-name file))))
+                (unless (eq status 0)
+                  (error "pdfinfo exited with status %s" status))
+                (buffer-substring-no-properties (point-min) (point-max))))))))
+   ;; TODO: Elisp implementation.
+   ;; Search xpacket (There is a possibility of reading the wrong packet.)
+   (xmp-file-read-xml-from-scanned-packet file)))
+
+
 ;;;;; XML File
 
 (defun xmp-file-read-xml-from-xmp-xml (file)
@@ -1602,7 +1634,7 @@ nil means to scan the entire file."
 
 ;;;;; File Handlers
 
-;; TODO: Implement more handlers for PNG, PDF, etc. (see [XMP3])
+;; TODO: Implement more handlers for GIF, PNG, etc. (see [XMP3])
 (defconst xmp-file-name-handler-alist
   '(("\\.[Xx][Mm][Ll]$"
      :read-xml xmp-file-read-xml-from-xmp-xml
@@ -1613,7 +1645,11 @@ nil means to scan the entire file."
     ("\\.[Jj][Pp][Ee]?[Gg]$"
      :read-xml xmp-file-read-xml-from-jpeg
      ;; TODO: Implement jpeg writer
-     :write-xml xmp-file-write-xml-to-scanned-packet)))
+     :write-xml xmp-file-write-xml-to-scanned-packet)
+    ("\\.[Pp][Dd][Ff]$"
+     :read-xml xmp-file-read-xml-from-pdf
+     ;; TODO: Implement pdf writer
+     :write-xml nil)))
 
 (defconst xmp-file-magic-handler-alist
   '(("<?xml "

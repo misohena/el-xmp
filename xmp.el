@@ -71,6 +71,7 @@
 
 (require 'cl-lib)
 (require 'xmp-xml)
+(require 'xmp-file-reader)
 
 ;;;; Message Text Translation
 
@@ -1417,84 +1418,6 @@ nil means to scan the entire file."
           (insert xml-bytes)
           (insert (make-string (- body-size xml-size) ? )))))))
 
-;;;;; File Reader
-
-(defmacro xmp-file-reader (file) `(list ,file 0 nil))
-(defmacro xmp-file-reader-file (reader) `(nth 0 ,reader))
-(defmacro xmp-file-reader-buffer-beginning-offset (reader) `(nth 1 ,reader))
-(defmacro xmp-file-reader-eof-p (reader) `(nth 2 ,reader))
-(defsubst xmp-file-reader-buffer-remainning () (- (point-max) (point)))
-(defsubst xmp-file-reader-buffer-size () (- (point-max) (point-min)))
-(defsubst xmp-file-reader-buffer-end-offset (reader)
-  (+ (xmp-file-reader-buffer-beginning-offset reader)
-     (xmp-file-reader-buffer-size)))
-(defsubst xmp-file-reader-current-offset (reader)
-  (+ (xmp-file-reader-buffer-beginning-offset reader)
-     (- (point) (point-min))))
-
-(defun xmp-file-reader-open (file)
-  (erase-buffer)
-  (set-buffer-multibyte nil)
-  (xmp-file-reader file))
-
-(defun xmp-file-reader-append (reader size)
-  (when (and (> size 0)
-             (not (xmp-file-reader-eof-p reader)))
-    (save-excursion
-      (let ((ins-point (point-max)))
-        (goto-char ins-point)
-        (insert-file-contents-literally
-         (xmp-file-reader-file reader) nil
-         (xmp-file-reader-buffer-end-offset reader)
-         (+ (xmp-file-reader-buffer-end-offset reader) size))
-        (when (< (- (point-max) ins-point) size)
-          (setf (xmp-file-reader-eof-p reader) t))))))
-
-(defconst xmp-file-reader-buffer-size (- 4096 1)) ;; require 2^n-1
-
-(defun xmp-file-reader-prepare (reader size)
-  (let ((shortage (- size (xmp-file-reader-buffer-remainning))))
-    (when (> shortage 0)
-      (xmp-file-reader-append reader
-                              (logand
-                               (+ shortage xmp-file-reader-buffer-size)
-                               (lognot xmp-file-reader-buffer-size)))
-      (when (< (xmp-file-reader-buffer-remainning) size)
-        (error "File is too short")))))
-
-(defun xmp-file-reader-seek (reader offset)
-  (if (and (<= (xmp-file-reader-buffer-beginning-offset reader) offset)
-           (< offset (xmp-file-reader-buffer-end-offset reader)))
-      (goto-char (+ (point-min)
-                    (- offset
-                       (xmp-file-reader-buffer-beginning-offset reader))))
-    (erase-buffer)
-    (setf (xmp-file-reader-buffer-beginning-offset reader) offset)
-    ;;(setf (xmp-file-reader-eof-p reader) nil)
-    ))
-
-(defun xmp-file-reader-skip (reader size)
-  (xmp-file-reader-seek reader
-                        (+ (xmp-file-reader-current-offset reader) size)))
-
-(defun xmp-file-reader-read-bytes (reader size)
-  (xmp-file-reader-prepare reader size)
-  (let* ((beg (point))
-         (end (+ beg size)))
-    (goto-char end)
-    (buffer-substring beg end)))
-
-(defun xmp-file-reader-u8 (reader)
-  (xmp-file-reader-prepare reader 1)
-  (forward-char)
-  (char-before))
-
-(defun xmp-file-reader-u16be (reader)
-  (xmp-file-reader-prepare reader 2)
-  (let ((b1 (following-char)))
-    (forward-char 2)
-    (+ (ash b1 8) (preceding-char))))
-
 ;;;;; JPEG File
 
 (defconst xmp-file-scan-jpeg-xmp-signature
@@ -1526,7 +1449,7 @@ nil means to scan the entire file."
                      (seglen (xmp-file-reader-u16be reader)))
                  ;;(message "segoff=%d seglen=%d" segoff seglen)
                  (when (= marker #xffe1) ;; ffe1:APP1
-                   (xmp-file-reader-prepare
+                   (xmp-file-reader-ensure-bytes
                     reader
                     (max xmp-file-scan-jpeg-xmp-signature-size
                          xmp-file-scan-jpeg-xmp-ext-signature-size))
@@ -1600,8 +1523,11 @@ variable explicitly."
   :type '(choice (const :tag "Do not use pdfinfo" nil)
                  file))
 
+(autoload 'xmp-pdf-read-metadata "xmp-pdf")
+
 (defun xmp-file-read-xml-from-pdf (file)
   (or
+   ;; Use pdfinfo
    (and xmp-file-pdfinfo-program
         (ignore-errors
           (xmp-xml-move-nsdecls-to-root
@@ -1614,7 +1540,12 @@ variable explicitly."
                 (unless (eq status 0)
                   (error "pdfinfo exited with status %s" status))
                 (buffer-substring-no-properties (point-min) (point-max))))))))
-   ;; TODO: Elisp implementation.
+   ;; Use elisp implementation (Encryption, compression, etc. are not supported)
+   (when-let ((metadata (ignore-errors (xmp-pdf-read-metadata file)))
+              (bytes (plist-get metadata :bytes)))
+     (xmp-xml-move-nsdecls-to-root
+      (xmp-xml-parse-string
+       (decode-coding-string bytes 'utf-8))))
    ;; Search xpacket (There is a possibility of reading the wrong packet.)
    (xmp-file-read-xml-from-scanned-packet file)))
 

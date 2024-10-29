@@ -676,13 +676,14 @@ Return a list of (<namespace-name> . <prefix>)."
    str
    t t))
 
-(defun xmp-xml-ns-name-to-prefix (ns ns-name-prefix-alist)
+(defun xmp-xml-ns-name-to-prefix (ns ns-name-prefix-alist &optional noerror)
   "Convert namespace name NS (URI) to prefix using NS-NAME-PREFIX-ALIST."
   (if (equal ns xmp-xml:)
       "xml" ;; Reserved
     (if-let ((cell (assoc ns ns-name-prefix-alist)))
         (cdr cell)
-      (error "Namespace `%s' is not defined" ns))))
+      (unless noerror
+        (error "Namespace `%s' is not defined" ns)))))
 
 (defun xmp-xml-element-name-string (node ns-name-prefix-alist)
   (let* ((ename (xmp-xml-element-ename node))

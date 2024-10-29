@@ -259,6 +259,13 @@ A prefix argument means to unmark them instead."
     (xmp-set-file-creators files creators)
     (dired-post-do-command)))
 
+;;;; Edit properties
+
+;;;###autoload
+(defun xmp-dired-do-edit-properties (&optional arg)
+  (interactive "P" dired-mode)
+  (let ((files (dired-get-marked-files t arg nil nil t)))
+    (xmp-edit-file-properties files)))
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

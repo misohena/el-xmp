@@ -26,6 +26,7 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-set-file-title~
 - ~xmp-set-file-description~
 - ~xmp-set-file-creators~
+- ~xmp-edit-file-properties~
 
 プロパティを表示するコマンド:
 - ~xmp-show-file-properties~
@@ -58,6 +59,7 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-do-set-title~
   - ~xmp-dired-do-set-description~
   - ~xmp-dired-do-set-creators~
+  - ~xmp-dired-do-edit-properties~
 
 これらに加えて、xmp-commands.el内のコマンドがDiredで使用できます。
 
@@ -74,6 +76,21 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
   - ~xmp-image-dired-filter-subjects~
 
 これらに加えて、xmp-commands.el内のコマンドがimage-diredで使用できます。
+
+** xmp-editor.el
+
+xmp-editor.elは[[https://www.gnu.org/software/emacs/manual/html_mono/widget.html][The Emacs Widget Library]]を使用したXMPエディタUIを提供します。 ~xmp-edit-file-properties~ や ~xmp-dired-do-edit-properties~ といったコマンドがこのライブラリを使用しています。
+
+例えば次のようなコードでXMPプロパティを編集するエディタを開くことができます。
+
+#+begin_src elisp
+;; カレントディレクトリにあるjpgファイルのプロパティを一括で編集するためのバッファを開きます。
+(xmp-editor-open-files (directory-files "." t "\\.jpg$"))
+
+;; diredバッファでマークされたファイルを一括で編集するためのバッファを開きます。
+;; 編集するXMPプロパティはdc:titleのみです。
+(xmp-editor-open-files (dired-get-marked-files) (list xmp-dc:title))
+#+end_src
 
 ** xmp-setup.el
 
@@ -97,6 +114,8 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' s t | Set title          |
 | ' s d | Set description    |
 | ' s c | Set creators       |
+|-------+--------------------|
+| ' e p | Edit properties    |
 |-------+--------------------|
 | ' g r | Get rating         |
 | ' g l | Get label          |

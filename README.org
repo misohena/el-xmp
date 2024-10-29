@@ -28,6 +28,7 @@ Commands to change properties:
 - ~xmp-set-file-title~
 - ~xmp-set-file-description~
 - ~xmp-set-file-creators~
+- ~xmp-edit-file-properties~
 
 Commands to display properties:
 - ~xmp-show-file-properties~
@@ -60,6 +61,7 @@ Currently, it provides the following commands:
   - ~xmp-dired-do-set-title~
   - ~xmp-dired-do-set-description~
   - ~xmp-dired-do-set-creators~
+  - ~xmp-dired-do-edit-properties~
 
 In addition, the commands in xmp-commands.el can be used with Dired.
 
@@ -76,6 +78,21 @@ Currently, it provides the following commands:
   - ~xmp-image-dired-filter-subjects~
 
 In addition, the commands in xmp-commands.el can be used with image-dired.
+
+** xmp-editor.el
+
+xmp-editor.el provides an XMP editor UI using [[https://www.gnu.org/software/emacs/manual/html_mono/widget.html][The Emacs Widget Library]]. Commands such as ~xmp-edit-file-properties~ and ~xmp-dired-do-edit-properties~ use this library.
+
+For example, you can open an editor to edit XMP properties with the following code:
+
+#+begin_src elisp
+;; Open a buffer to edit the properties of jpg files in the current directory all at once.
+(xmp-editor-open-files (directory-files "." t "\\.jpg$"))
+
+;; Open a buffer to edit files marked in the Dired buffer all at once.
+;; The only XMP property to edit is dc:title.
+(xmp-editor-open-files (dired-get-marked-files) (list xmp-dc:title))
+#+end_src
 
 ** xmp-setup.el
 
@@ -99,6 +116,8 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' s t | Set title          |
 | ' s d | Set description    |
 | ' s c | Set creators       |
+|-------+--------------------|
+| ' e p | Edit properties    |
 |-------+--------------------|
 | ' g r | Get rating         |
 | ' g l | Get label          |

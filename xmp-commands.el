@@ -50,6 +50,7 @@
 ;; - `xmp-set-file-title'
 ;; - `xmp-set-file-description'
 ;; - `xmp-set-file-creators'
+;; - `xmp-edit-file-properties'
 
 ;; Commands to display properties:
 ;; - `xmp-show-file-properties'
@@ -798,6 +799,17 @@ You can customize which properties are displayed by the variable
             (xmp-dump-named-pvalue-list buffer props ns-name-prefix-alist 0))
           (view-mode))
         (pop-to-buffer buffer)))))
+
+;;;; Editor
+
+(autoload 'xmp-editor-open-files "xmp-editor")
+
+;;;###autoload
+(defun xmp-edit-file-properties (files &optional prop-ename-list)
+  (interactive
+   (list (xmp-file-name-list-at-point)
+         nil))
+  (xmp-editor-open-files files prop-ename-list))
 
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

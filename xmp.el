@@ -1774,6 +1774,9 @@ This function calls `xmp-file-enumerate-properties' with a single-element list."
 
 ;;;; Sidecar Files
 
+(defun xmp-sidecar-file-p (file)
+  (equal (file-name-extension file) "xmp"))
+
 (defun xmp-sidecar-file-name (target-file)
   "Return the file name of the sidecar file used to record the metadata of
 TARGET-FILE.

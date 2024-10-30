@@ -355,17 +355,21 @@
 
 ;;;; Initialization
 
+(defconst xmp-editor-default-buffer-name "*XMP Files Editor*")
+
 ;;;###autoload
-(defun xmp-editor-open-files (files &optional prop-ename-list)
+(defun xmp-editor-open-files (files &optional
+                                    prop-ename-list
+                                    buffer)
   ;; TODO: Warn if there is an existing editor
-  (xmp-editor-create-files-buffer "*XMP Files Editor*"
+  (xmp-editor-create-files-buffer (or buffer xmp-editor-default-buffer-name)
                                   (seq-remove #'xmp-sidecar-file-p files)
                                   (or prop-ename-list
                                       (xmp-editor-target-properties-enames))))
 
-(defun xmp-editor-create-files-buffer (name files prop-ename-list)
+(defun xmp-editor-create-files-buffer (buffer files prop-ename-list)
   (let ((dir default-directory))
-    (pop-to-buffer-same-window name)
+    (pop-to-buffer-same-window buffer)
     (xmp-editor-initialize-files-buffer files prop-ename-list dir)))
 
 (defun xmp-editor-initialize-files-buffer (files prop-ename-list &optional dir)

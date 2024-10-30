@@ -247,6 +247,113 @@
     ;; Notify parent
     (widget-apply parent :notify widget event)))
 
+
+;;;;; Text List
+
+;; Example:
+;; (progn
+;;   (pop-to-buffer (generate-new-buffer "*Widget Example*"))
+;;   (setq test-wid
+;;         (widget-create 'xmp-text-list :tag "Creators"
+;;                        ;;'("Apple")
+;;                        ;;'("Apple" "Orange")
+;;                        ))
+;;   (use-local-map widget-keymap)
+;;   (widget-setup))
+
+(define-widget 'xmp-text-list 'default
+  "XMP Text List."
+  :convert-widget 'widget-value-convert-widget
+  :format "%v"
+  :tag ""
+  :value-create 'xmp-widget-text-list-value-create
+  :value-get 'xmp-widget-text-list-value-get
+  :validate 'widget-child-validate)
+
+(defun xmp-widget-text-list-value-single-p (value)
+  (null (cdr value)))
+
+(defun xmp-widget-text-list-value-create (widget)
+  (let* ((value (widget-get widget :value))
+         (single-p (xmp-widget-text-list-value-single-p value)))
+    (widget-put widget :xmp-single-p single-p)
+    (widget-put widget :children
+                (if single-p
+                    (xmp-widget-text-list-single-value-create widget)
+                  (xmp-widget-text-list-multiple-value-create widget)))))
+
+(defun xmp-widget-text-list-value-get (widget)
+  (if (widget-get widget :xmp-single-p)
+      (xmp-widget-text-list-single-get-external-value widget)
+    (xmp-widget-text-list-multiple-get-external-value widget)))
+
+;; Single Item (x-default only)
+
+(defun xmp-widget-text-list-single-value-create (widget)
+  (list (widget-create-child-and-convert
+         widget 'text
+         :format " %v " ;; Do not specify "%v " because :from marker type is t
+         :size 20
+         :value (xmp-widget-text-list-single-to-internal
+                 (widget-get widget :value)))
+
+        (widget-create-child-and-convert
+         widget 'insert-button
+         :action 'xmp-widget-text-list-single-insert)
+        ))
+
+(defun xmp-widget-text-list-single-to-internal (list)
+  (car list))
+
+(defun xmp-widget-text-list-single-get-external-value (widget)
+  (let ((text (widget-value (car (widget-get widget :children)))))
+    (if (string-empty-p text)
+        nil
+      (list text))))
+
+(defun xmp-widget-text-list-single-insert (widget &rest _)
+  (let* ((parent (widget-get widget :parent))
+         (value (widget-value parent))
+         (new-value
+          (if (null value)
+              (list "" "")
+            (append value (list "")))))
+    (widget-value-set parent new-value)
+    (widget-setup)))
+
+;; Multiple Items
+
+(defun xmp-widget-text-list-multiple-value-create (widget)
+  (list (widget-create-child-and-convert
+         widget
+         '(repeat
+           :format "\n%v"
+           ;;:type
+           ;;(string :tag "" :format " %v")
+           :notify xmp-widget-text-list-multiple-notify
+           (string :tag "" :format " %v")
+           )
+         :value (xmp-widget-text-list-multiple-to-internal
+                 (widget-get widget :value)))))
+
+(defun xmp-widget-text-list-multiple-to-internal (list)
+  list)
+
+(defun xmp-widget-text-list-multiple-get-external-value (widget)
+  (widget-value (car (widget-get widget :children))))
+
+(defun xmp-widget-text-list-multiple-notify (widget _child &optional event)
+  (let ((parent (widget-get widget :parent))
+        (list (widget-value widget)))
+    ;; Change to single type
+    (when (= (length list) 1)
+      (widget-value-set parent list)
+      (widget-setup))
+
+    ;; Notify parent
+    (widget-apply parent :notify widget event)))
+
+
 ;;;;; Comma Separated Text (subject)
 
 ;; Example:
@@ -539,6 +646,34 @@
                                          (xmp-pvalue-as-lang-alt-alist pvalue))
                     :value-to-external (lambda (_widget value)
                                          (xmp-pvalue-from-lang-alt-alist value))
+                    pvalue)
+                 (insert "\n")))
+              ((or 'BagText 'BagProperName 'BagLocale 'BagDate)
+               (prog1
+                   (widget-create
+                    'xmp-property
+                    :tag label
+                    :type 'xmp-text-list
+                    :value-to-internal
+                    (lambda (_widget pvalue)
+                      (xmp-pvalue-as-text-list pvalue))
+                    :value-to-external
+                    (lambda (_widget value)
+                      (xmp-pvalue-make-bag-from-text-list value))
+                    pvalue)
+                 (insert "\n")))
+              ((or 'SeqText 'SeqProperName 'SeqLocale 'SeqDate)
+               (prog1
+                   (widget-create
+                    'xmp-property
+                    :tag label
+                    :type 'xmp-text-list
+                    :value-to-internal
+                    (lambda (_widget pvalue)
+                      (xmp-pvalue-as-text-list pvalue))
+                    :value-to-external
+                    (lambda (_widget value)
+                      (xmp-pvalue-make-seq-from-text-list value))
                     pvalue)
                  (insert "\n")))
               (_

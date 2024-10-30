@@ -262,6 +262,11 @@
   ""
   :tag ""
   :format " %v"
+  ;; NOTE: Must be explicitly specified.
+  ;; In cus-edit.el, the keymap of editable-field is forcibly
+  ;; rewritten to `custom-field-keymap', so if you do not specify
+  ;; anything, the keymap for the customization buffer will be used.
+  :keymap widget-field-keymap
   :value-to-internal 'xmp-widget-comma-separated-text-value-to-internal
   :value-to-external 'xmp-widget-comma-separated-text-value-to-external)
 
@@ -497,7 +502,7 @@
             (widget-create
              'xmp-property
              :tag label
-             :type '(xmp-comma-separated-text :size 40 :format " %v")
+             :type '(xmp-comma-separated-text :format " %v")
              :value-to-internal (lambda (_widget pvalue)
                                   (xmp-pvalue-as-text-list pvalue))
              :value-to-external (lambda (_widget value)
@@ -510,7 +515,7 @@
                (widget-create
                 'xmp-property
                 :tag label
-                :type '(text :size 40 :format " %v")
+                :type '(text :format " %v")
                 :value-to-internal (lambda (_widget pvalue)
                                      (or (xmp-pvalue-as-text pvalue)
                                          ""))
@@ -521,25 +526,26 @@
                                        nil))
                 pvalue))
               ('LangAlt
-               (widget-create
-                'xmp-property
-                :tag label
-                :type 'xmp-lang-alt
-                :value-to-internal (lambda (_widget pvalue)
-                                     (xmp-pvalue-as-lang-alt-alist pvalue))
-                :value-to-external (lambda (_widget value)
-                                     (xmp-pvalue-from-lang-alt-alist value))
-                pvalue))
+               (prog1
+                   (widget-create
+                    'xmp-property
+                    :tag label
+                    :type 'xmp-lang-alt
+                    :value-to-internal (lambda (_widget pvalue)
+                                         (xmp-pvalue-as-lang-alt-alist pvalue))
+                    :value-to-external (lambda (_widget value)
+                                         (xmp-pvalue-from-lang-alt-alist value))
+                    pvalue)
+                 (insert "\n")))
               (_
                (widget-create
                 'xmp-property
                 :tag label
-                :type '(sexp :size 40 :format " %v")
+                :type '(sexp :format " %v")
                 pvalue)))))))
     (put-text-property (widget-get widget :from)
                        (xmp-widget-property-tag-end widget)
                        'xmp-property prop-ename)
-    (insert "\n")
     widget))
 
 ;;;; Buffer

@@ -332,6 +332,7 @@
     (define-key km [remap save-buffer] 'xmp-editor-save)
     (define-key km (kbd "C-c C-n") 'xmp-editor-next-same-property)
     (define-key km (kbd "C-c C-p") 'xmp-editor-previous-same-property)
+    (define-key km (kbd "C-c C-o") 'xmp-editor-open-target-file-at)
     km))
 
 (define-minor-mode xmp-editor-minor-mode
@@ -397,9 +398,11 @@
     (concat
      "\\[xmp-editor-save]: " (xmp-msg "Save Properties") "\n"
      "\\[xmp-editor-next-same-property] / \\[xmp-editor-previous-same-property]: "
-     (xmp-msg "Next / Previous Image") "\n"
+     (xmp-msg "Next/Previous Image") "\n"
      "\\[widget-forward] / \\[widget-backward]: "
-     (xmp-msg "Next / Previous Widget") "\n"))
+     (xmp-msg "Next/Previous Widget") "\n"
+     "\\[xmp-editor-open-target-file-at]: " (xmp-msg "Open File") "\n"
+     ))
    "\n"))
 
 (defun xmp-editor-insert-files-footer ()
@@ -599,6 +602,13 @@
 (defun xmp-editor-current-property-begin ()
   (cdr (xmp-editor-current-property-at)))
 
+(defun xmp-editor-current-file-at ()
+  (let ((pos (point)))
+    (while (and (not (get-text-property pos 'xmp-heading))
+                (setq pos (previous-single-property-change pos 'xmp-heading))))
+    (when pos
+      (get-text-property pos 'xmp-heading-file))))
+
 ;;;; Navigation
 
 (defun xmp-editor-previous-heading ()
@@ -640,6 +650,24 @@
                                    ;; prop-ename or nil
                                    current-property-name)
     (widget-forward 1)))
+
+;;;;; Open File
+
+(defcustom xmp-editor-open-target-file-function
+  'find-file-other-window
+  "A function used by the `xmp-editor-open-target-file-at' command."
+  :group 'xmp
+  :type '(choice
+          (const find-file-other-window)
+          (const find-file)
+          (const org-open-file)
+          (const browse-url)
+          (function)))
+
+(defun xmp-editor-open-target-file-at ()
+  (interactive)
+  (when-let ((file (xmp-editor-current-file-at)))
+    (funcall xmp-editor-open-target-file-function file)))
 
 
 ;;;; End

@@ -802,6 +802,7 @@ You can customize which properties are displayed by the variable
 
 ;;;; Editor
 
+(autoload 'xmp-editor-buffer-modified-check "xmp-editor")
 (autoload 'xmp-editor-open-files "xmp-editor")
 
 ;;;###autoload
@@ -809,6 +810,7 @@ You can customize which properties are displayed by the variable
   (interactive
    (list (xmp-file-name-list-at-point)
          nil))
+  (xmp-editor-buffer-modified-check)
   (xmp-editor-open-files files prop-ename-list))
 
 (provide 'xmp-commands)

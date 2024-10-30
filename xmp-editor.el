@@ -554,6 +554,17 @@
 
 ;;;; Buffer
 
+;;;###autoload
+(defun xmp-editor-buffer-modified-p (&optional buffer)
+  (when-let ((buffer (get-buffer (or buffer xmp-editor-default-buffer-name))))
+    (buffer-modified-p buffer)))
+
+;;;###autoload
+(defun xmp-editor-buffer-modified-check (&optional buffer)
+  (when (xmp-editor-buffer-modified-p buffer)
+    (pop-to-buffer-same-window buffer)
+    (error "There are unsaved modifications in the edit buffer.")))
+
 (defun xmp-editor-modified-files-and-properties ()
   (cl-loop for file-info in xmp-editor-files
            for props = (xmp-editor-file-info-modified-properties file-info)

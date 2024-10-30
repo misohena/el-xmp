@@ -471,6 +471,7 @@
   ;; TODO: Move to xmp-commands.el or xmp.el?
   (concat
    (or
+    (xmp-predefined-namespace-prefix (xmp-xml-ename-ns prop-ename))
     (xmp-xml-ns-name-to-prefix (xmp-xml-ename-ns prop-ename)
                                ns-name-prefix-alist
                                t)

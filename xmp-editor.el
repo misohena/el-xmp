@@ -31,6 +31,7 @@
 
 (require 'xmp)
 (require 'wid-edit)
+(require 'text-property-search)
 
 ;;;; Widgets
 ;;;;; XMP Property
@@ -68,6 +69,13 @@
     (widget-put widget :children (list child))
     (widget-put widget :xmp-init-value (widget-value child))
     (widget-put widget :xmp-modified-p nil)))
+
+(defun xmp-widget-property-tag-begin (widget)
+  (1+ (widget-get widget :from)))
+
+(defun xmp-widget-property-tag-end (widget)
+  ;; label:| [   ]
+  (1- (widget-get (car (widget-get widget :children)) :from)))
 
 (defun xmp-widget-property-notify (child &rest _)
   ;;(message "Enter xmp-widget-property-notify")
@@ -322,6 +330,8 @@
     ;; (define-key km (kbd "C-c C-c") 'xmp-editor-save)
     ;; (define-key km (kbd "C-x C-s") 'xmp-editor-save)
     (define-key km [remap save-buffer] 'xmp-editor-save)
+    (define-key km (kbd "C-c C-n") 'xmp-editor-next-same-property)
+    (define-key km (kbd "C-c C-p") 'xmp-editor-previous-same-property)
     km))
 
 (define-minor-mode xmp-editor-minor-mode
@@ -383,19 +393,38 @@
 
 (defun xmp-editor-insert-files-header ()
   (insert
-   (substitute-command-keys (xmp-msg "\\[xmp-editor-save]: Save Properties"))
-   "\n\n"))
+   (substitute-command-keys
+    (concat
+     "\\[xmp-editor-save]: " (xmp-msg "Save Properties") "\n"
+     "\\[xmp-editor-next-same-property] / \\[xmp-editor-previous-same-property]: "
+     (xmp-msg "Next / Previous Image") "\n"
+     "\\[widget-forward] / \\[widget-backward]: "
+     (xmp-msg "Next / Previous Widget") "\n"))
+   "\n"))
 
 (defun xmp-editor-insert-files-footer ()
   )
 
 (defun xmp-editor-insert-file (file prop-ename-list)
-  (insert "File: " (expand-file-name file) "\n")
+  (setq file (expand-file-name file))
+  (xmp-editor-insert-file-heading file)
   (when (xmp-editor-image-file-p file)
     (xmp-editor-insert-file-thumbnail file))
   (xmp-editor-file-info
    file
    (xmp-editor-insert-file-properties file prop-ename-list)))
+
+(defun xmp-editor-insert-file-heading (file)
+  (xmp-editor-insert-heading (format (xmp-msg "File: %s\n") file)
+                             1
+                             (list 'xmp-heading-file file)))
+
+(defun xmp-editor-insert-heading (heading-string heading-level text-props)
+  (insert (apply #'propertize
+                 heading-string
+                 'xmp-heading t
+                 'xmp-heading-level heading-level
+                 text-props)))
 
 (defun xmp-editor-insert-file-thumbnail (file)
   (require 'image-dired)
@@ -503,6 +532,9 @@
                 :tag label
                 :type '(sexp :size 40 :format " %v")
                 pvalue)))))))
+    (put-text-property (widget-get widget :from)
+                       (xmp-widget-property-tag-end widget)
+                       'xmp-property prop-ename)
     (insert "\n")
     widget))
 
@@ -550,6 +582,64 @@
   (cl-loop for (_prop-ename . widget)
            in (xmp-editor-file-info-property-widget-alist file-info)
            do (xmp-widget-property-clear-modified-p widget)))
+
+;;;; Context
+
+(defun xmp-editor-current-property-at ()
+  (let ((pos (point))
+        prop-ename)
+    (while (and (null (setq prop-ename (get-text-property pos 'xmp-property)))
+                (setq pos (previous-property-change pos))
+                (null (get-text-property pos 'xmp-heading))))
+    (cons prop-ename
+          ;; beginning of property
+          pos)))
+
+(defun xmp-editor-current-property-begin ()
+  (cdr (xmp-editor-current-property-at)))
+
+;;;; Navigation
+
+(defun xmp-editor-previous-heading ()
+  "Move to the previous heading line."
+  (interactive nil xmp-editor-mode)
+  (let ((pos (line-end-position 0)))
+    (while (and (not (get-text-property pos 'xmp-heading))
+                (setq pos (previous-single-property-change pos 'xmp-heading))))
+    (when pos
+      (goto-char pos)
+      (forward-line 0))))
+
+(defun xmp-editor-next-heading ()
+  "Move to the next heading line."
+  (interactive nil xmp-editor-mode)
+  (let ((pos (line-beginning-position 2)))
+    (while (and (not (get-text-property pos 'xmp-heading))
+                (setq pos (next-single-property-change pos 'xmp-heading))))
+    (when pos
+      (goto-char pos))))
+
+(defun xmp-editor-next-same-property ()
+  "Move to the same property in the next file."
+  (interactive nil xmp-editor-mode)
+  (text-property-search-forward 'xmp-property
+                                ;; prop-ename or nil
+                                (car (xmp-editor-current-property-at)))
+  (widget-forward 1))
+
+(defun xmp-editor-previous-same-property ()
+  "Move to the same property in the previous file."
+  (interactive nil xmp-editor-mode)
+  (let* ((current-property (xmp-editor-current-property-at))
+         (current-property-name (car current-property))
+         (current-property-begin (cdr current-property)))
+    (when current-property-begin
+      (goto-char current-property-begin))
+    (text-property-search-backward 'xmp-property
+                                   ;; prop-ename or nil
+                                   current-property-name)
+    (widget-forward 1)))
+
 
 ;;;; End
 (provide 'xmp-editor)

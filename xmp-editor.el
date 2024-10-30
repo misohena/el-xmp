@@ -622,7 +622,8 @@
              pvalue))
            (t
             (pcase (xmp-defined-property-type prop-ename)
-              ((or 'Text 'Real 'Integer 'URI 'MIMEType 'AgentName 'Date 'GUID)
+              ((or 'Text 'Real 'Integer 'URI 'MIMEType 'AgentName 'Date 'GUID
+                   'Boolean)
                (widget-create
                 'xmp-property
                 :tag label

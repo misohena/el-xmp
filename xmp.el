@@ -97,8 +97,8 @@ text from source code."
   :prefix "xmp-"
   :group 'files)
 
-;;;; Predefined Namespaces
-
+;;;; Namespace Information
+;;;;; Predefined Namespaces
 (eval-and-compile
   (defconst xmp-predefined-namespaces
     ;; (<namespace name string> . (<prefix> ...more info))
@@ -175,17 +175,61 @@ text from source code."
                    ))))
 (xmp-define-ns-const)
 
-;; Define default namespace prefix alist variable
-;;     (defconst xmp-default-ns-name-prefix-alist
+;; Define predefined namespace prefix alist variable
+;;     (defconst xmp-predefined-ns-name-prefix-alist
 ;;       '((:adobe:ns:meta/ . "x")
 ;;         (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "rdf") ...))
 (defmacro xmp-define-ns-namespaces-const ()
-  `(defconst xmp-default-ns-name-prefix-alist
+  `(defconst xmp-predefined-ns-name-prefix-alist
      (list
       ,@(cl-loop for (ns-name . ns-info) in xmp-predefined-namespaces
                  for ns-prefix = (car ns-info)
                  collect `(cons (xmp-xml-ns-name ,ns-name) ,ns-prefix)))))
 (xmp-define-ns-namespaces-const)
+
+;;;;; Default Namespace Prefix
+
+(defvar xmp-default-ns-name-prefix-alist xmp-predefined-ns-name-prefix-alist)
+
+(defun xmp-update-default-ns-name-prefix-alist ()
+  (setq xmp-default-ns-name-prefix-alist
+        (nconc (xmp-user-defined-ns-name-prefix-alist)
+               xmp-predefined-ns-name-prefix-alist)))
+
+(defun xmp-default-namespace-prefix (ns-name)
+  "Return the default namespace prefix corresponding to the namespace
+name (URI) NS-NAME.
+
+NS-NAME can be either a string or an internal representation created by
+`xmp-xml-ns-name'."
+  (or (xmp-user-defined-namespace-prefix ns-name)
+      (xmp-predefined-namespace-prefix ns-name)))
+
+;;;;; User Defined Namespaces
+
+(defvar xmp-user-defined-namespaces)
+
+(defun xmp-user-defined-ns-name-prefix-alist ()
+  (cl-loop for (ns-name . ns-info) in xmp-user-defined-namespaces
+           for ns-prefix = (car ns-info)
+           collect (cons (xmp-xml-ns-name ns-name) ns-prefix)))
+
+(defun xmp-user-defined-namespace-prefix (ns-name)
+  (nth 1 (assoc (xmp-xml-ns-name-string ns-name)
+                xmp-user-defined-namespaces #'string=)))
+
+(defcustom xmp-user-defined-namespaces nil
+  "A list of namespaces added by user.
+
+Specify namespaces that are not included in `xmp-predefined-namespaces'."
+  :group 'xmp
+  :type '(repeat (list (string :tag "Namespace Name (URI)")
+                       (string :tag "Default Prefix")))
+  :set (lambda (var val)
+         (set var val)
+         ;; Update prefix alist
+         (xmp-update-default-ns-name-prefix-alist)))
+
 
 ;;;; Predefined Element and Attribute Names
 
@@ -235,7 +279,16 @@ text from source code."
                                          xmp-rdf:ID
                                          xmp-rdf:nodeID))
 
-;;;; Predefined Properties
+;;;; Property Type Information
+
+(defconst xmp-predefined-property-types
+  '(Text URI Boolean Real Integer GUID Date AgentName RenditionClass
+         ResourceRef MIMEType LangAlt
+         BagText BagProperName BagLocale BagDate
+         SeqText SeqProperName SeqLocale SeqDate))
+
+;;;; Property Information
+;;;;; Predefined Properties
 
 (eval-and-compile
   (defconst xmp-predefined-properties
@@ -291,26 +344,53 @@ text from source code."
       ;; [XMP1 8.7 xmpidq namespace]
       ("xmpidq"
        ("Scheme" Text))
-      ))
-
-  ;; Functions
-  (defun xmp-predefined-property-type (ename)
-    (when-let* ((ns-prefix-str (xmp-predefined-namespace-prefix
-                                (xmp-xml-ename-ns ename)))
-                (ns-info (assoc ns-prefix-str
-                                xmp-predefined-properties
-                                #'string=))
-                (prop-info (assoc (xmp-xml-ename-local ename)
-                                  (cdr ns-info)
-                                  #'string=)))
-      (nth 1 prop-info)))
-  ;; TEST: (xmp-predefined-property-type xmp-xmp:Rating) => Real
-  )
+      )))
 
 ;; Define expanded name variables for properties
 (defmacro xmp-define-predefined-properties ()
   `(xmp-define-predefined-names-1 ,xmp-predefined-properties))
 (xmp-define-predefined-properties)
+
+;;;;; User Defined Properties
+
+(defcustom xmp-user-defined-properties nil
+  "A list of XMP properties added by user.
+
+Specify properties that are not included in `xmp-predefined-properties'.
+
+When adding a namespace to this variable, register the namespace
+information in `xmp-user-defined-namespaces'."
+  :group 'xmp
+  :type `(alist
+          :tag "Namespaces and Properties Alist"
+          :key-type (string :tag "Namespace Prefix")
+          :value-type (repeat
+                       :tag "Properties"
+                       (list
+                        (string :tag "Name")
+                        (choice :tag "Type"
+                                symbol
+                                ,@(mapcar
+                                   (lambda (s) `(const ,s))
+                                   xmp-predefined-property-types))))))
+
+;;;;; Defined Property Information
+
+(defun xmp-defined-property-type--get (ename prop-info-alist)
+  (when-let* ((ns-prefix-str (xmp-default-namespace-prefix
+                              (xmp-xml-ename-ns ename)))
+              (ns-info (assoc ns-prefix-str
+                              prop-info-alist
+                              #'string=))
+              (prop-info (assoc (xmp-xml-ename-local ename)
+                                (cdr ns-info)
+                                #'string=)))
+    (nth 1 prop-info)))
+
+(defun xmp-defined-property-type (ename)
+  (or (xmp-defined-property-type--get ename xmp-user-defined-properties)
+      (xmp-defined-property-type--get ename xmp-predefined-properties)))
+;; TEST: (xmp-defined-property-type xmp-xmp:Rating) => Real
 
 
 ;;;; DOM Tree Creation
@@ -999,12 +1079,12 @@ The type of array is one of the following variable values (expanded names):
 
 ;;;;;; Convert Predefined Properties
 
-(defun xmp-predefined-property-pvalue-from-elisp (prop-ename value)
-  (when-let ((type (xmp-predefined-property-type prop-ename)))
+(defun xmp-defined-property-pvalue-from-elisp (prop-ename value)
+  (when-let ((type (xmp-defined-property-type prop-ename)))
     (xmp-pvalue-make-by-type type value)))
 
-(defun xmp-predefined-property-pvalue-to-elisp (prop-ename pvalue)
-  (when-let ((type (xmp-predefined-property-type prop-ename)))
+(defun xmp-defined-property-pvalue-to-elisp (prop-ename pvalue)
+  (when-let ((type (xmp-defined-property-type prop-ename)))
     (xmp-pvalue-as-type type pvalue)))
 
 ;;;;;; Text Type

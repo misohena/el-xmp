@@ -479,7 +479,7 @@
   ;; TODO: Move to xmp-commands.el or xmp.el?
   (concat
    (or
-    (xmp-predefined-namespace-prefix (xmp-xml-ename-ns prop-ename))
+    (xmp-default-namespace-prefix (xmp-xml-ename-ns prop-ename))
     (xmp-xml-ns-name-to-prefix (xmp-xml-ename-ns prop-ename)
                                ns-name-prefix-alist
                                t)
@@ -510,7 +510,7 @@
                                    value))
              pvalue))
            (t
-            (pcase (xmp-predefined-property-type prop-ename)
+            (pcase (xmp-defined-property-type prop-ename)
               ((or 'Text 'Real 'Integer 'URI 'MIMEType 'AgentName 'Date 'GUID)
                (widget-create
                 'xmp-property

@@ -179,7 +179,7 @@
         ))
 
 (defun xmp-widget-lang-alt-single-to-internal (alist)
-  (cdar alist))
+  (or (cdar alist) ""))
 
 (defun xmp-widget-lang-alt-single-get-external-value (widget)
   (let ((text (widget-value (car (widget-get widget :children)))))
@@ -303,7 +303,7 @@
         ))
 
 (defun xmp-widget-text-list-single-to-internal (list)
-  (car list))
+  (or (car list) ""))
 
 (defun xmp-widget-text-list-single-get-external-value (widget)
   (let ((text (widget-value (car (widget-get widget :children)))))

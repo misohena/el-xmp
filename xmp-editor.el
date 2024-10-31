@@ -33,15 +33,14 @@
 (require 'wid-edit)
 (require 'text-property-search)
 
-;;;; Widgets
+;;;; Basic Widgets
 ;;;;; XMP Property
 
 ;; Example:
 ;; (progn
 ;;   (pop-to-buffer (generate-new-buffer "*Widget Example*"))
 ;;   (setq test-wid
-;;         (widget-create 'xmp-property
-;;                        :tag "Title"
+;;         (widget-create 'xmp-property :tag "Title"
 ;;                        :type '(text :size 20 :format " %v")
 ;;                        ;; :type '(xmp-lang-alt)
 ;;                          ;;:value '()
@@ -124,8 +123,7 @@
 ;; (progn
 ;;   (pop-to-buffer (generate-new-buffer "*Widget Example*"))
 ;;   (setq test-wid
-;;   (widget-create 'xmp-lang-alt
-;;                  :tag "Title"
+;;   (widget-create 'xmp-lang-alt :tag "Title"
 ;;                  ;;:value '()
 ;;                  ;;:value '(("x-default" . "Hoge"))
 ;;                  ;;:value '(("ja" . "Hoge"))
@@ -166,17 +164,20 @@
 ;; Single Item (x-default only)
 
 (defun xmp-widget-lang-alt-single-value-create (widget)
-  (list (widget-create-child-and-convert
-         widget 'text
-         :format " %v " ;; Do not specify "%v " because :from marker type is t
-         :size 20
-         :value (xmp-widget-lang-alt-single-to-internal
-                 (widget-get widget :value)))
+  (prog1
+      (list (widget-create-child-and-convert
+             widget 'text
+             ;; Do not specify "%v " because :from marker type is t
+             :format " %v "
+             :size 20
+             :value (xmp-widget-lang-alt-single-to-internal
+                     (widget-get widget :value)))
 
-        (widget-create-child-and-convert
-         widget 'insert-button
-         :action 'xmp-widget-lang-alt-single-insert)
-        ))
+            (widget-create-child-and-convert
+             widget 'insert-button
+             :action 'xmp-widget-lang-alt-single-insert)
+            )
+    (insert ?\n)))
 
 (defun xmp-widget-lang-alt-single-to-internal (alist)
   (or (cdar alist) ""))
@@ -290,17 +291,20 @@
 ;; Single Item (x-default only)
 
 (defun xmp-widget-text-list-single-value-create (widget)
-  (list (widget-create-child-and-convert
-         widget 'text
-         :format " %v " ;; Do not specify "%v " because :from marker type is t
-         :size 20
-         :value (xmp-widget-text-list-single-to-internal
-                 (widget-get widget :value)))
+  (prog1
+      (list (widget-create-child-and-convert
+             widget 'text
+             ;; Do not specify "%v " because :from marker type is t
+             :format " %v "
+             :size 20
+             :value (xmp-widget-text-list-single-to-internal
+                     (widget-get widget :value)))
 
-        (widget-create-child-and-convert
-         widget 'insert-button
-         :action 'xmp-widget-text-list-single-insert)
-        ))
+            (widget-create-child-and-convert
+             widget 'insert-button
+             :action 'xmp-widget-text-list-single-insert)
+            )
+    (insert ?\n)))
 
 (defun xmp-widget-text-list-single-to-internal (list)
   (or (car list) ""))
@@ -392,6 +396,98 @@
 ;;;;; TODO: Rating widget
 
 
+;;;; XMP Property Widgets
+
+(define-widget 'xmp-property-bag-text-csv 'xmp-property
+  "XMP property of BagText type in CSV format."
+  :type '(xmp-comma-separated-text :format " %v")
+  :value-to-internal (lambda (_widget pvalue)
+                       (xmp-pvalue-as-text-list pvalue))
+  :value-to-external (lambda (_widget value)
+                       (xmp-pvalue-make-bag-from-text-list
+                        value)))
+
+(define-widget 'xmp-property-text 'xmp-property
+  "XMP property of Text type."
+  :type '(text :format " %v")
+  :value-to-internal (lambda (_widget pvalue)
+                       (or (xmp-pvalue-as-text pvalue)
+                           ""))
+  :value-to-external (lambda (_widget value)
+                       (if (and (stringp value)
+                                (not (string-empty-p value)))
+                           (xmp-pvalue-make-text value)
+                         nil)))
+
+(define-widget 'xmp-property-lang-alt 'xmp-property
+  "XMP property of LangAlt type."
+  :type 'xmp-lang-alt
+  :value-to-internal (lambda (_widget pvalue)
+                       (xmp-pvalue-as-lang-alt-alist pvalue))
+  :value-to-external (lambda (_widget value)
+                       (xmp-pvalue-from-lang-alt-alist value)))
+
+(define-widget 'xmp-property-bag-text 'xmp-property
+  "XMP property of BagText type."
+  :type 'xmp-text-list
+  :value-to-internal
+  (lambda (_widget pvalue)
+    (xmp-pvalue-as-text-list pvalue))
+  :value-to-external
+  (lambda (_widget value)
+    (xmp-pvalue-make-bag-from-text-list value)))
+
+(define-widget 'xmp-property-seq-text 'xmp-property
+  "XMP property of SeqText type."
+  :type 'xmp-text-list
+  :value-to-internal
+  (lambda (_widget pvalue)
+    (xmp-pvalue-as-text-list pvalue))
+  :value-to-external
+  (lambda (_widget value)
+    (xmp-pvalue-make-seq-from-text-list value)))
+
+(define-widget 'xmp-property-sexp 'xmp-property
+  "XMP property in SEXP format."
+  :type '(sexp :format " %v"))
+
+(defconst xmp-editor-property-name-widget-alist
+  `((,xmp-dc:subject . xmp-property-bag-text-csv))
+  "An alist of XMP property names and widget types.")
+
+(defconst xmp-editor-property-type-widget-alist
+  '(;; Text
+    (Text . xmp-property-text)
+    (URI . xmp-property-text)
+    (Real . xmp-property-text)
+    (Integer . xmp-property-text)
+    (AgentName . xmp-property-text)
+    (GUID . xmp-property-text)
+    (MIMEType . xmp-property-text)
+    (Boolean . xmp-property-text)
+    (Date . xmp-property-text)
+    ;; LangAlt
+    (LangAlt . xmp-property-lang-alt)
+    ;; BagText
+    (BagText . xmp-property-bag-text)
+    (BagProperName . xmp-property-bag-text)
+    (BagLocale . xmp-property-bag-text)
+    (BagDate . xmp-property-bag-text)
+    ;; SeqText
+    (SeqText . xmp-property-seq-text)
+    (SeqProperName . xmp-property-seq-text)
+    (SeqLocale . xmp-property-seq-text)
+    (SeqDate . xmp-property-seq-text))
+  "An alist of XMP property types and widget types.")
+
+(defun xmp-editor-property-widget-type (prop-ename)
+  "Return the widget type for editing the XMP property named PROP-ENAME."
+  (or (xmp-xml-ename-alist-get prop-ename
+                               xmp-editor-property-name-widget-alist)
+      (alist-get (xmp-defined-property-type prop-ename)
+                 xmp-editor-property-type-widget-alist)
+      'xmp-property-sexp))
+
 ;;;; Target Property Names
 
 (defcustom xmp-editor-target-properties
@@ -402,7 +498,9 @@
     ;;("http://purl.org/dc/elements/1.1/" "date")
     ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
     ("http://ns.adobe.com/xap/1.0/" "Label")
-    ("http://ns.adobe.com/xap/1.0/" "Rating"))
+    ("http://ns.adobe.com/xap/1.0/" "Rating")
+    ;;("https://ns.misohena.jp/xmp/" "PlantName")
+    )
   "A list that specifies which properties to display in
 `xmp-editor'."
   :type '(repeat
@@ -607,82 +705,9 @@
                   (xmp-editor-property-label prop-ename
                                              ns-name-prefix-alist-or-label)))
          (pvalue (xmp-xml-ename-alist-get prop-ename props))
-         (widget
-          (cond
-           ((xmp-xml-ename-equal prop-ename xmp-dc:subject)
-            (widget-create
-             'xmp-property
-             :tag label
-             :type '(xmp-comma-separated-text :format " %v")
-             :value-to-internal (lambda (_widget pvalue)
-                                  (xmp-pvalue-as-text-list pvalue))
-             :value-to-external (lambda (_widget value)
-                                  (xmp-pvalue-make-bag-from-text-list
-                                   value))
-             pvalue))
-           (t
-            (pcase (xmp-defined-property-type prop-ename)
-              ((or 'Text 'Real 'Integer 'URI 'MIMEType 'AgentName 'Date 'GUID
-                   'Boolean)
-               (widget-create
-                'xmp-property
-                :tag label
-                :type '(text :format " %v")
-                :value-to-internal (lambda (_widget pvalue)
-                                     (or (xmp-pvalue-as-text pvalue)
-                                         ""))
-                :value-to-external (lambda (_widget value)
-                                     (if (and (stringp value)
-                                              (not (string-empty-p value)))
-                                         (xmp-pvalue-make-text value)
-                                       nil))
-                pvalue))
-              ('LangAlt
-               (prog1
-                   (widget-create
-                    'xmp-property
-                    :tag label
-                    :type 'xmp-lang-alt
-                    :value-to-internal (lambda (_widget pvalue)
-                                         (xmp-pvalue-as-lang-alt-alist pvalue))
-                    :value-to-external (lambda (_widget value)
-                                         (xmp-pvalue-from-lang-alt-alist value))
-                    pvalue)
-                 (insert "\n")))
-              ((or 'BagText 'BagProperName 'BagLocale 'BagDate)
-               (prog1
-                   (widget-create
-                    'xmp-property
-                    :tag label
-                    :type 'xmp-text-list
-                    :value-to-internal
-                    (lambda (_widget pvalue)
-                      (xmp-pvalue-as-text-list pvalue))
-                    :value-to-external
-                    (lambda (_widget value)
-                      (xmp-pvalue-make-bag-from-text-list value))
-                    pvalue)
-                 (insert "\n")))
-              ((or 'SeqText 'SeqProperName 'SeqLocale 'SeqDate)
-               (prog1
-                   (widget-create
-                    'xmp-property
-                    :tag label
-                    :type 'xmp-text-list
-                    :value-to-internal
-                    (lambda (_widget pvalue)
-                      (xmp-pvalue-as-text-list pvalue))
-                    :value-to-external
-                    (lambda (_widget value)
-                      (xmp-pvalue-make-seq-from-text-list value))
-                    pvalue)
-                 (insert "\n")))
-              (_
-               (widget-create
-                'xmp-property
-                :tag label
-                :type '(sexp :format " %v")
-                pvalue)))))))
+         (widget-type (xmp-editor-property-widget-type prop-ename))
+         (widget (widget-create widget-type :tag label pvalue)))
+    ;; Mark label
     (put-text-property (widget-get widget :from)
                        (xmp-widget-property-tag-end widget)
                        'xmp-property prop-ename)
@@ -808,7 +833,7 @@
                                    current-property-name)
     (widget-forward 1)))
 
-;;;;; Open File
+;;;;; Open Target File
 
 (defcustom xmp-editor-open-target-file-function
   'find-file-other-window

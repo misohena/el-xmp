@@ -158,6 +158,47 @@ concatenating the NS and LOCAL-NAME."
       (cons ns local-name)
     local-name))
 
+(defun xmp-xml-ename-ensure (ename)
+  "Ensure that ENAME is an internal representation of the expanded name.
+
+If ENAME is a string, it is considered to be only a local name without a
+namespace name.
+
+If ENAME is a cons cell whose car is a string or the internal
+representation of a namespace name (created by `xmp-xml-ns-name') and
+whose cdr is a string, it is considered to be an expanded name with a
+namespace name.
+
+If ENAME is an object created with the `xmp-xml-ename' function, it is
+also considered to be a valid expanded name."
+  (cond
+   ((stringp ename) ename);; Local part only
+   ((consp ename)
+    (let ((ns (car ename))
+          (local (cdr ename)))
+      (unless (stringp local)
+        (error "Invalid local name %s" (prin1-to-string local)))
+      (cond
+       ((null ns) local)
+       ((keywordp ns) ename)
+       ((stringp ns) (xmp-xml-ename (xmp-xml-ns-name ns) local))
+       (t (error "Invalid namespace name %s" (prin1-to-string ns))))))
+   (t
+    (error "Invalid expanded name %s" (prin1-to-string ename)))))
+;; TEST: (xmp-xml-ename-ensure "prop1") => "prop1"
+;; TEST: (xmp-xml-ename-ensure (cons nil "prop1")) => "prop1"
+;; TEST: (xmp-xml-ename-ensure (cons "http://ns.adobe.com/xap/1.0/" "Rating")) => (:http://ns.adobe.com/xap/1.0/ . "Rating")
+;; TEST: (xmp-xml-ename-ensure (cons (xmp-xml-ns-name "http://ns.adobe.com/xap/1.0/") "Rating")) => (:http://ns.adobe.com/xap/1.0/ . "Rating")
+;; TEST: (xmp-xml-ename-ensure xmp-xmp:Rating) => (:http://ns.adobe.com/xap/1.0/ . "Rating")
+
+(defun xmp-xml-ename-p (ename)
+  "Return non-nil if ENAME is recognizable as an internal representation of
+an expanded name."
+  (or (stringp ename) ;; Local name only
+      (and (consp ename)
+           (keywordp (car ename))
+           (stringp (cdr ename)))))
+
 (defsubst xmp-xml-ename-ns (ename)
   "Return the namespace name of the expanded name ENAME.
 Return nil if there is no namespace name.

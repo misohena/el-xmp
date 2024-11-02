@@ -480,42 +480,108 @@
     (SeqDate . xmp-property-seq-text))
   "An alist of XMP property types and widget types.")
 
-(defun xmp-editor-property-widget-type (prop-ename)
+(defun xmp-editor-property-widget-type (prop-ename type)
   "Return the widget type for editing the XMP property named PROP-ENAME."
-  (or (xmp-xml-ename-alist-get prop-ename
-                               xmp-editor-property-name-widget-alist)
-      (alist-get (xmp-defined-property-type prop-ename)
-                 xmp-editor-property-type-widget-alist)
-      'xmp-property-sexp))
+  (or
+   ;; From TYPE (widget type or property type)
+   (and (symbolp type) (get type 'widget-type) type)
+   (alist-get type xmp-editor-property-type-widget-alist)
+   ;; From PROP-ENAME
+   (xmp-xml-ename-alist-get prop-ename xmp-editor-property-name-widget-alist)
+   (alist-get (xmp-defined-property-type prop-ename)
+              xmp-editor-property-type-widget-alist)
+   ;; Widget that can be used with any type
+   'xmp-property-sexp))
 
 ;;;; Target Property Names
 
 (defcustom xmp-editor-target-properties
-  '(("http://purl.org/dc/elements/1.1/" "title")
-    ;;("http://purl.org/dc/elements/1.1/" "creator")
-    ("http://purl.org/dc/elements/1.1/" "subject")
-    ("http://purl.org/dc/elements/1.1/" "description")
-    ;;("http://purl.org/dc/elements/1.1/" "date")
-    ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
-    ("http://ns.adobe.com/xap/1.0/" "Label")
-    ("http://ns.adobe.com/xap/1.0/" "Rating")
-    ;;("https://ns.misohena.jp/xmp/" "PlantName")
+  ;; ( <ename> <label> <type> )
+  `((("http://purl.org/dc/elements/1.1/" . "title") nil nil)
+    ;;(("http://purl.org/dc/elements/1.1/" . "creator") nil nil)
+    (("http://purl.org/dc/elements/1.1/" . "subject") nil nil)
+    (("http://purl.org/dc/elements/1.1/" . "description") nil nil)
+    ;;(("http://purl.org/dc/elements/1.1/" . "date") nil nil)
+    ;;(("http://ns.adobe.com/xap/1.0/" . "CreateDate") nil nil)
+    (("http://ns.adobe.com/xap/1.0/" . "Label") nil nil)
+    (("http://ns.adobe.com/xap/1.0/" . "Rating") nil nil)
+    ;;(("https://ns.misohena.jp/xmp/" . "PlantName") "PlantName" xmp-property-bag-text-csv)
+    ;;(("https://ns.misohena.jp/xmp/" . "Place") nil Text)
+    ;;,(xmp-xml-ename (xmp-xml-ns-name "https://ns.misohena.jp/xmp/") "Phase")
+    ;;all
     )
-  "A list that specifies which properties to display in
-`xmp-editor'."
-  :type '(repeat
-          (list
-           (string :tag "Namespace name (URI)")
-           (string :tag "Property local name")))
-  :group 'xmp)
+  "Properties to edit with the xmp-editor.
+Used as the default value for `xmp-editor-open-files' etc.
 
-(defun xmp-editor-target-properties-enames ()
-  (if xmp-editor-target-properties
-      (cl-loop for (ns-name prop-local-name)
-               in xmp-editor-target-properties
-               collect (xmp-xml-ename (xmp-xml-ns-name ns-name)
-                                      prop-local-name))
-    nil))
+Acceptable formats are:
+
+  ( PROP-SPEC ... )
+  `all'
+
+If the symbol `all' is specified, all properties in the file will be
+edited. However, this is not recommended because the presence of
+unpredictable properties will disrupt the display.
+
+When a list of PROP-SPEC is specified, the widgets that edit the
+properties specified in PROP-SPEC will be displayed in the order they
+appear in the list.
+
+PROP-SPEC can be of one of the following formats:
+
+  PROP-SPEC :
+    ( ENAME LABEL TYPE )
+    ENAME
+    `all'
+
+ENAME is the expanded name of a property. It is either a cons cell with
+a namespace name string and a local name string, or an internal
+representation of the expanded name created with the `xmp-xml-ename'
+function.
+
+  ENAME :
+    ( NS-NAME-STRING . LOCAL-NAME-STRING )
+    Result of `xmp-xml-ename'
+
+LABEL is the tag string to be prepended to the edit widget. If nil, it
+is generated from the ENAME.
+
+  LABEL : STRING
+
+TYPE is a symbol that specifies the type of widget. The symbol can be
+either a widget type (xmp-property-*) or a property type (Text, LangAlt,
+SeqBag, etc.). If this is nil, it will be determined from the
+PROP-ENAME. (See: `xmp-editor-property-name-widget-alist' and
+`xmp-editor-property-type-widget-alist')
+
+  TYPE :
+    WIDGET-TYPE-SYMBOL
+    PROPERTY-TYPE-SYMBOL
+
+If the symbol `all' is specified as PROP-SPEC, all properties present in
+the file are specified, except those specified in other PROP-SPECs. This
+is not recommended."
+  :type '(repeat
+          (choice
+           ;; ( ENAME LABEL TYPE )
+           (list
+            (cons
+             :tag "Property name"
+             (string :tag "Namespace name (URI)") ;;TODO: Choice keyword?
+             (string :tag "Property local name"))
+            (choice :tag "Label"
+                    (const :tag "Default" nil)
+                    (string))
+            (choice :tag "Type"
+                    (const :tag "Default" nil)
+                    (symbol)))
+           ;; ENAME
+           (cons
+            :tag "Property name only"
+            (string :tag "Namespace name (URI)") ;;TODO: Choice keyword?
+            (string :tag "Property local name"))
+           ;; `all'
+           (const :tag "All loaded properties" all)))
+  :group 'xmp)
 
 ;;;; Image File Regexp Cache
 
@@ -564,20 +630,31 @@
 
 ;;;###autoload
 (defun xmp-editor-open-files (files &optional
-                                    prop-ename-list
+                                    prop-spec-list
                                     buffer)
+  "Display a UI for editing the XMP properties of the specified files.
+
+FILES is the list of files to be edited. Sidecar files are automatically
+excluded.
+
+PROP-SPEC-LIST is a list that specifies information about the properties
+to be edited. If it is nil, the value of the variable
+`xmp-editor-target-properties' is used. See the documentation of the
+variable for details.
+
+BUFFER is the buffer name or buffer object to use to display the
+editor. If it is nil, `xmp-editor-default-buffer-name' is used."
   ;; TODO: Warn if there is an existing editor
   (xmp-editor-create-files-buffer (or buffer xmp-editor-default-buffer-name)
                                   (seq-remove #'xmp-sidecar-file-p files)
-                                  (or prop-ename-list
-                                      (xmp-editor-target-properties-enames))))
+                                  prop-spec-list))
 
-(defun xmp-editor-create-files-buffer (buffer files prop-ename-list)
+(defun xmp-editor-create-files-buffer (buffer files prop-spec-list)
   (let ((dir default-directory))
     (pop-to-buffer-same-window buffer)
-    (xmp-editor-initialize-files-buffer files prop-ename-list dir)))
+    (xmp-editor-initialize-files-buffer files prop-spec-list dir)))
 
-(defun xmp-editor-initialize-files-buffer (files prop-ename-list &optional dir)
+(defun xmp-editor-initialize-files-buffer (files prop-spec-list &optional dir)
   ;; Activating major mode does following:
   ;; - Call (kill-all-local-variables)
   ;; - Call (use-local-map xmp-editor-mode-map)
@@ -589,17 +666,7 @@
     (setq default-directory dir))
 
   (xmp-editor-insert-files-header)
-
-  (let ((xmp-editor-image-file-regexp-cache
-         (xmp-editor-create-image-file-regexp)))
-
-    (setq-local xmp-editor-files
-                (cl-loop for file in files
-                         ;;unless (xmp-sidecar-file-p file)
-                         collect
-                         (prog1 (xmp-editor-insert-file file prop-ename-list)
-                           (insert "\n")))))
-
+  (xmp-editor-insert-files-body files prop-spec-list)
   (xmp-editor-insert-files-footer)
 
   (widget-setup)
@@ -622,14 +689,36 @@
 (defun xmp-editor-insert-files-footer ()
   )
 
-(defun xmp-editor-insert-file (file prop-ename-list)
+(defun xmp-editor-insert-files-body (files prop-spec-list)
+  (unless prop-spec-list
+    (setq prop-spec-list xmp-editor-target-properties))
+  (let ((xmp-editor-image-file-regexp-cache
+         (xmp-editor-create-image-file-regexp))
+        (prop-ename-list
+         (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
+        (prop-spec-list
+         (xmp-editor-align-labels
+          (xmp-editor-complete-prop-spec-list
+           prop-spec-list
+           xmp-default-ns-name-prefix-alist))))
+
+    (setq-local xmp-editor-files
+                (cl-loop for file in files
+                         ;;unless (xmp-sidecar-file-p file)
+                         collect
+                         (prog1 (xmp-editor-insert-file file
+                                                        prop-spec-list
+                                                        prop-ename-list)
+                           (insert "\n"))))))
+
+(defun xmp-editor-insert-file (file prop-spec-list prop-ename-list)
   (setq file (expand-file-name file))
   (xmp-editor-insert-file-heading file)
   (when (xmp-editor-image-file-p file)
     (xmp-editor-insert-file-thumbnail file))
   (xmp-editor-file-info
    file
-   (xmp-editor-insert-file-properties file prop-ename-list)))
+   (xmp-editor-insert-file-properties file prop-spec-list prop-ename-list)))
 
 (defun xmp-editor-insert-file-heading (file)
   (xmp-editor-insert-heading (format (xmp-msg "File: %s\n") file)
@@ -649,69 +738,183 @@
     (insert-image (create-image (image-dired-thumb-name file)))
     (insert "\n")))
 
-(defun xmp-editor-insert-file-properties (file prop-ename-list)
+(defun xmp-editor-insert-file-properties (file prop-spec-list prop-ename-list)
   (let* ((ns-name-prefix-alist (xmp-xml-standard-ns-name-prefix-alist))
-         (props (xmp-enumerate-file-properties file
-                                               prop-ename-list
+         (props (xmp-enumerate-file-properties file prop-ename-list
                                                ns-name-prefix-alist)))
+
+    ;; Expand properties not specified in PROP-SPEC-LIST.
+    (unless prop-ename-list
+      (setq prop-spec-list
+            (xmp-editor-align-labels
+             (xmp-editor-expand-all-in-prop-spec-list prop-spec-list
+                                                      props
+                                                      ns-name-prefix-alist))))
+
     ;; Return property widget alist
-    (xmp-editor-insert-properties props
-                                  prop-ename-list
-                                  ns-name-prefix-alist)))
+    (xmp-editor-insert-properties props prop-spec-list)))
 
-(defun xmp-editor-insert-properties (props
-                                     prop-ename-list
-                                     ns-name-prefix-alist)
-  (let (max-width labels)
-    (cl-loop for prop-ename in prop-ename-list
-             for label = (xmp-editor-property-label prop-ename
-                                                    ns-name-prefix-alist)
-             maximize (string-width label) into v-max-width
-             collect label into v-labels
-             finally do (setq max-width v-max-width labels v-labels))
+(defun xmp-editor-insert-properties (props prop-spec-list)
+  (cl-loop for prop-spec in prop-spec-list
+           for prop-ename = (xmp-editor-prop-spec-ename prop-spec)
+           for label = (xmp-editor-prop-spec-label prop-spec)
+           for widget-type = (xmp-editor-prop-spec-type prop-spec)
+           collect (cons
+                    prop-ename
+                    (xmp-editor-insert-property prop-ename
+                                                props
+                                                label
+                                                widget-type))))
 
-    (cl-loop for prop-ename in prop-ename-list
-             for label in labels
-             for aligned-label = (concat
-                                  (make-string (max 0 (- max-width
-                                                         (string-width label)))
-                                               ? )
-                                  label)
-             collect (cons
-                      prop-ename
-                      (xmp-editor-insert-property prop-ename
-                                                  props
-                                                  aligned-label)))))
-
-(defun xmp-editor-property-label (prop-ename ns-name-prefix-alist)
-  ;; TODO: Generate more user-friendly text. Add xmp-editor-property-label-alist?
-  ;; TODO: Move to xmp-commands.el or xmp.el?
-  (concat
-   (or
-    (xmp-default-namespace-prefix (xmp-xml-ename-ns prop-ename))
-    (xmp-xml-ns-name-to-prefix (xmp-xml-ename-ns prop-ename)
-                               ns-name-prefix-alist
-                               t)
-    ;; (xmp-xml-ns-name-string (xmp-xml-ename-ns prop-ename)) ;;Too long?
-    "")
-   ":"
-   (xmp-xml-ename-local prop-ename)))
-
-(defun xmp-editor-insert-property (prop-ename
-                                   props
-                                   ns-name-prefix-alist-or-label)
-  (let* ((label (if (stringp ns-name-prefix-alist-or-label)
-                    ns-name-prefix-alist-or-label
-                  (xmp-editor-property-label prop-ename
-                                             ns-name-prefix-alist-or-label)))
-         (pvalue (xmp-xml-ename-alist-get prop-ename props))
-         (widget-type (xmp-editor-property-widget-type prop-ename))
+(defun xmp-editor-insert-property (prop-ename props label widget-type)
+  (let* ((pvalue (xmp-xml-ename-alist-get prop-ename props))
          (widget (widget-create widget-type :tag label pvalue)))
     ;; Mark label
     (put-text-property (widget-get widget :from)
                        (xmp-widget-property-tag-end widget)
                        'xmp-property prop-ename)
     widget))
+
+(defun xmp-editor-property-label (prop-ename ns-name-prefix-alist)
+  ;; TODO: Generate more user-friendly text. Add xmp-editor-property-label-alist?
+  ;; TODO: Move to xmp-commands.el or xmp.el?
+  (let ((prefix
+         (or (xmp-default-namespace-prefix (xmp-xml-ename-ns prop-ename))
+             (xmp-xml-ns-name-to-prefix (xmp-xml-ename-ns prop-ename)
+                                        ns-name-prefix-alist
+                                        t)
+             ;; (xmp-xml-ns-name-string (xmp-xml-ename-ns prop-ename)) ;;Too long?
+             )))
+    (if prefix
+        (concat prefix ":" (xmp-xml-ename-local prop-ename))
+      (xmp-xml-ename-local prop-ename))))
+
+;;;;; prop-spec-list
+
+;; See: the document of the `xmp-editor-target-properties' variable.
+
+;; <prop-spec-list> : all | ( <prop-spec>... )
+;; <prop-spec> : all | <ename> | ( <ename> <label> <widget-type> )
+;; <ename> : ( <ns-name-str> . <local-name-str> ) | <Result of `xmp-xml-ename'>
+
+(defun xmp-editor-prop-spec-ename (prop-spec) (nth 0 prop-spec))
+(defun xmp-editor-prop-spec-label (prop-spec) (nth 1 prop-spec))
+(defun xmp-editor-prop-spec-type (prop-spec) (nth 2 prop-spec))
+
+(defun xmp-editor-make-prop-ename-list-to-read (prop-spec-list)
+  "Create a prop-ename-list to pass to `xmp-enumerate-file-properties'.
+Return nil if all properties should be read."
+  (when (listp prop-spec-list)
+    (cl-loop for prop-spec in prop-spec-list
+             unless (listp prop-spec) return nil ;; Return nil if contains 'all
+             collect (if (or (xmp-xml-ename-p prop-spec)
+                             (and (consp prop-spec)
+                                  (stringp (car prop-spec))
+                                  (stringp (cdr prop-spec))))
+                         ;; ENAME
+                         (xmp-xml-ename-ensure prop-spec)
+                       ;; ( ENAME LABEL TYPE )
+                       (xmp-xml-ename-ensure
+                        (xmp-editor-prop-spec-ename prop-spec))))))
+
+(defun xmp-editor-complete-prop-spec-list (prop-spec-list ns-name-prefix-alist)
+  "Fill in the missing information in PROP-SPEC-LIST.
+
+NS-NAME-PREFIX-ALIST is an alist used to determine namespace prefixes
+when generating labels."
+  (cond
+   ((listp prop-spec-list)
+    (cl-loop for prop-spec in prop-spec-list
+             collect (xmp-editor-complete-prop-spec prop-spec
+                                                    ns-name-prefix-alist)))
+   ((eq prop-spec-list 'all)
+    (list 'all))))
+
+(defun xmp-editor-complete-prop-spec (prop-spec ns-name-prefix-alist)
+  "Fill in the missing information in PROP-SPEC.
+
+NS-NAME-PREFIX-ALIST is an alist used to determine namespace prefixes
+when generating labels."
+  (cond
+   ;; nil : ignore
+   ((null prop-spec))
+   ;; ENAME
+   ((or (xmp-xml-ename-p prop-spec)
+        (and (consp prop-spec)
+             (stringp (car prop-spec))
+             (stringp (cdr prop-spec))))
+    (let* ((prop-ename (xmp-xml-ename-ensure prop-spec))
+           (label (xmp-editor-property-label prop-ename ns-name-prefix-alist))
+           (widget-type (xmp-editor-property-widget-type prop-ename nil)))
+      (list prop-ename label widget-type)))
+   ;; ( ENAME LABEL TYPE )
+   ((listp prop-spec)
+    (let* ((prop-ename
+            (xmp-xml-ename-ensure (xmp-editor-prop-spec-ename prop-spec)))
+           (label
+            (or (xmp-editor-prop-spec-label prop-spec)
+                (xmp-editor-property-label prop-ename ns-name-prefix-alist)))
+           (widget-type
+            (xmp-editor-property-widget-type
+             prop-ename
+             (xmp-editor-prop-spec-type prop-spec))))
+      (list prop-ename label widget-type)))
+   (t
+    ;; 'all
+    prop-spec)))
+
+(defun xmp-editor-expand-all-in-prop-spec-list (prop-spec-list
+                                                loaded-props-alist
+                                                ns-name-prefix-alist)
+  "Replace the `all' keyword in PROP-SPEC-LIST with all properties actually
+read.
+
+LOADED-PROPS-ALIST is an alist of the properties that were actually read.
+
+NS-NAME-PREFIX-ALIST is an alist used to determine namespace prefixes
+when generating labels."
+  (let ((specified-prop-ename-list
+         (cl-loop for prop-spec in prop-spec-list
+                  when (listp prop-spec)
+                  collect (xmp-editor-prop-spec-ename prop-spec)))
+        (result))
+    (dolist (prop-spec prop-spec-list)
+      (cond
+       ((listp prop-spec)
+        (push prop-spec result))
+       ((eq prop-spec 'all)
+        (dolist (prop loaded-props-alist)
+          (let ((prop-ename (car prop)))
+            (unless (xmp-xml-ename-member prop-ename specified-prop-ename-list)
+              (push (xmp-editor-complete-prop-spec (list prop-ename nil nil)
+                                                   ns-name-prefix-alist)
+                    result)))))
+       (t
+        ;; Ignore?
+        )))
+    (nreverse result)))
+
+(defun xmp-editor-align-labels (prop-spec-list)
+  "Align all label strings in PROP-SPEC-LIST to the same width."
+  (let ((max-width (cl-loop for prop-spec in prop-spec-list
+                            unless (listp prop-spec)
+                            return nil
+                            for label = (xmp-editor-prop-spec-label prop-spec)
+                            maximize (string-width label))))
+    (if max-width
+        (cl-loop for prop-spec in prop-spec-list
+                 for label = (xmp-editor-prop-spec-label prop-spec)
+                 for aligned-label = (concat
+                                      (make-string
+                                       (max 0
+                                            (- max-width (string-width label)))
+                                       ? )
+                                      label)
+                 collect (list (xmp-editor-prop-spec-ename prop-spec)
+                               aligned-label
+                               (xmp-editor-prop-spec-type prop-spec)))
+      prop-spec-list)))
+
 
 ;;;; Buffer
 

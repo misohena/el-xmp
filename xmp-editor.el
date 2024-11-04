@@ -935,6 +935,17 @@ when generating labels."
     (if (xmp-pvalue-pure-p pvalue) 'Text nil))
    ((xmp-pvalue-uri-p pvalue)
     (if (xmp-pvalue-pure-p pvalue) 'URI nil))
+   ((xmp-pvalue-array-p pvalue)
+    (if (and (xmp-pvalue-pure-p pvalue)
+             (seq-every-p (lambda (item) (and (xmp-pvalue-text-p item)
+                                              (xmp-pvalue-pure-p item)))
+                          (xmp-pvalue-as-list pvalue)))
+        (let ((arr-type (xmp-pvalue-array-type pvalue)))
+          (cond
+           ((xmp-xml-ename-equal arr-type xmp-rdf:Seq) 'SeqText)
+           ((xmp-xml-ename-equal arr-type xmp-rdf:Bag) 'BagText)
+           (t nil)))
+      nil))
    ;; Unknown
    (t nil)))
 

@@ -680,21 +680,29 @@ Return a list of (<namespace-name> . <prefix>)."
       (xmp-xml-insert-nsdecl node (car nsdecl) (cdr nsdecl))))
   node)
 
-(defun xmp-xml-collect-used-ns (node &optional used-ns-list)
-  "Return a list of namespace names used in the NODE tree."
+(defun xmp-xml-collect-used-ns (node &optional used-ns-list include-ns-xml)
+  "Return a list of namespace names used in the NODE tree.
+
+By default, the XML standard
+namespace (http://www.w3.org/XML/1998/namespace) is excluded from the
+results even if it is used, but if INCLUDE-NS-XML is non-nil, it will be
+included in the results if it is used."
   (when (xmp-xml-element-p node)
     (when-let ((ns (xmp-xml-ename-ns (xmp-xml-element-ename node))))
-      (unless (member ns used-ns-list)
+      (unless (or (member ns used-ns-list)
+                  (and (not include-ns-xml) (equal ns xmp-xml:)))
         (push ns used-ns-list)))
 
     (dolist (attr (xmp-xml-element-attributes node))
       (unless (xmp-xml-attr-nsdecl-p attr)
         (when-let ((ns (xmp-xml-ename-ns (xmp-xml-attr-ename attr))))
-          (unless (member ns used-ns-list)
+          (unless (or (member ns used-ns-list)
+                      (and (not include-ns-xml) (equal ns xmp-xml:)))
             (push ns used-ns-list)))))
 
     (dolist (child (xmp-xml-element-children node))
-      (setq used-ns-list (xmp-xml-collect-used-ns child used-ns-list))))
+      (setq used-ns-list
+            (xmp-xml-collect-used-ns child used-ns-list include-ns-xml))))
   used-ns-list)
 
 

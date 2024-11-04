@@ -544,24 +544,9 @@ EXTRA-FIELDS must also pass the field list obtained from the EXIF IFD."
            collect tag))
 ;; TEST: (xmp-exif-prop-ename-list-to-tag-list (list xmp-dc:creator xmp-xmp:ModifyDate) xmp-tiff-0th-tags) => (315 306)
 
-(defun xmp-exif-read-exif-as-xmp-property-elements (reader &optional
-                                                           prop-ename-list)
-  "Read EXIF from READER and return a list of XMP property elements.
-
-PROP-ENAME-LIST is the list of XMP property expanded names to read, nil
-means all properties."
-  (let* ((tiff-header (xmp-tiff-read-header reader))
-         (0th-fields (xmp-tiff-read-0th-ifd
-                      reader tiff-header
-                      (if prop-ename-list
-                          (nconc
-                           ;; Always read ExifIFDPointer and GPSInfoIFDPointer
-                           (list xmp-tiff-tag-exif-ifd
-                                 xmp-tiff-tag-gps-info-ifd)
-                           (xmp-exif-prop-ename-list-to-tag-list
-                            prop-ename-list xmp-tiff-0th-tags))
-                        'all)))
-         (field-exif-ptr (xmp-tiff-field-get xmp-tiff-tag-exif-ifd
+(defun xmp-exif-read-exif-as-xmp-property-elements-from-0th-fields
+    (reader tiff-header 0th-fields &optional prop-ename-list)
+  (let* ((field-exif-ptr (xmp-tiff-field-get xmp-tiff-tag-exif-ifd
                                              0th-fields t))
          (exif-fields (when field-exif-ptr
                         (xmp-tiff-read-pointed-ifd
@@ -589,6 +574,26 @@ means all properties."
                                                xmp-exif-exif-tags)
      (xmp-exif-fields-to-xmp-property-elements gps-fields reader tiff-header
                                                xmp-exif-gps-tags))))
+
+(defun xmp-exif-read-exif-as-xmp-property-elements (reader &optional
+                                                           prop-ename-list)
+  "Read EXIF from READER and return a list of XMP property elements.
+
+PROP-ENAME-LIST is the list of XMP property expanded names to read, nil
+means all properties."
+  (let* ((tiff-header (xmp-tiff-read-header reader))
+         (0th-fields (xmp-tiff-read-0th-ifd
+                      reader tiff-header
+                      (if prop-ename-list
+                          (nconc
+                           ;; Always read ExifIFDPointer and GPSInfoIFDPointer
+                           (list xmp-tiff-tag-exif-ifd
+                                 xmp-tiff-tag-gps-info-ifd)
+                           (xmp-exif-prop-ename-list-to-tag-list
+                            prop-ename-list xmp-tiff-0th-tags))
+                        'all))))
+    (xmp-exif-read-exif-as-xmp-property-elements-from-0th-fields
+     reader tiff-header 0th-fields prop-ename-list)))
 
 (defun xmp-exif-read-exif-as-xmp-property-elements-from-bytes (bytes
                                                                &optional
@@ -703,6 +708,39 @@ BYTES instead of a file reader."
   (with-temp-buffer
     (let ((reader (xmp-file-reader-open tiff-file)))
       (xmp-exif-dump reader))))
+
+
+;;;; TIFF File
+
+(defun xmp-exif-read-xmp-xml-from-tiff-file (file)
+  (with-temp-buffer
+    (let* ((reader (xmp-file-reader-open file))
+           (tiff-header (xmp-tiff-read-header reader))
+           (0th-fields (xmp-tiff-read-0th-ifd reader tiff-header
+                                              ;; TODO: Add partial read feature
+                                              'all))
+           ;; Get property elements from EXIF
+           (exif-prop-elems
+            (xmp-exif-read-exif-as-xmp-property-elements-from-0th-fields
+             reader tiff-header 0th-fields
+             ;; TODO: Add partial read feature
+             nil))
+           ;; Get XMP XML DOM from XMP Packet
+           (dom
+            (when-let* ((xmp-packet-field (xmp-tiff-field-get
+                                           xmp-tiff-tag-xmp-packet
+                                           0th-fields t))
+                        (xmp-packet-range (xmp-tiff-field-value-bytes-range
+                                           xmp-packet-field tiff-header))
+                        (xmp-packet-bytes
+                         (progn
+                           (xmp-file-reader-seek reader (car xmp-packet-range))
+                           (xmp-file-reader-read-bytes
+                            reader (cdr xmp-packet-range)))))
+              (xmp-xml-parse-string
+               (decode-coding-string xmp-packet-bytes 'utf-8)))))
+
+      (cons dom exif-prop-elems))))
 
 (provide 'xmp-exif)
 ;;; xmp-exif.el ends here

@@ -1645,17 +1645,51 @@ nil means to scan the entire file."
          (desc-exif
           (when-let ((exif-bytes (alist-get 'exif segments)))
             (xmp-exif-read-exif-as-description-element-from-bytes
-             exif-bytes nil))))
+             exif-bytes
+             ;; TODO: Add partial read feature
+             nil))))
 
     (when desc-exif
       (let ((rdf (or (xmp-find-rdf dom)
-                     ;; dom-xmp is invalid, discard it and recreate dom.
+                     ;; dom is invalid, discard it and recreate dom.
                      (progn
                        (setq dom (xmp-empty-dom))
                        (xmp-find-rdf dom)))))
         ;; TODO: Remove duplicate properties
         ;; TODO: Reproduce ns decls
         (xmp-xml-element-insert-last rdf desc-exif)))
+
+    (when dom
+      ;; Remove all xmlns:??= attributes that exist on non-root elements.
+      ;; When the `xmp-xml-element-attributes' returns namespace
+      ;; declarations, there are a few places where it will not work
+      ;; correctly.
+      (xmp-xml-move-nsdecls-to-root dom))))
+
+;;;;; TIFF File
+
+(autoload 'xmp-exif-read-xmp-xml-from-tiff-file "xmp-exif")
+
+(defun xmp-file-read-xml-from-tiff (file)
+  (when-let* ((dom-exif (xmp-exif-read-xmp-xml-from-tiff-file file))
+              (dom (car dom-exif))
+              (exif-prop-elems (cdr dom-exif)))
+
+    ;; TODO: Unify the parts that overlap with `xmp-file-read-xml-from-jpeg'
+    (when exif-prop-elems
+      (let ((rdf (or (xmp-find-rdf dom)
+                     ;; dom is invalid, discard it and recreate dom.
+                     (progn
+                       (setq dom (xmp-empty-dom))
+                       (xmp-find-rdf dom)))))
+        ;; TODO: Remove duplicate properties
+        ;; TODO: Reproduce ns decls
+        (xmp-xml-element-insert-last
+         rdf
+         ;; Wrap <rdf:Description rdf:about="">
+         (xmp-xml-element xmp-rdf:Description
+                          (list (xmp-xml-attr xmp-rdf:about ""))
+                          exif-prop-elems))))
 
     (when dom
       ;; Remove all xmlns:??= attributes that exist on non-root elements.
@@ -1734,7 +1768,12 @@ variable explicitly."
     ("\\.[Pp][Dd][Ff]$"
      :read-xml xmp-file-read-xml-from-pdf
      ;; TODO: Implement pdf writer
-     :write-xml nil)))
+     :write-xml nil)
+    ("\\.\\(?:[Tt][Ii][Ff][Ff]?\\|[Aa][Rr][Ww]\\)\\'"
+     :read-xml xmp-file-read-xml-from-tiff
+     ;; TODO: Implement writer
+     :write-xml nil)
+    ))
 
 (defconst xmp-file-magic-handler-alist
   '(("<?xml "

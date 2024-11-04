@@ -886,13 +886,24 @@ when generating labels."
         (dolist (prop loaded-props-alist)
           (let ((prop-ename (car prop)))
             (unless (xmp-xml-ename-member prop-ename specified-prop-ename-list)
-              (push (xmp-editor-complete-prop-spec (list prop-ename nil nil)
-                                                   ns-name-prefix-alist)
+              (push (xmp-editor-complete-prop-spec
+                     (list
+                      prop-ename
+                      nil
+                      (xmp-editor-infer-property-type-from-pvalue (cdr prop)))
+                     ns-name-prefix-alist)
                     result)))))
        (t
         ;; Ignore?
         )))
     (nreverse result)))
+
+(defun xmp-editor-infer-property-type-from-pvalue (pvalue)
+  (if (and (xmp-pvalue-text-p pvalue)
+           (xmp-pvalue-pure-p pvalue))
+      'Text
+    ;; Unknown
+    nil))
 
 (defun xmp-editor-align-labels (prop-spec-list)
   "Align all label strings in PROP-SPEC-LIST to the same width."

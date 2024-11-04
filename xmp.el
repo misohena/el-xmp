@@ -968,6 +968,15 @@ possible."
        (keywordp (car pvalue))
        (plist-get pvalue :pv-type)))
 
+(defun xmp-pvalue-pure-p (pvalue)
+  "Return t if PVALUE has only a value.
+
+If PVALUE has only type information and a value, and no other
+infomation (such as qualifiers), return t.
+Such PVALUEs can be edited with a relatively simple UI."
+  (and (xmp-pvalue-maybe-p pvalue)
+       (null (xmp-pvalue-qualifier-alist pvalue))))
+
 (defun xmp-pvalue-text-p (pvalue)
   (and (consp pvalue) (eq (xmp-pvalue-type pvalue) 'text)))
 

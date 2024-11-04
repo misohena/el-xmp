@@ -830,7 +830,7 @@ Return a list of (<namespace-name> . <prefix>)."
                       (while (or
                               ;; The declaration does not yet exist.
                               (equal prefix 'undecided)
-                              ;; The prefix is ​​already in use.
+                              ;; The prefix is already in use.
                               (member prefix used-prefixes))
                         ;; Generate new prefix
                         (setq prefix (format "ns%d" (cl-incf prefix-number))))

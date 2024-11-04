@@ -503,7 +503,7 @@ DOM.
 
 The elements of the list are child elements of the top-level
 Descriptions (directly under the RDF element), except that if properties
-are expressed in the form of attribute values ​​of top-level Description
+are expressed in the form of attribute values of top-level Description
 elements (property attributes), a temporary property element is created
 and returned.
 
@@ -576,7 +576,7 @@ enumerate. nil means to enumerate all properties.
 The order or duplication of properties in the list does not affect the
 value returned.
 
-If the properties are expressed in the form of attribute values ​​of the
+If the properties are expressed in the form of attribute values of the
 Description element (property attributes), a temporary property element
 will be created and returned."
   (nconc
@@ -1209,7 +1209,7 @@ If the type of PVALUE is not \\='struct, return nil."
 
 (defun xmp-pvalue-from-lang-alt-alist (lang-alt-alist)
   "LANG-ALT-ALIST is an alist whose keys are strings or language code
-strings and whose values ​​are strings. When specifying an alist, the
+strings and whose values are strings. When specifying an alist, the
 first language code must be \"x-default\"."
   (when (stringp lang-alt-alist)
     (setq lang-alt-alist (list (cons "x-default" lang-alt-alist))))
@@ -1508,7 +1508,7 @@ nil means to scan the entire file."
 ;;;;; JPEG File
 
 (defcustom xmp-jpeg-extract-exif-p t
-  "If non-nil, EXIF ​​information in JPEG files will be converted to XMP."
+  "If non-nil, EXIF information in JPEG files will be converted to XMP."
   :type 'boolean
   :group 'xmp)
 
@@ -2229,8 +2229,8 @@ following function:
 Note that this does not mean writing to the TARGET-FILE. Write the
 metadata describing TARGET-FILE to the appropriate location.
 
-PROP-ENAME-ALIST is an alist of the expanded names and values ​​of the
-properties to set. The values ​​must be in a format recognized by
+PROP-ENAME-ALIST is an alist of the expanded names and values of the
+properties to set. The values must be in a format recognized by
 `xmp-property-element-from'."
   (when-let ((candidate-files (xmp-file-names-for-write target-file)))
     (while (and candidate-files

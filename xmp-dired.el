@@ -263,9 +263,18 @@ A prefix argument means to unmark them instead."
 
 ;;;###autoload
 (defun xmp-dired-do-edit-properties (&optional arg)
+  "Open a buffer for editing the file's XMP properties.
+
+If the prefix argument ARG is 0 or -, all properties present in the
+current files are displayed. In other cases, the target file is selected
+in the same way as the general dired command."
   (interactive "P" dired-mode)
-  (let ((files (dired-get-marked-files t arg nil nil t)))
-    (xmp-edit-file-properties files)))
+  (let ((prop-spec-list (when (or (eq arg 0) (eq arg '-)) 'default-all)))
+    (when prop-spec-list
+      (setq arg nil))
+
+    (xmp-edit-file-properties (dired-get-marked-files t arg nil nil t)
+                              prop-spec-list)))
 
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

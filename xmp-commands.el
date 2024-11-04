@@ -807,9 +807,21 @@ You can customize which properties are displayed by the variable
 
 ;;;###autoload
 (defun xmp-edit-file-properties (files &optional prop-ename-list)
+  "Open a buffer for editing the properties in FILES.
+
+The properties to edit are specified by PROP-SPEC-LIST. Generally, this
+is nil, a list of property expanded names, or `all'. For the values that
+can be specified here, see the description of
+`xmp-editor-target-properties'. If it is nil, the value of
+`xmp-editor-target-properties' is used.
+
+If called as a command, FILES is inferred from the
+`xmp-file-name-list-at-point' function.
+
+If a prefix argument is specified, PROP-ENAME-LIST is `default-all'."
   (interactive
    (list (xmp-file-name-list-at-point)
-         nil))
+         (when current-prefix-arg 'default-all)))
   (xmp-editor-buffer-modified-check)
   (xmp-editor-open-files files prop-ename-list))
 

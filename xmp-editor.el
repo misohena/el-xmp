@@ -635,15 +635,20 @@ is not recommended."
   "Display a UI for editing the XMP properties of the specified files.
 
 FILES is the list of files to be edited. Sidecar files are automatically
-excluded.
+excluded. If FILES is a string, it will be treated as a list with that
+as its only element.
 
 PROP-SPEC-LIST is a list that specifies information about the properties
-to be edited. If it is nil, the value of the variable
+to be edited. If it is nil or `default', the value of the variable
 `xmp-editor-target-properties' is used. See the documentation of the
-variable for details.
+variable for details. In addition, specifying the symbol `default-all'
+will specify `xmp-editor-target-properties' with `all' appended to the
+end (if it does not already exist).
 
 BUFFER is the buffer name or buffer object to use to display the
 editor. If it is nil, `xmp-editor-default-buffer-name' is used."
+  (when (stringp files)
+    (setq files (list files)))
   ;; TODO: Warn if there is an existing editor
   (xmp-editor-create-files-buffer (or buffer xmp-editor-default-buffer-name)
                                   (seq-remove #'xmp-sidecar-file-p files)
@@ -690,8 +695,22 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
   )
 
 (defun xmp-editor-insert-files-body (files prop-spec-list)
-  (unless prop-spec-list
+  ;; Expand special keyword
+  (cond
+   ;; Default properties
+   ((or (eq prop-spec-list nil)
+        (eq prop-spec-list 'default))
     (setq prop-spec-list xmp-editor-target-properties))
+   ;; Default properties and all properties in file
+   ((eq prop-spec-list 'default-all)
+    (setq prop-spec-list
+          (if (and (listp xmp-editor-target-properties)
+                   (not (memq 'all xmp-editor-target-properties)))
+              (append xmp-editor-target-properties
+                      (list 'all))
+            ;; `all' is already included
+            xmp-editor-target-properties))))
+
   (let ((xmp-editor-image-file-regexp-cache
          (xmp-editor-create-image-file-regexp))
         (prop-ename-list

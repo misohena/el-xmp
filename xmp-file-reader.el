@@ -78,6 +78,11 @@
   (set-buffer-multibyte nil)
   (xmp-file-reader-create file))
 
+(defun xmp-file-reader-open-current-buffer ()
+  (let ((reader (xmp-file-reader-create nil)))
+    (setf (xmp-file-reader-eof-loaded-p reader) t)
+    reader))
+
 ;;;; Preloading
 
 (defun xmp-file-reader-append (reader size)
@@ -305,6 +310,47 @@ the file has been reached and there is no more data to read, return nil."
       (forward-char))
     result))
 ;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\x12\x34\x56\x78")))) (cons (xmp-file-reader-uint-le reader 4) (point)))) => (2018915346 . 5)
+
+;; Signed integer
+
+(defun xmp-file-reader-s8 (reader)
+  (let ((n (xmp-file-reader-u8 reader)))
+    (if (>= n #x80) (- n #x100) n)))
+
+(defun xmp-file-reader-s16be (reader)
+  (let ((n (xmp-file-reader-u16be reader)))
+    (if (>= n #x8000) (- n #x10000) n)))
+;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\xfe\xdc\xba\x98")))) (cons (xmp-file-reader-s16be reader) (point)))) => (-292 . 3)
+
+(defun xmp-file-reader-s16le (reader)
+  (let ((n (xmp-file-reader-u16le reader)))
+    (if (>= n #x8000) (- n #x10000) n)))
+;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\xdc\xfe\x98\xba")))) (cons (xmp-file-reader-s16le reader) (point)))) => (-292 . 3)
+
+(defun xmp-file-reader-s32be (reader)
+  (let ((n (xmp-file-reader-u32be reader)))
+    (if (>= n #x80000000) (- n #x100000000) n)))
+;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\xfe\xdc\xba\x98")))) (cons (xmp-file-reader-s32be reader) (point)))) => (-19088744 . 5)
+
+(defun xmp-file-reader-s32le (reader)
+  (let ((n (xmp-file-reader-u32le reader)))
+    (if (>= n #x80000000) (- n #x100000000) n)))
+;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\x98\xba\xdc\xfe")))) (cons (xmp-file-reader-s32le reader) (point)))) => (-19088744 . 5)
+
+
+;; Dynamic endian
+
+(defsubst xmp-file-reader-u16 (reader be)
+  (if be (xmp-file-reader-u16be reader) (xmp-file-reader-u16le reader)))
+
+(defsubst xmp-file-reader-u32 (reader be)
+  (if be (xmp-file-reader-u32be reader) (xmp-file-reader-u32le reader)))
+
+(defsubst xmp-file-reader-s16 (reader be)
+  (if be (xmp-file-reader-s16be reader) (xmp-file-reader-s16le reader)))
+
+(defsubst xmp-file-reader-s32 (reader be)
+  (if be (xmp-file-reader-s32be reader) (xmp-file-reader-s32le reader)))
 
 (provide 'xmp-file-reader)
 ;;; xmp-file-reader.el ends here

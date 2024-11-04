@@ -52,12 +52,12 @@
 
 ;;;; Reader Object
 
-(defun xmp-file-reader (file)
+(defun xmp-file-reader-create (file)
   (list 'xmp-file-reader file 0 nil))
 
 (defmacro xmp-file-reader-file (reader) `(nth 1 ,reader))
 (defmacro xmp-file-reader-buffer-beginning-offset (reader) `(nth 2 ,reader))
-(defmacro xmp-file-eof-loaded-p (reader) `(nth 3 ,reader))
+(defmacro xmp-file-reader-eof-loaded-p (reader) `(nth 3 ,reader))
 
 (defsubst xmp-file-reader-buffer-remainning () (- (point-max) (point)))
 (defsubst xmp-file-reader-buffer-size () (- (point-max) (point-min)))
@@ -76,7 +76,7 @@
 (defun xmp-file-reader-open (file)
   (erase-buffer)
   (set-buffer-multibyte nil)
-  (xmp-file-reader file))
+  (xmp-file-reader-create file))
 
 ;;;; Preloading
 
@@ -85,7 +85,7 @@
 
 Return the number of bytes actually appended."
   (if (and (> size 0)
-           (not (xmp-file-eof-loaded-p reader)))
+           (not (xmp-file-reader-eof-loaded-p reader)))
       (save-excursion
         (let ((ins-point (point-max))
               (end-offset (xmp-file-reader-buffer-end-offset reader)))
@@ -96,7 +96,7 @@ Return the number of bytes actually appended."
           (let ((read-size (- (point-max) ins-point)))
             (when (< read-size size)
               ;; Reached EOF
-              (setf (xmp-file-eof-loaded-p reader) t))
+              (setf (xmp-file-reader-eof-loaded-p reader) t))
             read-size)))
     0))
 
@@ -157,7 +157,7 @@ the file has been reached and there is no more data to read, return nil."
    (> (xmp-file-reader-buffer-remainning) 0)
    ;; Try to load
    (and
-    (not (xmp-file-eof-loaded-p reader))
+    (not (xmp-file-reader-eof-loaded-p reader))
     (> (xmp-file-reader-append reader xmp-file-reader-default-buffer-size) 0))))
 
 ;;;; Discard data
@@ -178,7 +178,7 @@ the file has been reached and there is no more data to read, return nil."
 (defun xmp-file-reader-flush-buffer (reader new-offset)
   (erase-buffer)
   (setf (xmp-file-reader-buffer-beginning-offset reader) new-offset)
-  (setf (xmp-file-eof-loaded-p reader) nil))
+  (setf (xmp-file-reader-eof-loaded-p reader) nil))
 
 ;;;; Seek
 

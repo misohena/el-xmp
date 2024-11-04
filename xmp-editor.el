@@ -419,6 +419,18 @@
                            (xmp-pvalue-make-text value)
                          nil)))
 
+(define-widget 'xmp-property-uri 'xmp-property
+  "XMP property of URI type."
+  :type '(text :format " %v")
+  :value-to-internal (lambda (_widget pvalue)
+                       (or (xmp-pvalue-as-uri pvalue)
+                           ""))
+  :value-to-external (lambda (_widget value)
+                       (if (and (stringp value)
+                                (not (string-empty-p value)))
+                           (xmp-pvalue-make-uri value)
+                         nil)))
+
 (define-widget 'xmp-property-lang-alt 'xmp-property
   "XMP property of LangAlt type."
   :type 'xmp-lang-alt
@@ -458,7 +470,7 @@
 (defconst xmp-editor-property-type-widget-alist
   '(;; Text
     (Text . xmp-property-text)
-    (URI . xmp-property-text)
+    (URI . xmp-property-uri)
     (Real . xmp-property-text)
     (Integer . xmp-property-text)
     (AgentName . xmp-property-text)
@@ -918,11 +930,13 @@ when generating labels."
     (nreverse result)))
 
 (defun xmp-editor-infer-property-type-from-pvalue (pvalue)
-  (if (and (xmp-pvalue-text-p pvalue)
-           (xmp-pvalue-pure-p pvalue))
-      'Text
-    ;; Unknown
-    nil))
+  (cond
+   ((xmp-pvalue-text-p pvalue)
+    (if (xmp-pvalue-pure-p pvalue) 'Text nil))
+   ((xmp-pvalue-uri-p pvalue)
+    (if (xmp-pvalue-pure-p pvalue) 'URI nil))
+   ;; Unknown
+   (t nil)))
 
 (defun xmp-editor-align-labels (prop-spec-list)
   "Align all label strings in PROP-SPEC-LIST to the same width."

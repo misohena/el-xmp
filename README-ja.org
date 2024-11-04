@@ -234,3 +234,15 @@ xmp-xml.elで最も重要となる事は、XML展開名の取扱方法です。�
 - ~xmp-xml:id~
 
 その他xmp.el内ではXMPで使用する多数の名前空間や展開名が変数として定義されています(例: ~xmp-dc:title~, ~xmp-xmp:Rating~)。
+
+** xmp-exif.el
+
+EXIFを解析してXMPへ変換するライブラリです。
+
+** xmp-tiff.el
+
+TIFFを解析してタグ情報を読み取るためのライブラリです。
+
+** xmp-pdf.el
+
+PDFを解析してメタデータを読み取るためのライブラリです。

@@ -147,6 +147,13 @@ text from source code."
        "stVer") ;;[XMP2 1.2.4.2]
       ("http://ns.adobe.com/xap/1.0/sType/Job#"
        "stJob") ;;[XMP2 1.2.5.1]
+
+      ("http://cipa.jp/exif/1.0/"
+       "exifEX") ;;[CIPA DC-010-2024 5.1]
+      ("http://ns.adobe.com/tiff/1.0/"
+       "tiff") ;;https://developer.adobe.com/xmp/docs/XMPNamespaces/tiff/
+      ("http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/"
+       "Iptc4xmpCore") ;; https://developer.adobe.com/xmp/docs/XMPNamespaces/Iptc4xmpCore/
       ))
 
   ;; Functions for predefined namespaces
@@ -1500,26 +1507,49 @@ nil means to scan the entire file."
 
 ;;;;; JPEG File
 
+(defcustom xmp-jpeg-extract-exif-p t
+  "If non-nil, EXIF ​​information in JPEG files will be converted to XMP."
+  :type 'boolean
+  :group 'xmp)
+
+(defconst xmp-file-scan-jpeg-exif-signature
+  "Exif\0\0")
+(defconst xmp-file-scan-jpeg-exif-signature-info
+  `(,(regexp-quote xmp-file-scan-jpeg-exif-signature)
+    ,(length xmp-file-scan-jpeg-exif-signature)
+    exif
+    nil))
+
 (defconst xmp-file-scan-jpeg-xmp-signature
   "http://ns.adobe.com/xap/1.0/\0") ;;[XMP3 1.1.3 JPEG]
 (defconst xmp-file-scan-jpeg-xmp-signature-size
   (length xmp-file-scan-jpeg-xmp-signature))
+(defconst xmp-file-scan-jpeg-xmp-signature-info
+  `(,(regexp-quote xmp-file-scan-jpeg-xmp-signature)
+    ,(length xmp-file-scan-jpeg-xmp-signature)
+    standard-xmp
+    nil))
+
 (defconst xmp-file-scan-jpeg-xmp-ext-signature
   "http://ns.adobe.com/xmp/extension/\0") ;; [XMP3 1.1.3.1 Extended XMP in JPEG]
 (defconst xmp-file-scan-jpeg-xmp-ext-signature-size
   (length "http://ns.adobe.com/xmp/extension/\0"))
+(defconst xmp-file-scan-jpeg-xmp-ext-signature-info
+  `(,(regexp-quote xmp-file-scan-jpeg-xmp-ext-signature)
+    ,(length xmp-file-scan-jpeg-xmp-ext-signature)
+    extended-xmp
+    t)) ;; multiple segments
 
-(defun xmp-file-scan-jpeg-xmp (file)
+(defun xmp-file-scan-jpeg-app1 (file app1-signature-info-list)
+  (setq app1-signature-info-list (copy-sequence app1-signature-info-list))
   (with-temp-buffer
     (let ((reader (xmp-file-reader-open file))
-          (standard-xmp nil)
-          ;; (extended-xmp-portions nil)
-          )
+          result)
       (unless (= (xmp-file-reader-u16be reader) #xffd8) ;; ffd8:Start Of Image
         (error "Not a JPEG file"))
       (while
           (and
-           (null standard-xmp)
+           app1-signature-info-list
            (let ((marker (xmp-file-reader-u16be reader)))
              ;;(message "marker=%x" marker)
              (unless (or (= marker #xffd9) ;; ffd9:End Of Image
@@ -1531,64 +1561,99 @@ nil means to scan the entire file."
                  (when (= marker #xffe1) ;; ffe1:APP1
                    (xmp-file-reader-ensure-bytes
                     reader
-                    (max xmp-file-scan-jpeg-xmp-signature-size
-                         xmp-file-scan-jpeg-xmp-ext-signature-size))
-                   (cond
-                    ;; StandardXMP
-                    ((looking-at-p xmp-file-scan-jpeg-xmp-signature)
-                     (xmp-file-reader-skip
-                      reader
-                      xmp-file-scan-jpeg-xmp-signature-size)
-                     (setq standard-xmp
-                           (xmp-file-reader-read-bytes
-                            reader
-                            (- seglen 2
-                               xmp-file-scan-jpeg-xmp-signature-size))))
-                    ;; TODO: Support ExtendedXMP
-                    ;; ExtendedXMP
-                    ;; ((looking-at-p xmp-file-scan-jpeg-xmp-ext-signature)
-                    ;;  (xmp-file-reader-skip
-                    ;;   reader
-                    ;;   xmp-file-scan-jpeg-xmp-ext-signature-size)
-                    ;;  (let ((guid
-                    ;;         (xmp-file-reader-read-bytes reader 32))
-                    ;;        (full-size
-                    ;;         (xmp-file-reader-u32 reader))
-                    ;;        (portion-offset
-                    ;;         (xmp-file-reader-u32 reader))
-                    ;;        (portion-bytes
-                    ;;         (xmp-file-reader-read-bytes
-                    ;;          reader
-                    ;;          (- seglen
-                    ;;             2
-                    ;;             xmp-file-scan-jpeg-xmp-ext-signature-size
-                    ;;             32 4 4))))
-                    ;;    (push (list guid full-size portion-offset portion-bytes)
-                    ;;          extended-xmp-portions)))
-                    ))
+                    (cl-loop for sig-info in app1-signature-info-list
+                             maximize (nth 1 sig-info))
+                    'noerror)
+                   (when-let ((sig-info (seq-find
+                                         (lambda (sig-info)
+                                           (looking-at-p (nth 0 sig-info)))
+                                         app1-signature-info-list)))
+                     ;; SKip signature
+                     (xmp-file-reader-skip reader (nth 1 sig-info))
+                     ;; Read bytes
+                     (push (cons
+                            (nth 2 sig-info)
+                            (xmp-file-reader-read-bytes reader
+                                                        (- seglen
+                                                           2
+                                                           (nth 1 sig-info))))
+                           result)
+                     ;; Remove from list
+                     (unless (nth 3 sig-info)
+                       (setq app1-signature-info-list
+                             (delq sig-info app1-signature-info-list)))))
                  (xmp-file-reader-seek reader (+ segoff seglen)))
                t))))
-      ;; TODO: Combine ExtendedXMP
-      ;;       - Retrieve GUID from xmpNote:HasExtendedXMP in standard-xmp
-      ;;       - Reject invalid GUID
-      ;;       - Sort portions by offset
-      ;;       - Check continuity
-      ;;       - Check total size
-      ;;       - Combine StandardXMP and ExtendedXMP
-      ;;       - Remove xmpNote:HasExtendedXMP
-      ;; I don't have any JPEG files using ExtendedXMP on hand, so I
-      ;; won't implement it now.
-      standard-xmp)))
+      (nreverse result))))
+;; EXAMPLE: (xmp-file-scan-jpeg-app1 "test/xmp-test-uzumaki.jpg" (list xmp-file-scan-jpeg-exif-signature-info xmp-file-scan-jpeg-xmp-signature-info))
+
+;; TODO: Support ExtendedXMP
+;; ExtendedXMP
+;; ((looking-at-p xmp-file-scan-jpeg-xmp-ext-signature)
+;;  (xmp-file-reader-skip
+;;   reader
+;;   xmp-file-scan-jpeg-xmp-ext-signature-size)
+;;  (let ((guid
+;;         (xmp-file-reader-read-bytes reader 32))
+;;        (full-size
+;;         (xmp-file-reader-u32 reader))
+;;        (portion-offset
+;;         (xmp-file-reader-u32 reader))
+;;        (portion-bytes
+;;         (xmp-file-reader-read-bytes
+;;          reader
+;;          (- seglen
+;;             2
+;;             xmp-file-scan-jpeg-xmp-ext-signature-size
+;;             32 4 4))))
+;;    (push (list guid full-size portion-offset portion-bytes)
+;;          extended-xmp-portions)))
+
+;; TODO: Combine ExtendedXMP to StandardXMP
+;;       - Retrieve GUID from xmpNote:HasExtendedXMP in standard-xmp
+;;       - Reject invalid GUID
+;;       - Sort portions by offset
+;;       - Check continuity
+;;       - Check total size
+;;       - Combine StandardXMP and ExtendedXMP
+;;       - Remove xmpNote:HasExtendedXMP
+;; I don't have any JPEG files using ExtendedXMP on hand, so I
+;; won't implement it now.
+
+(autoload 'xmp-exif-read-exif-as-description-element-from-bytes "xmp-exif")
 
 (defun xmp-file-read-xml-from-jpeg (file)
-  ;; Remove all xmlns:??= attributes that exist on non-root elements.
-  ;; When the `xmp-xml-element-attributes' returns namespace
-  ;; declarations, there are a few places where it will not work
-  ;; correctly.
-  (when-let ((xmp-packet (xmp-file-scan-jpeg-xmp file)))
-    (xmp-xml-move-nsdecls-to-root
-     (xmp-xml-parse-string
-      (decode-coding-string xmp-packet 'utf-8)))))
+  (let* ((segments (xmp-file-scan-jpeg-app1
+                    file
+                    (nconc
+                     (when xmp-jpeg-extract-exif-p
+                       (list xmp-file-scan-jpeg-exif-signature-info))
+                     (list  xmp-file-scan-jpeg-xmp-signature-info))))
+         (dom
+          (when-let ((xmp-packet (alist-get 'standard-xmp segments)))
+            (xmp-xml-parse-string
+             (decode-coding-string xmp-packet 'utf-8))))
+         (desc-exif
+          (when-let ((exif-bytes (alist-get 'exif segments)))
+            (xmp-exif-read-exif-as-description-element-from-bytes
+             exif-bytes nil))))
+
+    (when desc-exif
+      (let ((rdf (or (xmp-find-rdf dom)
+                     ;; dom-xmp is invalid, discard it and recreate dom.
+                     (progn
+                       (setq dom (xmp-empty-dom))
+                       (xmp-find-rdf dom)))))
+        ;; TODO: Remove duplicate properties
+        ;; TODO: Reproduce ns decls
+        (xmp-xml-element-insert-last rdf desc-exif)))
+
+    (when dom
+      ;; Remove all xmlns:??= attributes that exist on non-root elements.
+      ;; When the `xmp-xml-element-attributes' returns namespace
+      ;; declarations, there are a few places where it will not work
+      ;; correctly.
+      (xmp-xml-move-nsdecls-to-root dom))))
 
 ;;;;; PDF File
 

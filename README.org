@@ -236,3 +236,15 @@ Expanded name:
 - ~xmp-xml:id~
 
 Many namespaces and expanded names used in XMP are defined as variables in xmp.el (e.g. ~xmp-dc:title~, ~xmp-xmp:Rating~).
+
+** xmp-exif.el
+
+A library that parses EXIF ​​and converts it to XMP.
+
+** xmp-tiff.el
+
+A library for parsing TIFF and reading tag information.
+
+** xmp-pdf.el
+
+A library for parsing PDFs and reading metadata.

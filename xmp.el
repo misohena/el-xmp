@@ -1747,7 +1747,7 @@ variable explicitly."
      :read-xml xmp-file-read-xml-from-pdf
      ;; TODO: Implement pdf writer
      :write-xml nil)
-    ("\\.\\(?:[Tt][Ii][Ff][Ff]?\\|[Aa][Rr][Ww]\\)\\'"
+    ("\\.\\(?:[Tt][Ii][Ff][Ff]?\\|[Aa][Rr][Ww]\\|[Cc][Rr]2\\|[Dd][Nn][Gg]\\|[Nn][Ee][Ff]\\)\\'"
      :read-xml xmp-file-read-xml-from-tiff
      ;; TODO: Implement writer
      :write-xml nil)

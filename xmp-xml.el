@@ -134,6 +134,31 @@ If NS is nil, return nil."
    ((stringp ns) ns)
    (t (error "Invalid namespace name: %s" ns))))
 
+(defun xmp-xml-ns-name-ensure (ns)
+  "Convert NS to the internal representation of namespace name.
+If NS is nil, return nil."
+  (cond
+   ((null ns) nil)
+   ((stringp ns) (xmp-xml-ns-name ns))
+   ((keywordp ns) ns)
+   ((symbolp ns) ns)
+   (t (error "Invalid namespace name: %s" ns))))
+
+;;;;; Namespace Names Defined in the XML Specification
+
+;; https://www.w3.org/TR/xml-names/
+;; https://www.w3.org/XML/1998/namespace
+
+(defconst xmp-xmlns:
+  (xmp-xml-ns-name "http://www.w3.org/2000/xmlns/")
+  "The internal representation of the namespace name
+\"http://www.w3.org/2000/xmlns/\".")
+
+(defconst xmp-xml:
+  (xmp-xml-ns-name "http://www.w3.org/XML/1998/namespace")
+  "The internal representation of the namespace name
+\"http://www.w3.org/XML/1998/namespace\".")
+
 ;;;;; Expanded Name
 ;; EName : (namespace-name . local-name) | local-name
 ;; https://www.w3.org/TR/xml-names/#dt-expname
@@ -293,21 +318,65 @@ expanded name, it is better to create a new expanded name object using
 `xmp-xml-ename'."
   (xmp-xml-ename (xmp-xml-ename-ns ename) (xmp-xml-ename-local ename)))
 
+(defun xmp-xml-ename-string (ename &optional ns-name-prefix-alist
+                                   unknown-prefix
+                                   always-uri separator no-default-prefix)
+  "Convert ENAME to a string.
 
-;;;;; Names defined in the XML specification
+The resulting string consists of three parts:
 
-;; https://www.w3.org/TR/xml-names/
-;; https://www.w3.org/XML/1998/namespace
+  <ns-prefix><separator><local-name>.
 
-(defconst xmp-xmlns:
-  (xmp-xml-ns-name "http://www.w3.org/2000/xmlns/")
-  "The internal representation of the namespace name
-\"http://www.w3.org/2000/xmlns/\".")
+When ENAME has no namespace, return only the <local-name>.
 
-(defconst xmp-xml:
-  (xmp-xml-ns-name "http://www.w3.org/XML/1998/namespace")
-  "The internal representation of the namespace name
-\"http://www.w3.org/XML/1998/namespace\".")
+The <ns-prefix> portion is determined as follows:
+- If ALWAYS-URI is non-nil, the namespace name is used as is.
+- If the namespace name is equal to the constant `xmp-xml:', always
+  return \"xml\".
+- If NO-DEFAULT-PREFIX is nil, use the `xmp-xml-default-ns-prefix'
+  function to find the prefix.
+- Use NS-NAME-PREFIX-ALIST to find the prefix.
+- If the prefix is not found, the behavior changes depending on whether
+  UNKNOWN-PREFIX is one of the following:
+  - A string: Use the string instead of the prefix.
+  - The symbol `uri': Use the namespace name as is instead of the prefix.
+  - The symbol `noerror': This function returns nil.
+  - The symbol `nil': Signal an error.
+
+SEPARATOR is a string to separate <ns-prefix> and <local-name>. If nil,
+\":\" is used. If <ns-prefix> is empty, <separator> is not inserted."
+  (if-let ((ns-name (xmp-xml-ename-ns ename)))
+      (if-let ((prefix
+                (or
+                 (when always-uri (xmp-xml-ns-name-string ns-name))
+                 (when (equal ns-name xmp-xml:) "xml")
+                 (unless no-default-prefix (xmp-xml-default-ns-prefix ns-name))
+                 (alist-get ns-name ns-name-prefix-alist)
+                 (pcase unknown-prefix
+                   ((pred stringp) unknown-prefix)
+                   ('uri (xmp-xml-ns-name-string ns-name))
+                   ('noerror nil)
+                   ('nil (error "Namespace `%s' is not defined" ns-name))
+                   (_ (error "Invalid unknown-prefix `%s'"
+                             unknown-prefix))))))
+          (concat prefix
+                  (unless (string-empty-p prefix) (or separator ":"))
+                  (xmp-xml-ename-local ename))
+        ;; No prefix and NOERROR
+        nil)
+    ;; No namespace name
+    (xmp-xml-ename-local ename)))
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") nil "???") => "???:prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") nil "") => "prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") (list (cons (xmp-xml-ns-name "http://dummy/") "dmy"))) => "dmy:prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") (list (cons (xmp-xml-ns-name "http://dummy/") "dmy")) nil t "") => "http://dummy/prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") nil 'uri) => "http://dummy/:prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") nil 'noerror) => nil
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename (xmp-xml-ns-name "http://dummy/") "prop") nil 'detarame) => error
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename nil "prop") nil nil) => "prop"
+;; TEST: (xmp-xml-ename-string (xmp-xml-ename xmp-xml: "lang") nil nil nil nil t) => "xml:lang"
+
+;;;;; Names Defined in the XML Specification
 
 (defconst xmp-xml:lang (xmp-xml-ename xmp-xml: "lang"))
 (defconst xmp-xml:space (xmp-xml-ename xmp-xml: "space"))
@@ -609,6 +678,44 @@ characters."
     node)))
 
 
+;;;;; Known Namespace Management
+
+(defvar xmp-xml-default-ns-name-prefix-groups nil)
+(defvar xmp-xml-default-ns-name-prefix-alist nil)
+
+(defun xmp-xml-register-ns-name-prefix-group (group-symbol
+                                              ns-name-prefix-alist
+                                              priority)
+  (setf (alist-get group-symbol xmp-xml-default-ns-name-prefix-groups nil t)
+        nil)
+  (setq xmp-xml-default-ns-name-prefix-groups
+        (cl-loop with new-group
+                 = (list group-symbol ns-name-prefix-alist priority)
+                 for rest-groups on xmp-xml-default-ns-name-prefix-groups
+                 for curr-group = (car rest-groups)
+                 if (< priority (nth 2 curr-group))
+                 return (nconc result (list new-group) rest-groups)
+                 else
+                 collect curr-group into result
+                 finally return (nconc result (list new-group))))
+  (setq xmp-xml-default-ns-name-prefix-alist
+        (apply #'append (mapcar #'cadr xmp-xml-default-ns-name-prefix-groups))))
+
+(defun xmp-xml-default-ns-prefix (ns-name)
+  "Return the default namespace prefix corresponding to the namespace
+name (URI) NS-NAME.
+
+NS-NAME can be either a string or an internal representation created by
+`xmp-xml-ns-name'."
+  (setq ns-name (xmp-xml-ns-name-ensure ns-name))
+  (alist-get ns-name xmp-xml-default-ns-name-prefix-alist))
+;; EXAMPLE: (xmp-xml-default-ns-prefix xmp-xmp:)
+
+(defun xmp-xml-default-ns-prefix-to-ns-name (ns-prefix-str)
+  (car (rassoc ns-prefix-str xmp-xml-default-ns-name-prefix-alist)))
+;; EXAMPLE: (xmp-xml-default-ns-prefix-to-ns-name "xmp")
+
+
 ;;;;; Namespace
 
 (defun xmp-xml-standard-ns-name-prefix-alist ()
@@ -726,7 +833,16 @@ included in the results if it is used."
    t t))
 
 (defun xmp-xml-ns-name-to-prefix (ns ns-name-prefix-alist &optional noerror)
-  "Convert namespace name NS (URI) to prefix using NS-NAME-PREFIX-ALIST."
+  "Convert namespace name NS (URI) to prefix using NS-NAME-PREFIX-ALIST for
+output to XML.
+
+Do not use the default namespace prefix; always use only
+NS-NAME-PREFIX-ALIST.
+
+If NS is equal to the constant `xmp-xml:', always return \"xml\".
+
+If the prefix is not found, signal an error, but return nil if NOERROR
+is non-nil."
   (if (equal ns xmp-xml:)
       "xml" ;; Reserved
     (if-let ((cell (assoc ns ns-name-prefix-alist)))
@@ -735,14 +851,20 @@ included in the results if it is used."
         (error "Namespace `%s' is not defined" ns)))))
 
 (defun xmp-xml-element-name-string (node ns-name-prefix-alist)
+  "Return the name of the element NODE for output to XML.
+NS-NAME-PREFIX-ALIST is used to convert the namespace name to the prefix.
+Signal an error if the prefix cannot be converted."
   (let* ((ename (xmp-xml-element-ename node))
          (local-name (xmp-xml-ename-local ename)))
-    (if-let* ((ns (xmp-xml-ename-ns ename))
-              (prefix (xmp-xml-ns-name-to-prefix ns ns-name-prefix-alist)))
-        (concat prefix ":" local-name)
+    (if-let* ((ns (xmp-xml-ename-ns ename)))
+        (concat (xmp-xml-ns-name-to-prefix ns ns-name-prefix-alist)
+                ":" local-name)
       local-name)))
 
 (defun xmp-xml-attr-name-string (attr ns-name-prefix-alist)
+  "Return the name of the ATTR for output to XML.
+NS-NAME-PREFIX-ALIST is used to convert the namespace name to the prefix.
+Signal an error if the prefix cannot be converted."
   (let ((ename (xmp-xml-attr-ename attr)))
     (cond
      ;; Namespace declaration
@@ -754,12 +876,8 @@ included in the results if it is used."
         (concat "xmlns" ":" (xmp-xml-ename-local ename))))
      ;; Prefixed
      ((when-let ((ns (xmp-xml-ename-ns ename)))
-        (let ((prefix (xmp-xml-ns-name-to-prefix ns ns-name-prefix-alist)))
-          ;; TODO:
-          (unless prefix
-            (error "Unable to get prefix for namespace name %s in attr %s"
-                   ns (xmp-xml-ename-local ename)))
-          (concat prefix ":" (xmp-xml-ename-local ename)))))
+        (concat (xmp-xml-ns-name-to-prefix ns ns-name-prefix-alist)
+                ":" (xmp-xml-ename-local ename))))
      ;; Unprefixed
      (t
       (xmp-xml-ename-local ename)))))

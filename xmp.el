@@ -156,13 +156,15 @@ text from source code."
        "Iptc4xmpCore") ;; https://developer.adobe.com/xmp/docs/XMPNamespaces/Iptc4xmpCore/
       ))
 
-  ;; Functions for predefined namespaces
-
-  (defun xmp-predefined-namespace-prefix (ns-name)
-    (nth 1 (assoc (xmp-xml-ns-name-string ns-name)
-                  xmp-predefined-namespaces #'string=)))
-  ;; (xmp-predefined-namespace-prefix :http://ns.adobe.com/xap/1.0/) => "xmp"
-  ;; (xmp-predefined-namespace-prefix "http://ns.adobe.com/xap/1.0/") => "xmp"
+  ;; Register ns-name-prefix-alist to xmp-xml.el
+  (xmp-xml-register-ns-name-prefix-group
+   'xmp-predefined
+   (mapcar (lambda (ns-info)
+             (cons (xmp-xml-ns-name (nth 0 ns-info)) (nth 1 ns-info)))
+           xmp-predefined-namespaces)
+   0)
+  ;; (xmp-xml-default-ns-prefix :http://ns.adobe.com/xap/1.0/) => "xmp"
+  ;; (xmp-xml-default-ns-prefix "http://ns.adobe.com/xap/1.0/") => "xmp"
   )
 
 ;; Define namespace name variables
@@ -194,36 +196,18 @@ text from source code."
                  collect `(cons (xmp-xml-ns-name ,ns-name) ,ns-prefix)))))
 (xmp-define-ns-namespaces-const)
 
-;;;;; Default Namespace Prefix
-
-(defvar xmp-default-ns-name-prefix-alist xmp-predefined-ns-name-prefix-alist)
-
-(defun xmp-update-default-ns-name-prefix-alist ()
-  (setq xmp-default-ns-name-prefix-alist
-        (nconc (xmp-user-defined-ns-name-prefix-alist)
-               xmp-predefined-ns-name-prefix-alist)))
-
-(defun xmp-default-namespace-prefix (ns-name)
-  "Return the default namespace prefix corresponding to the namespace
-name (URI) NS-NAME.
-
-NS-NAME can be either a string or an internal representation created by
-`xmp-xml-ns-name'."
-  (or (xmp-user-defined-namespace-prefix ns-name)
-      (xmp-predefined-namespace-prefix ns-name)))
-
 ;;;;; User Defined Namespaces
 
 (defvar xmp-user-defined-namespaces)
 
-(defun xmp-user-defined-ns-name-prefix-alist ()
-  (cl-loop for (ns-name . ns-info) in xmp-user-defined-namespaces
-           for ns-prefix = (car ns-info)
-           collect (cons (xmp-xml-ns-name ns-name) ns-prefix)))
-
-(defun xmp-user-defined-namespace-prefix (ns-name)
-  (nth 1 (assoc (xmp-xml-ns-name-string ns-name)
-                xmp-user-defined-namespaces #'string=)))
+(defun xmp-user-defined-namespaces-update ()
+  ;; Register ns-name-prefix-alist to xmp-xml.el
+  (xmp-xml-register-ns-name-prefix-group
+   'xmp-user
+   (mapcar (lambda (ns-info)
+             (cons (xmp-xml-ns-name (nth 0 ns-info)) (nth 1 ns-info)))
+           xmp-user-defined-namespaces)
+   -1))
 
 (defcustom xmp-user-defined-namespaces nil
   "A list of namespaces added by user.
@@ -235,7 +219,7 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
   :set (lambda (var val)
          (set var val)
          ;; Update prefix alist
-         (xmp-update-default-ns-name-prefix-alist)))
+         (xmp-user-defined-namespaces-update)))
 
 
 ;;;; Predefined Element and Attribute Names
@@ -384,7 +368,7 @@ information in `xmp-user-defined-namespaces'."
 ;;;;; Defined Property Information
 
 (defun xmp-defined-property-type--get (ename prop-info-alist)
-  (when-let* ((ns-prefix-str (xmp-default-namespace-prefix
+  (when-let* ((ns-prefix-str (xmp-xml-default-ns-prefix
                               (xmp-xml-ename-ns ename)))
               (ns-info (assoc ns-prefix-str
                               prop-info-alist
@@ -1263,13 +1247,7 @@ first language code must be \"x-default\"."
   (princ (make-string (* 2 indent) ? ) stream))
 
 (defun xmp-dump-ename (stream ename ns-name-prefix-alist)
-  (if-let ((ns (xmp-xml-ename-ns ename)))
-      (let ((prefix (or (alist-get ns ns-name-prefix-alist nil nil #'equal)
-                        (xmp-xml-ns-name-string ns))))
-        (princ (format "%s:%s" prefix
-                       (xmp-xml-ename-local ename))
-               stream))
-    (princ (format "%s" (xmp-xml-ename-local ename)) stream)))
+  (princ (xmp-xml-ename-string ename ns-name-prefix-alist 'uri) stream))
 
 (defun xmp-dump-pvalue (stream pvalue ns-name-prefix-alist indent)
   (pcase (xmp-pvalue-type pvalue)
@@ -1490,7 +1468,7 @@ nil means to scan the entire file."
           (with-temp-buffer
             (let ((xmp-xml-no-line-break t))
               (xmp-xml-print (current-buffer) dom
-                             xmp-default-ns-name-prefix-alist t))
+                             xmp-xml-default-ns-name-prefix-alist t))
             (encode-coding-region (point-min) (point-max) 'utf-8 t)))
          (xml-size (length xml-bytes)))
 
@@ -1749,7 +1727,7 @@ variable explicitly."
    (xmp-xml-parse-file file)))
 
 (defun xmp-file-write-xml-to-xmp-xml (file dom)
-  (xmp-xml-write-file file dom xmp-default-ns-name-prefix-alist))
+  (xmp-xml-write-file file dom xmp-xml-default-ns-name-prefix-alist))
 
 ;;;;; File Handlers
 

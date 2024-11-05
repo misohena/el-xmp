@@ -729,9 +729,7 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
          (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
         (prop-spec-list
          (xmp-editor-align-labels
-          (xmp-editor-complete-prop-spec-list
-           prop-spec-list
-           xmp-default-ns-name-prefix-alist))))
+          (xmp-editor-complete-prop-spec-list prop-spec-list nil))))
 
     (setq-local xmp-editor-files
                 (cl-loop for file in files
@@ -808,17 +806,7 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
 
 (defun xmp-editor-property-label (prop-ename ns-name-prefix-alist)
   ;; TODO: Generate more user-friendly text. Add xmp-editor-property-label-alist?
-  ;; TODO: Move to xmp-commands.el or xmp.el?
-  (let ((prefix
-         (or (xmp-default-namespace-prefix (xmp-xml-ename-ns prop-ename))
-             (xmp-xml-ns-name-to-prefix (xmp-xml-ename-ns prop-ename)
-                                        ns-name-prefix-alist
-                                        t)
-             ;; (xmp-xml-ns-name-string (xmp-xml-ename-ns prop-ename)) ;;Too long?
-             )))
-    (if prefix
-        (concat prefix ":" (xmp-xml-ename-local prop-ename))
-      (xmp-xml-ename-local prop-ename))))
+  (xmp-xml-ename-string prop-ename ns-name-prefix-alist "?"))
 
 ;;;;; prop-spec-list
 

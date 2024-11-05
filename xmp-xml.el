@@ -590,6 +590,12 @@ If REFERENCE-NODE is nil, NEW-NODE will be the first child of ELEM."
           (cons new-node nil))
   new-node)
 
+(defun xmp-xml-element-nconc-last (elem new-node-list)
+  "Concatenate NEW-NODE-LIST to the end of the child list of element ELEM."
+  (setcdr (last (xmp-xml-element-children--prev elem))
+          new-node-list)
+  new-node-list)
+
 (defun xmp-xml-element-insert-first (elem new-node)
   "Add NEW-NODE as the first child of the element ELEM."
   (setf (xmp-xml-element-children elem)
@@ -759,6 +765,15 @@ Return a list of (<namespace-name> . <prefix>)."
      ;; Collect from the descendants of NODE
      (cl-loop for child in (xmp-xml-element-children node)
               nconc (xmp-xml-collect-nsdecls-non-unique child)))))
+
+(defun xmp-xml-collect-nsdecls-on-node (node)
+  "Collect namespace declarations (xmlns:??= or xmlns=) used on the NODE.
+Declarations in descendant nodes are not included.
+Return a list of (<namespace-name> . <prefix>)."
+  (when (xmp-xml-element-p node)
+    (cl-loop for attr in (xmp-xml-element-attributes node)
+             when (xmp-xml-attr-nsdecl-p attr)
+             collect (xmp-xml-attr-as-decl attr))))
 
 (defun xmp-xml-remove-nsdecls (node)
   "Remove all namespace declarations (xmlns:?? or xmlns=)."

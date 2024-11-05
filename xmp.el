@@ -520,6 +520,65 @@ elements. Specifying nil is the same as specifying an empty string."
                   (xmp-desc-get-property-element desc prop-ename)))
               (xmp-xml-element-children rdf))))
 
+(defun xmp-set-property-elements-if-not-exists (dom prop-elem-list
+                                                    &optional about)
+  "Insert the property elements specified by PROP-ELEM-LIST into the
+DOM. However, if a property with the same name already exists in the
+DOM, do not insert it and discard it."
+  (when prop-elem-list
+    (when-let ((rdf (xmp-find-rdf dom)))
+      ;; Prepare for `cl-delete-if' and `xmp-xml-element-nconc-last'
+      (setq prop-elem-list (copy-sequence prop-elem-list))
+
+      ;; Remove property elements from PROP-ELEM-LIST that are already in DOM
+      (let ((children (xmp-xml-element-children rdf)))
+        ;; For each rdf:Description
+        (while (and children prop-elem-list)
+          (let ((desc (pop children)))
+            (when (xmp-target-description-p desc about)
+              ;; For each properties
+              (xmp-desc-some-property-elements
+               desc
+               (lambda (prop-ename _place _elem _attr)
+                 ;; Remove elements with same property name from PROP-ELEM-LIST
+                 (setq prop-elem-list
+                       (cl-delete-if
+                        (lambda (elem2)
+                          (xmp-xml-ename-equal (xmp-xml-element-ename elem2)
+                                               prop-ename))
+                        prop-elem-list))
+                 ;; Stop if PROP-ELEM-LIST is empty
+                 (null prop-elem-list)))))))
+
+      ;; Insert property elements
+      (let ((desc (or (xmp-find-description dom nil about)
+                      (xmp-xml-element-insert-last
+                       dom
+                       (xmp-empty-top-description about)))))
+        (xmp-xml-element-nconc-last desc prop-elem-list)
+
+        ;; Insert namespace declarations that are used and do not exist
+        (let (used-ns-list nsdecls)
+          ;; Collect used namespace names from PROP-ELEM-LIST
+          (dolist (prop-elem prop-elem-list)
+            (setq used-ns-list
+                  (xmp-xml-collect-used-ns prop-elem used-ns-list)))
+
+          ;; Collect namespace declarations from the root to the desc element
+          (setq nsdecls
+                (nconc
+                 (xmp-xml-collect-nsdecls-on-node desc)
+                 (xmp-xml-collect-nsdecls-on-node rdf)
+                 (unless (eq dom rdf)
+                   (xmp-xml-collect-nsdecls-on-node dom))))
+
+          ;; Insert missing namespace declarations
+          (dolist (ns-name used-ns-list)
+            (unless (seq-some (lambda (nsdecl) (equal (car nsdecl) ns-name))
+                              nsdecls)
+              (when-let ((prefix (xmp-xml-default-ns-prefix ns-name)))
+                (xmp-xml-insert-nsdecl dom ns-name prefix)))))))))
+
 (defun xmp-dump-properties (stream dom &optional about sort)
   "Output XMP properties contained in DOM to STREAM in a
 user-friendly format.
@@ -563,37 +622,85 @@ value returned.
 If the properties are expressed in the form of attribute values of the
 Description element (property attributes), a temporary property element
 will be created and returned."
-  (nconc
+  (let (result)
+    (xmp-desc-some-property-elements
+     desc
+     (lambda (_prop-ename place elem attr)
+       (cond
+        ((eq place 'attribute)
+         ;; Convert attribute to element
+         (push (xmp-property-element-from-attr attr) result))
+        ((eq place 'element)
+         (push elem result)))
+       ;; Continue
+       nil)
+     prop-ename-list)
+    (nreverse result)))
+
+(defun xmp-desc-some-property-elements (desc predicate
+                                             &optional prop-ename-list)
+  "Call PREDICATE for each XMP property that element DESC has, and when a
+non-nil value is returned, exit and return that value.
+
+PREDICATE is passed four arguments: PROP-ENAME, PLACE, ELEMENT, and
+ATTRIBUTE.
+
+PROP-ENAME is the property name (expanded name).
+
+PLACE represents where the property resides and is either the symbol
+`attribute' or the symbol `element'.
+
+ELEMENT is the element in which the property resides. If PLACE is
+`attribute', it is DESC. If PLACE is `element', it is the property
+element that represents the property.
+
+ATTRIBUTE is an attribute object that represents a property when PLACE
+is `attribute', or nil when PLACE is `element'.
+
+When PROP-ENAME-LIST is non-nil, only properties with the specified
+names are considered."
+  (or
    ;; Enumerate from the DESC's attributes
    ;; (simple, non-URI, unqualified values)
    ;; [XMP1 7.9.2.2]
-   (cl-loop for attr in (xmp-xml-element-attributes desc)
-            when (and
-                  ;; Exclude nsdecl (xmlns= and xmlns:??=)
-                  (not (xmp-xml-attr-nsdecl-p attr))
-                  ;; Exclude non-property attributes
-                  ;; [XMP1 C.2.4]
-                  (not (member (xmp-xml-ename-ns (xmp-xml-attr-ename attr))
-                               ;; rdf:*, xml:* : Maybe excessive?
-                               ;; xmlns:* is namespace declaration
-                               (list xmp-rdf: xmp-xml:)))
-                  ;; Filter by prop-ename-list
-                  (or (null prop-ename-list)
-                      (xmp-xml-ename-member (xmp-xml-attr-ename attr)
-                                            prop-ename-list)))
-            ;; Convert attribute to element
-            collect (xmp-property-element-from-attr attr))
+   (let ((attrs (xmp-xml-element-attributes desc))
+         result)
+     (while (and attrs (null result))
+       (let ((attr (pop attrs)))
+         (when (and
+                ;; Exclude nsdecl (xmlns= and xmlns:??=)
+                (not (xmp-xml-attr-nsdecl-p attr))
+                ;; Exclude non-property attributes
+                ;; [XMP1 C.2.4]
+                (not (member (xmp-xml-ename-ns (xmp-xml-attr-ename attr))
+                             ;; rdf:*, xml:* : Maybe excessive?
+                             ;; xmlns:* is namespace declaration
+                             (list xmp-rdf: xmp-xml:)))
+                ;; Filter by prop-ename-list
+                (or (null prop-ename-list)
+                    (xmp-xml-ename-member (xmp-xml-attr-ename attr)
+                                          prop-ename-list)))
+           (setq result (funcall predicate
+                                 (xmp-xml-attr-ename attr)
+                                 'attribute desc attr)))))
+     result)
 
    ;; Enumerate from the DESC's children
    ;; [XMP1 C.2.5]
-   (cl-loop for child in (xmp-xml-element-children desc)
-            when (and
-                  (xmp-xml-element-p child)
-                  ;; Filter by prop-ename-list
-                  (or (null prop-ename-list)
-                      (xmp-xml-ename-member (xmp-xml-element-ename child)
-                                            prop-ename-list)))
-            collect child)))
+   (let ((children (xmp-xml-element-children desc))
+         result)
+     (while (and children (null result))
+       (let ((child (pop children)))
+         (when (and
+                (xmp-xml-element-p child)
+                ;; Filter by prop-ename-list
+                (or (null prop-ename-list)
+                    (xmp-xml-ename-member (xmp-xml-element-ename child)
+                                          prop-ename-list)))
+           (setq result (funcall predicate
+                                 (xmp-xml-element-ename child)
+                                 'element child nil)))))
+     result)))
 
 (defun xmp-desc-get-property-element (desc prop-ename)
   (or
@@ -1607,7 +1714,7 @@ nil means to scan the entire file."
 ;; I don't have any JPEG files using ExtendedXMP on hand, so I
 ;; won't implement it now.
 
-(autoload 'xmp-exif-read-exif-as-description-element-from-bytes "xmp-exif")
+(autoload 'xmp-exif-read-exif-as-xmp-property-elements-from-bytes "xmp-exif")
 
 (defun xmp-file-read-xml-from-jpeg (file)
   (let* ((segments (xmp-file-scan-jpeg-app1
@@ -1620,29 +1727,39 @@ nil means to scan the entire file."
           (when-let ((xmp-packet (alist-get 'standard-xmp segments)))
             (xmp-xml-parse-string
              (decode-coding-string xmp-packet 'utf-8))))
-         (desc-exif
+         (exif-prop-elem-list
           (when-let ((exif-bytes (alist-get 'exif segments)))
-            (xmp-exif-read-exif-as-description-element-from-bytes
+            (xmp-exif-read-exif-as-xmp-property-elements-from-bytes
              exif-bytes
              ;; TODO: Add partial read feature
              nil))))
 
-    (when desc-exif
-      (let ((rdf (or (xmp-find-rdf dom)
-                     ;; dom is invalid, discard it and recreate dom.
-                     (progn
-                       (setq dom (xmp-empty-dom))
-                       (xmp-find-rdf dom)))))
-        ;; TODO: Remove duplicate properties
-        ;; TODO: Reproduce ns decls
-        (xmp-xml-element-insert-last rdf desc-exif)))
+    (xmp-merge-xml-dom-and-property-elements dom exif-prop-elem-list)))
 
-    (when dom
-      ;; Remove all xmlns:??= attributes that exist on non-root elements.
-      ;; When the `xmp-xml-element-attributes' returns namespace
-      ;; declarations, there are a few places where it will not work
-      ;; correctly.
-      (xmp-xml-move-nsdecls-to-root dom))))
+(defun xmp-merge-xml-dom-and-property-elements (dom prop-elem-list)
+  "Merge the contents of PROP-ELEM-LIST into the DOM.
+However, if the same property exists in both, the property in DOM takes
+precedence.
+
+If DOM is nil or invalid, a new empty DOM is created and the
+PROP-ELEM-LIST is inserted into it."
+  (when dom
+    ;; Remove all xmlns:??= attributes that exist on non-root elements.
+    ;; When the `xmp-xml-element-attributes' returns namespace
+    ;; declarations, there are a few places where it will not work
+    ;; correctly.
+    (xmp-xml-move-nsdecls-to-root dom))
+
+  (when prop-elem-list
+    ;; If DOM is invalid, discard it and recreate dom.
+    (when (or (null dom)
+              (not (xmp-find-rdf dom)))
+      (setq dom (xmp-empty-dom)))
+
+    ;; Insert PROP-ELEM-LIST into DOM
+    (xmp-set-property-elements-if-not-exists dom prop-elem-list))
+
+  dom)
 
 ;;;;; TIFF File
 
@@ -1651,30 +1768,9 @@ nil means to scan the entire file."
 (defun xmp-file-read-xml-from-tiff (file)
   (let* ((dom-exif (xmp-exif-read-xmp-xml-from-tiff-file file))
          (dom (car dom-exif))
-         (exif-prop-elems (cdr dom-exif)))
+         (exif-prop-elem-list (cdr dom-exif)))
 
-    ;; TODO: Unify the parts that overlap with `xmp-file-read-xml-from-jpeg'
-    (when exif-prop-elems
-      (let ((rdf (or (xmp-find-rdf dom)
-                     ;; dom is invalid, discard it and recreate dom.
-                     (progn
-                       (setq dom (xmp-empty-dom))
-                       (xmp-find-rdf dom)))))
-        ;; TODO: Remove duplicate properties
-        ;; TODO: Reproduce ns decls
-        (xmp-xml-element-insert-last
-         rdf
-         ;; Wrap <rdf:Description rdf:about="">
-         (xmp-xml-element xmp-rdf:Description
-                          (list (xmp-xml-attr xmp-rdf:about ""))
-                          exif-prop-elems))))
-
-    (when dom
-      ;; Remove all xmlns:??= attributes that exist on non-root elements.
-      ;; When the `xmp-xml-element-attributes' returns namespace
-      ;; declarations, there are a few places where it will not work
-      ;; correctly.
-      (xmp-xml-move-nsdecls-to-root dom))))
+    (xmp-merge-xml-dom-and-property-elements dom exif-prop-elem-list)))
 
 ;;;;; PDF File
 

@@ -207,9 +207,13 @@
            :format "\n%v"
            :key-type
            (string :tag "Lang" :size 10
-                   :format "%t:%v")
+                   :format "%t:%v"
+                   ;; Avoid `custom-field-keymap' problem
+                   :keymap widget-field-keymap)
            :value-type
-           (string :tag "" :format " %v")
+           (string :tag "" :format " %v"
+                   ;; Avoid `custom-field-keymap' problem
+                   :keymap widget-field-keymap)
            :notify xmp-widget-lang-alt-multiple-notify)
          :value (xmp-widget-lang-alt-multiple-to-internal
                  (widget-get widget :value)))))
@@ -335,7 +339,9 @@
            ;;:type
            ;;(string :tag "" :format " %v")
            :notify xmp-widget-text-list-multiple-notify
-           (string :tag "" :format " %v")
+           (string :tag "" :format " %v"
+                   ;; Avoid `custom-field-keymap' problem
+                   :keymap widget-field-keymap)
            )
          :value (xmp-widget-text-list-multiple-to-internal
                  (widget-get widget :value)))))

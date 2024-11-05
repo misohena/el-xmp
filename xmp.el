@@ -1649,9 +1649,9 @@ nil means to scan the entire file."
 (autoload 'xmp-exif-read-xmp-xml-from-tiff-file "xmp-exif")
 
 (defun xmp-file-read-xml-from-tiff (file)
-  (when-let* ((dom-exif (xmp-exif-read-xmp-xml-from-tiff-file file))
-              (dom (car dom-exif))
-              (exif-prop-elems (cdr dom-exif)))
+  (let* ((dom-exif (xmp-exif-read-xmp-xml-from-tiff-file file))
+         (dom (car dom-exif))
+         (exif-prop-elems (cdr dom-exif)))
 
     ;; TODO: Unify the parts that overlap with `xmp-file-read-xml-from-jpeg'
     (when exif-prop-elems

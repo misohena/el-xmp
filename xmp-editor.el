@@ -513,18 +513,42 @@
     (SeqDate . xmp-property-seq-text))
   "An alist of XMP property types and widget types.")
 
-(defun xmp-editor-property-widget-type (prop-ename type)
+(defun xmp-editor-property-widget-type (prop-ename type &optional prop-pvalue)
   "Return the widget type for editing the XMP property named PROP-ENAME."
   (or
    ;; From TYPE (widget type or property type)
-   (and (symbolp type) (get type 'widget-type) type)
-   (alist-get type xmp-editor-property-type-widget-alist)
+   (and type (symbolp type) (get type 'widget-type) type)
+   (and type (alist-get type xmp-editor-property-type-widget-alist))
    ;; From PROP-ENAME
    (xmp-xml-ename-alist-get prop-ename xmp-editor-property-name-widget-alist)
    (alist-get (xmp-defined-property-type prop-ename)
               xmp-editor-property-type-widget-alist)
+   ;; From PROP-PVALUE
+   (when prop-pvalue
+     (alist-get (xmp-editor-infer-property-type-from-pvalue prop-pvalue)
+                xmp-editor-property-type-widget-alist))
    ;; Widget that can be used with any type
    'xmp-property-sexp))
+
+(defun xmp-editor-infer-property-type-from-pvalue (pvalue)
+  (cond
+   ((xmp-pvalue-text-p pvalue)
+    (if (xmp-pvalue-pure-p pvalue) 'Text nil))
+   ((xmp-pvalue-uri-p pvalue)
+    (if (xmp-pvalue-pure-p pvalue) 'URI nil))
+   ((xmp-pvalue-array-p pvalue)
+    (if (and (xmp-pvalue-pure-p pvalue)
+             (seq-every-p (lambda (item) (and (xmp-pvalue-text-p item)
+                                              (xmp-pvalue-pure-p item)))
+                          (xmp-pvalue-as-list pvalue)))
+        (let ((arr-type (xmp-pvalue-array-type pvalue)))
+          (cond
+           ((xmp-xml-ename-equal arr-type xmp-rdf:Seq) 'SeqText)
+           ((xmp-xml-ename-equal arr-type xmp-rdf:Bag) 'BagText)
+           (t nil)))
+      nil))
+   ;; Unknown
+   (t nil)))
 
 ;;;; Target Property Names
 
@@ -871,7 +895,8 @@ when generating labels."
    ((eq prop-spec-list 'all)
     (list 'all))))
 
-(defun xmp-editor-complete-prop-spec (prop-spec ns-name-prefix-alist)
+(defun xmp-editor-complete-prop-spec (prop-spec ns-name-prefix-alist
+                                                &optional prop-pvalue)
   "Fill in the missing information in PROP-SPEC.
 
 NS-NAME-PREFIX-ALIST is an alist used to determine namespace prefixes
@@ -886,7 +911,8 @@ when generating labels."
              (stringp (cdr prop-spec))))
     (let* ((prop-ename (xmp-xml-ename-ensure prop-spec))
            (label (xmp-editor-property-label prop-ename ns-name-prefix-alist))
-           (widget-type (xmp-editor-property-widget-type prop-ename nil)))
+           (widget-type (xmp-editor-property-widget-type prop-ename nil
+                                                         prop-pvalue)))
       (list prop-ename label widget-type)))
    ;; ( ENAME LABEL TYPE )
    ((listp prop-spec)
@@ -898,7 +924,8 @@ when generating labels."
            (widget-type
             (xmp-editor-property-widget-type
              prop-ename
-             (xmp-editor-prop-spec-type prop-spec))))
+             (xmp-editor-prop-spec-type prop-spec)
+             prop-pvalue)))
       (list prop-ename label widget-type)))
    (t
     ;; 'all
@@ -925,39 +952,17 @@ when generating labels."
         (push prop-spec result))
        ((eq prop-spec 'all)
         (dolist (prop loaded-props-alist)
-          (let ((prop-ename (car prop)))
+          (let ((prop-ename (car prop))
+                (prop-pvalue (cdr prop)))
             (unless (xmp-xml-ename-member prop-ename specified-prop-ename-list)
-              (push (xmp-editor-complete-prop-spec
-                     (list
-                      prop-ename
-                      nil
-                      (xmp-editor-infer-property-type-from-pvalue (cdr prop)))
-                     ns-name-prefix-alist)
+              (push (xmp-editor-complete-prop-spec (list prop-ename nil nil)
+                                                   ns-name-prefix-alist
+                                                   prop-pvalue)
                     result)))))
        (t
         ;; Ignore?
         )))
     (nreverse result)))
-
-(defun xmp-editor-infer-property-type-from-pvalue (pvalue)
-  (cond
-   ((xmp-pvalue-text-p pvalue)
-    (if (xmp-pvalue-pure-p pvalue) 'Text nil))
-   ((xmp-pvalue-uri-p pvalue)
-    (if (xmp-pvalue-pure-p pvalue) 'URI nil))
-   ((xmp-pvalue-array-p pvalue)
-    (if (and (xmp-pvalue-pure-p pvalue)
-             (seq-every-p (lambda (item) (and (xmp-pvalue-text-p item)
-                                              (xmp-pvalue-pure-p item)))
-                          (xmp-pvalue-as-list pvalue)))
-        (let ((arr-type (xmp-pvalue-array-type pvalue)))
-          (cond
-           ((xmp-xml-ename-equal arr-type xmp-rdf:Seq) 'SeqText)
-           ((xmp-xml-ename-equal arr-type xmp-rdf:Bag) 'BagText)
-           (t nil)))
-      nil))
-   ;; Unknown
-   (t nil)))
 
 (defun xmp-editor-align-labels (prop-spec-list)
   "Align all label strings in PROP-SPEC-LIST to the same width."

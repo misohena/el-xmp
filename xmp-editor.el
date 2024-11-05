@@ -64,7 +64,7 @@
   (let ((child (widget-create-child-and-convert
                 widget (widget-get widget :type)
                 :notify 'xmp-widget-property-notify
-                (widget-get widget :value))))
+                :value (widget-get widget :value))))
     (widget-put widget :children (list child))
     (widget-put widget :xmp-init-value (widget-value child))
     (widget-put widget :xmp-modified-p nil)))
@@ -437,6 +437,21 @@
                            (xmp-pvalue-make-uri value)
                          nil)))
 
+(define-widget 'xmp-property-boolean 'xmp-property
+  "XMP property of Boolean type."
+  :type '(choice :format " %[Choice%] %v"
+                 (const "")
+                 (const "False")
+                 (const "True"))
+  :value-to-internal (lambda (_widget pvalue)
+                       (or (xmp-pvalue-as-text pvalue)
+                           ""))
+  :value-to-external (lambda (_widget value)
+                       (if (and (stringp value)
+                                (not (string-empty-p value)))
+                           (xmp-pvalue-make-text value)
+                         nil)))
+
 (define-widget 'xmp-property-lang-alt 'xmp-property
   "XMP property of LangAlt type."
   :type 'xmp-lang-alt
@@ -482,7 +497,7 @@
     (AgentName . xmp-property-text)
     (GUID . xmp-property-text)
     (MIMEType . xmp-property-text)
-    (Boolean . xmp-property-text)
+    (Boolean . xmp-property-boolean)
     (Date . xmp-property-text)
     ;; LangAlt
     (LangAlt . xmp-property-lang-alt)
@@ -526,6 +541,7 @@
     ;;(("https://ns.misohena.jp/xmp/" . "PlantName") "PlantName" xmp-property-bag-text-csv)
     ;;(("https://ns.misohena.jp/xmp/" . "Place") nil Text)
     ;;,(xmp-xml-ename (xmp-xml-ns-name "https://ns.misohena.jp/xmp/") "Phase")
+    ;;(("http://ns.adobe.com/xap/1.0/rights/" . "Marked")) ;; Boolean
     ;;all
     )
   "Properties to edit with the xmp-editor.

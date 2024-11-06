@@ -590,11 +590,7 @@ elements. Specifying nil is the same as specifying an empty string."
     (when sort
       (setq props (xmp-xml-ename-alist-sort props)))
 
-    (xmp-dump-named-pvalue-list stream props
-                                (nconc
-                                 (xmp-xml-standard-ns-name-prefix-alist)
-                                 (xmp-xml-collect-nsdecls dom))
-                                0)))
+    (xmp-dump-named-pvalue-list stream props (xmp-xml-collect-nsdecls dom) 0)))
 ;; EXAMPLE: (xmp-dump-properties nil (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg") nil t)
 
 ;;;; Description Element

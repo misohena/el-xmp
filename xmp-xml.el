@@ -730,8 +730,7 @@ the XML specification.
 
 Return a newly created list that can be concatenated with `nconc'."
   ;; a new list must be created
-  (list (cons xmp-xml: "xml")
-        (cons xmp-xmlns: "xmlns")))
+  (list (cons xmp-xml: "xml")))
 
 (defun xmp-xml-move-nsdecls-to-root (node)
   "Move all namespace declarations in the NODE tree to the root node.

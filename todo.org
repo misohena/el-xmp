@@ -1,0 +1,482 @@
+#+TITLE: Emacs Extensible Metadata Platform Library
+
+* Inbox
+** TODO プロパティ名文字列cons用のwidgetを作る。
+(名前空間名文字列-or-nil . ローカル名) を作るwidget。
+
+名前空間名候補は xmp-default-ns-name-prefix-alist と xmp-predefined-properties、xmp-user-defined-propertiesから取得する。
+
+ローカル名候補はxmp-predefined-properties、xmp-user-defined-propertiesから取得する。
+
++いや、先に名前空間名widgetを作らなければならない。+
+
+** TODO XML出力の改行を改善する。
+現行は改行の位置が少し気持ち悪い。
+** TODO 配列タイプのpvalueの:array-typeをシンボルにする？
+現在は拡張名を使用していて少し扱いづらい場面がある。
+- array typeを判別するのにxmp-ename-equalを使わなければならない。
+- xmp-editorでxmp-property-sexpが使われたときに表示が煩雑。
+
+とりあえずxmp-pvalue-array-typeをxmp-pvalue-array-type-symbolとxmp-pvalue-array-type-enameに分けてはどうか。
+
+とは言え現行のenameを使う方式は合理的ではある。要素名との間で変換処理を挟む必要が無い。XMLをparseしてpvalueを作るところにおいても、pvalueからXML要素を作るところにおいても。
+
+やるのであればenameとシンボルとの対応表を一箇所にまとめないとダメ。一箇所にまとめられるのであれば、まぁ、そこまで悪くない。現行ではxmp-parse-property-element--resource内にenameがハードコードされている(逆に言えば概ねここにしか一覧がハードコードされないのが良いところ。厳密に言えばいくつか他にもあるがあからさまなのはここのみ)。
+
+これを改善するよりもxmp-editorがxmp-editor-sexpを使わないように改善する方が理想的だとは思う。structに対応するwidgetを作成すれば一応できるのではないか。問題はqualifiers。
+** TODO 定期的にZero width spaceを削除する。
+翻訳の過程で入ってしまっている。Google翻訳で「EXIF対応を追加」を翻訳すると「Added EXIF ​​support」となるが、supportの前にzero width spaceが二つ入っている。
+[2024-11-04 Mon]とりあえず消した。しかしこれは継続的にチェックした方が良い。
+** TODO ExtendedXMPに対応する。
+PXL_20241010_005610260.jpgにHasExtendedXMPプロパティがあるよ？
+
+** TODO editor/プロパティラベルが長すぎる場合は省略する。
+ウィンドウ幅の半分以上になっていたら？　固定値(40)？　両方考慮する？
+** TODO editor/複数行widgetをインデントする。
+- lang-alt
+- text-list
+- textの2行目 (以前edrawで対処した事がある)
+** TODO editor/widgetのmodifiedが変化するとテキストプロパティが削れてしまう。
+先頭にあるxmp-propertyテキストプロパティが消えてしまう。今のところナビゲーション(xmp-editor-next-same-property等の動作)には支障は無い。
+
+そもそもマークの位置自体少し不満がある。とは言え良い場所が思いつかない。
+
+理想的には「dc:title:*[    ]」なんだろうけど、実装がちょっと難しい。editable-fieldの:fromのマーカーが動かないようにすべきだし、valueの再作成をするときにmodifiedも再作成しなければならない。editable-fieldの開始点を一つ後ろにしたいのだけど、それは難しい(入力に伴って:fromのマーカーが動いてしまう)。
+
+:     dc:title: [    ]:
+:     dc:title:*[modified]:
+:     dc:title: [    ]
+:     dc:title* [modified]
+:     dc:title : [    ]
+:     dc:title * [modified]
+:     dc:title : [    ]
+:     dc:title*: [modified]
+:     dc:title: [    ]:
+:    *dc:title: [modified]:
+:     dc:title: [    ]
+: *   dc:title: [modified]
+
+行頭にあるのは検索性が高いというメリットはある(^*で正規表現検索できる)。入力中にユーザーが見づらいけど。
+
+** TODO editor/Label Widgetを作る。
+下手に対応するよりtextのままの方がコピペがしやすいのではないか。
+completionだけ対応する？　もしくは右に選択ボタンを配置する？
+** TODO editor/Rating Widgetを作る。
+－★★★☆☆ みたいなUIにする？
+** TODO editor/Structure Widgetを作る。
+** TODO editor/qualifiersを編集するwidgetを作る。
+** TODO editor/未知のプロパティをsexpを使わずに完全なUIで編集可能にする。
+現在の構造に合わせてarrayやstruct、qualifiersのwidgetを作成する。
+** TODO editor/ラベルを人間が読みやすいものに置き換えられるようにする。
+PROP-SPEC-LISTで一応できるようになった。後は専用のalistを作るかどうか。xmp-editor以外にも応用できるかどうか。
+** TODO image-diredのtagとdc:subjectを交換する機能を追加する。
+** TODO image-diredのcommentとdc:titleを交換する機能を追加する。
+** TODO subjectやlabelが無いものをフィルタで抽出できるようにする。
+** TODO dc:creatorでフィルタできるようにする。
+** TODO dc:titleでフィルタできるようにする。
+** TODO dc:descriptionでフィルタできるようにする。
+** TODO image-diredでフィルタしたときにポイントの位置を補正する。
+消えたサムネイルを指し続けていたりするので、表示されているサムネイルへ移動すべき。
+** TODO 型に応じたユーザー入力を行う関数を追加する。
+** TODO 任意のプロパティを設定するコマンドを追加する。
+先に次の問題を解決する必要がある。
+- [[*xmp-predefined-propertiesに型情報を追加する。][xmp-predefined-propertiesに型情報を追加する。]]
+- [[*プロパティの型情報を元にpvalueを変換できるようにする。][プロパティの型情報を元にpvalueを変換できるようにする。]]
+- [[*型に応じたユーザー入力を行う関数を追加する。][型に応じたユーザー入力を行う関数を追加する。]]
+
+subjectのような複数の値を持てるようなプロパティの追加・削除はとりあえず対応しない。完全に新しい値に書き替える事を考える。
+** TODO set-file-系コマンドで空文字列を指定したときにプロパティを消すべき？
+例えばxmp-set-file-title、xmp-dired-do-set-title、xmp-image-dired-do-set-titleにおいて、空文字列を指定したとき、現状では空のx-defaultなLanguage Altが残ってしまう。これは消した方が良いのだろうか。それとも空のまま残した方が良いのだろうか。
+サイドカーファイルと本体ファイルとの兼ね合いもある。
+** TODO diredやimage-diredで撮影日時ソートする。
+撮影日時は exif:DateTimeOriginal で得られる。(DateTimeDigitizedはデジタルカメラの場合だとDateTimeOriginalと同じだが、デジタル化の日時なのでフィルムからスキャンした場合はスキャンした日時になる。スキャンしたときに撮影日時が不明だったらDateTimeOriginalが存在しないこともあり得る。以前はDateTimeDigitizedがxmp:CreateDateにマップされていたが、現在はそうなっていない)
+
+できるだけ「不明」を避けるのであれば次の日時を全部見れば良いが、どうだろう？
+1. exif:DateTimeOriginal
+2. exif:DateTimeDigitized
+3. xmp:CreateDate
+4. xmp:ModifyDate <=どうしても作成日が見つからなければ仕方ない。
+
+作成日無しをソートで割り出せるようにするため純粋にDateTimeOriginalだけでも良いのだけど。
+
+** TODO ★SQLiteを使ったメタデータキャッシュを作る。
+id fullpath dir-id mod-time xmp:Label xmp:Rating xmp:CreateDate dc:title dc:subject dc:description dc:creator
+
+最優先はファイル→メタデータ取得の速度。
+
+ディレクトリを指定しての列挙は欲しい。削除などのメンテが楽になるので。
+
+問題は複合的な値(LangAlt, BagText, SeqText)をどうするか。
+複合的な値はS式で記録してしまうのが最も簡単。titleやdescriptionなんかはそれでも良い気がする。
+
+問題はsubjectやcreator。特定のsubjectやcreatorを列挙したいことがあるかどうか。
+あるなら、プロパティ毎にテーブルを作らなければならない。
+特定の花の名前を検索できたら便利。しかしLIKEで検索すれば良いだけな気もする。
+
+** TODO ID3も読み込めるようにする。
+See: XMP Specification Part 3 2.3.3 Native metadata in MP3
+
+** TODO PDF/InfoからXMPを生成する
+xmp-pdf.elにおいて、
+Metadataが無いまたは読めないときに、InfoからXMPを生成できると便利かもしれない。
+[XMP3] 2.2 にPDFのInfo辞書からXMPへのマッピングが書いてある。
+** TODO ファイル形式/PNG対応
+** TODO ファイル形式/GIF対応
+** TODO ファイル形式/ISOBMFF対応
+** TODO ファイル形式/書き込みできるタイプを増やす。
+PDFとTIFFは現在書き込めない。JPEGは一応書き込めるが正確な方法に変えた方が良い。
+PDFはpdfinfoを使っている状況では諦めるよりない。
+JPEGとTIFFはパケットのバイト範囲を返すようにすれば正確に書き込みできるはず。
+ただ、正直書き込みは使わない。
+** TODO Date型
+** TODO ファイルの種類に応じて表示・編集するプロパティを切り替える仕組み。
+音楽ファイルは作曲者、作詞者、歌手(アーティスト)を編集したいかもしれない。
+* Finished
+** DONE diredで指定したレーティングのファイルをマークするコマンド
+CLOSED: [2024-10-06 Sun 11:36]
+** DONE image-diredでフィルタ
+CLOSED: [2024-10-20 Sun 17:32]
+- image-dired-line-up に手を入れて、非表示(displayが"")をスキップする。
+- +サムネイルにメタデータをテキストプロパティで持たせる(もしまだ持っていなければ)。サムネイル画像のdisplayプロパティは別のテキストプロパティにバックアップする。+ メタデータ変更時の処理が煩雑になるので、毎回ファイルから取得するようにした。キャッシュがあるのでそれほど酷くはならないが、やはり少し遅くはなる。
+- +サムネイルが持っている+ メタデータを元にdisplayプロパティを変更する。
+
+ハマリどころ:
+- サムネイルは必ず2文字でなければならない(サムネイル+空白または改行)。サムネイルを巡回するのに ~(forward-char 2)~ を使用しているところがあるので。
+- サムネイルの直前には必ず見える空白または改行が無ければならない。もし不可視な空白が直前にあると、左へポイント移動したときに、その不可視な空白もスキップした場所へジャンプしてしまう(おそらくredisplay時に)。
+
+ひとまず次の三つのコマンドを追加した。
+- xmp-image-dired-filter-rating
+- xmp-image-dired-filter-label
+- xmp-image-dired-filter-subjects
+** DONE diredやimage-diredでマークしてメタデータを一括変更するコマンド
+CLOSED: [2024-10-20 Sun 21:57]
+- マークしてレーティングを変更するコマンド
+- マークしてラベルを変更するコマンド
+- マークして主題を設定/追加/削除するコマンド
+** DONE diredやimage-diredに適切なキーバインドを追加する。
+CLOSED: [2024-10-20 Sun 23:30]
+xmp-setup.elを追加し、マイナーモードを使ってキーを割り当てる。
+** DONE diredやimage-diredにタイトルと説明を変更するコマンドを追加する。
+CLOSED: [2024-10-20 Sun 23:55]
+- ~xmp-dired-do-set-title~
+- ~xmp-dired-do-set-description~
+- ~xmp-image-dired-do-set-title~
+- ~xmp-image-dired-do-set-description~
+** DONE xmp-predefined-propertiesに型情報を追加する。
+CLOSED: [2024-10-21 Mon 11:40]
+次の関数を追加した。
+- xmp-predefined-namespace-prefix
+- xmp-predefined-property-type
+** DONE プロパティの型情報を元にpvalueを変換できるようにする。
+CLOSED: [2024-10-21 Mon 11:42]
+次を追加。
+- xmp-pvalue-types変数
+- (xmp-pvalue-make-by-type type value)
+- (xmp-pvalue-as-type type pvalue)
+
+xmp-predefined-propertiesにあるプロパティを変換する次の関数を追加。
+- (xmp-predefined-property-pvalue-from-elisp prop-ename value)
+- (xmp-predefined-property-pvalue-to-elisp prop-ename pvalue)
+[2024-10-30 Wed]次のように改名した。
+- (xmp-defined-property-pvalue-from-elisp prop-ename value)
+- (xmp-defined-property-pvalue-to-elisp prop-ename pvalue)
+** DONE ratingは文字列では無く数値で扱うようにする。
+CLOSED: [2024-10-21 Mon 12:37]
+- [[elisp-function:xmp-get-file-rating]]
+- [[elisp-function:xmp-rate-file]]
+** DONE ユーザー入力を行う関数をプロパティ毎に作成する。
+CLOSED: [2024-10-21 Mon 15:38]
+xmp-commands.el、xmp-dired.el、xmp-image-dired.elでできるだけ共通化する。
+次の関数を追加する。
+- xmp-read-file-rating
+- xmp-read-file-label
+- xmp-read-file-subjects
+- xmp-read-file-title
+- xmp-read-file-description
+- xmp-read-file-creators
+** DONE set-file-系コマンドは複数のファイルにも対応すべき？
+CLOSED: [2024-10-21 Mon 16:56]
+引数FILEがリストだった場合に対応するということ。
+そうするとdiredやimage-diredでの同系統のコマンドの実装が楽になる。
++もしかすると不要にできるかも？ diredのargの意味を考えると難しそうだけど。+
+xmp-image-dired-do-系は廃止した。xmp-dired-do-系はprefix ARGに対応するために残した。無理矢理対応できなくも無いけど、暗黙的にARGを処理すると分かりづらくなるので。
+** DONE diredやimage-diredにcreatorを変更するコマンドを追加する。
+CLOSED: [2024-10-21 Mon 20:46]
+マークしてcreatorを変更するコマンド。
+- ~xmp-dired-do-set-creators~
+- +~xmp-image-dired-do-set-creators~+
+- +~xmp-image-dired-do-add-creators~+
+- +~xmp-image-dired-do-remove-creators~+
+
+次のファイルを修正する。
+- xmp-dired.el
+- xmp-image-dired.el
+- xmp-setup.el
+- README-ja.org
+- README.org
+** DONE PDFから正しくメタデータを取得できるようにする(pdfinfo使用)
+CLOSED: [2024-10-23 Wed 20:46]
+** DONE ファイル形式/PDF対応(pdfinfo不使用)
+CLOSED: [2024-10-27 Sun 17:18]
+- XMP Specification Part3
+- https://opensource.adobe.com/dc-acrobat-sdk-docs/
+  - https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/
+    - [[https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf][Document management - Portable document format - Part 1 PDF1.7]]
+/Filter /FlateDecodeは諦めるしか無いと思う。Emacsのzlibサポートでは/DecodeParmsに対応できないので。
+暗号化もひとまず諦めて、通常のパケットスキャンよりも多少マシなものを目指す。
+
+[2024-10-27 Sun]一応xmp-pdf.elを作成した。
+** DONE 複数ファイル一括編集UIが必要。
+CLOSED: [2024-10-29 Tue 22:36]
+image-dired-dired-edit-comment-and-tags相当の機能が必要。
+xmp-editor.elを追加し、xmp-editor-open-files関数でエディタを開けるようにする。
+xmp-commands.elやxmp-dired.elにこの関数を使用してエディタを開くコマンドを追加する。
+Widgetsもxmp-editor.elの中で定義する。
+** DONE editor/次や前の画像へ移動するコマンドを追加する。
+CLOSED: [2024-10-30 Wed 17:53]
+C-c C-n と C-c C-p で前後の画像の同じプロパティへ移動する。
+** DONE editor/C-c C-oでファイルを開く。
+CLOSED: [2024-10-30 Wed 20:56]
+** CANCELLED editor/サムネイルから元画像を開けるようにする。
+CLOSED: [2024-10-30 Wed 20:57]
+メタデータの入力作業中に大きな画像を確認したいときがある。
+** DONE editor/prefixが表示されない問題を解決する。
+CLOSED: [2024-10-30 Wed 20:27]
+XMPの中にプロパティが無いとプレフィックスが割り出せない。
+例えば何もプロパティが無ければ名前空間宣言も無いので。
+ライブラリが最初から認識している名前空間については、そのプレフィックスを表示すべき。
+** DONE editor/subjectのフィールドだけCustom用のキーマップが使われてしまう。
+CLOSED: [2024-10-30 Wed 19:55]
+C-x C-sでcustomizationをセーブしようとしてしまったり、C-eでフィールド末尾では無く行の末尾まで飛んでしまったりする。
+editable-fieldを使用している箇所で発生する。
+cus-edit.elの[[elisp-variable:custom-field-keymap]]の定義の後に、次のコードがある。
+: (widget-put (get 'editable-field 'widget-type) :keymap custom-field-keymap)
+これによってcustomizationバッファでは無いにもかかわらず、cus-edit.el読み込み後はeditable-fieldで常にcustom-field-keymapが使われてしまう。Emacsのバグだと思う。調べた限りEmacs 24.4時点ではすでにそうなっている。それ以前のEmacsは今手元に無い。
+とりあえず:keymapを明示的に指定して回避する。
+** DONE editor/C-eで理想的な末尾に移動しないのを直す。
+CLOSED: [2024-10-30 Wed 20:20]
+keymapの問題かと思ったけど、:sizeを指定しているのが原因だった。
+本来editable-fieldは:sizeを指定せずフィールド末尾と行末を一致させる使い方が望ましい。そうでない場合は、フィールドの直後に何か他のwidgetがあるときで、その時はwidget-end-of-lineが有効。しかし直後に他のwidgetが無いのに:sizeを使っていると理想的な行末へ移動しない。可能な限り:sizeは指定しないようにする。
+** DONE 定義済み名前空間やプロパティをカスタマイズで追加したい。
+CLOSED: [2024-10-30 Wed 22:54]
+[[elisp-variable:xmp-predefined-namespaces]]に追加してよく使う名前空間の情報を増やしたい。
+
+xmp-editor.elに[[elisp-function:xmp-predefined-namespace-prefix]]を使用している場所があるが、そこに対応するprefixを追加したい。
+
+同様に定義済みプロパティも増やせるようにしたい。
+
+もちろん名前変数(xmp-??:やxmp-??:??)は増やす必要は無い。あくまでプレフィックスやプロパティ型情報を取得できるようにしたいだけ。
+
+xmp-user-defined-namespacesとxmp-user-defined-propertiesを追加する。
+
+xmp-predefined-系関数はxmp-defined-関数を追加して置き換える。
+** DONE editor/作成するバッファを利用側から指定出来るようにする。
+CLOSED: [2024-10-30 Wed 23:41]
+diredからはとりあえず現在のディレクトリ名を入れたバッファ名にしたい。
+また、必要に応じてgenerate-new-bufferを使いたい。
+** DONE editor/開くときに未保存の修正がある場合はエラーを出す。
+CLOSED: [2024-10-30 Wed 23:42]
+xmp-edit-file-propertiesは既に開いているバッファに未保存の修正があったら、そのバッファを表示してエラーを出す。
+編集中のプロパティを失ってしまうので。
+** DONE editor/Text List Widgetを作る。
+CLOSED: [2024-10-31 Thu 00:46]
+SeqText系、BagText系の型に対応する。複数行になるけど仕方ない。いや、LangAltと同じように1行の時と複数行の時を切り替えても良い。
+** DONE editor/dc:creator(SeqProperName)に対応する。
+CLOSED: [2024-10-31 Thu 00:49]
+** DONE editor/Emacs 29でエラーが出るのを直す。
+CLOSED: [2024-10-31 Thu 15:39]
+: widget-apply: Wrong type argument: char-or-string-p, nil
+というエラーが出る。
+xmp-lang-altやxmp-text-list widgetの値にnil値が指定されることが原因。textの:valueがnilだとエラーになる。なんでEmacs 30.0.91ではエラーにならないんだろう。
+ともかく、(or (cdar alist) "")や(or (car alist) "")で回避。
+** DONE editor/widgetの生成方法をalistから決定する。
+CLOSED: [2024-10-31 Thu 17:06]
+xmp-editor-property-name-widget-alistとxmp-editor-property-type-widget-alistを作り、そこからprop-enameをキーにwidget typeを求める。
+全ての型のwidget typeを定義する。
+** DONE editor/xmp-editor-open-filesにプロパティ情報を指定出来るようにする。
+CLOSED: [2024-11-02 Sat 11:50]
+接頭辞、ラベル、型、使用するwidget typeを指定出来るようにしたい。
+xmp-editor-target-propertiesにも同じ情報を追加したい。
+もちろん省略したらこれまで通りの動作をする。
+
+現状でもxmp-editor-property-name-widget-alistやxmp-editor-property-type-widget-alistを動的バインドしてから呼び出せば指定出来るが、それもあんまりなので。
+
+prop-ename-listではなくprop-info-listにする？
+: prop-ename-list : ( (cons nsname localname)...)
+: prop-info-list : ( (list nsname localname nsprefix label type widget)...)
+
+うーん、でも xmp-property-label-alist を追加するだけというのも簡単で良い。しかしその時のキーをどうするかが迷う。カスタマイズ変数にするなら文字列にしないといけない。そうすると xmp-predefined-properties のように 名前空間→プロパティの二重alistにすべきだろうか。名前空間の所は接頭辞にするかURIにするか。
+
+そもそもeditorは xmp-editor-insert-properties 呼び出し前にラベルを確定させてしまうべき。毎回ラベルを計算するのは馬鹿らしい。xmp-enumerate-file-propertiesに引き渡すprop-ename-listも同様。何を読み込むかは事前に決定できる。
+
+ファイル内にある全プロパティを編集対象にできるべきだろうか。その時ファイル内にまだ無いプロパティも編集対象にできるべきだろうか。
+
+色々考えた結果、次の形式に落ち着いた。
+
+- PROP-SPEC-LIST : all | ( PROP-SPEC ... )
+- PROP-SPEC : all | ENAME | ( ENAME LABEL TYPE )
+- ENAME : ( NS-NAME-STRING . LOCAL-NAME-STRING )
+  - NS-NAME-STRING : STRING
+  - LOCAL-NAME-STRING : STRING
+- LABEL : STRING
+- TYPE : WIDGET-TYPE-SYMBOL | PROP-TYPE-SYMBOL
+  - WIDGET-TYPE-SYMBOL : SYMBOL
+  - PROP-TYPE-SYMBOL : SYMBOL
+
+一応allシンボルでファイル内に存在するプロパティを全て編集できるようにしてみたが、実際にやってみると表示が煩雑になるし、widgetもxmp-property-sexpが使われるので編集しづらいし、正直おすすめできない。
+** DONE Exifも読み込めるようにする。
+CLOSED: [2024-11-04 Mon 13:41]
+ExifとXMPとの対応関係は「CIPA DC-010-2024 Exif metadata for XMP」に書かれている。
+[[https://www.cipa.jp/j/std/std-sec.html][CIPA 一般社団法人カメラ映像機器工業会: CIPA規格類]]
+
+例えばDateTimeOriginal(Tag ID=36867)はexif:DateTimeOriginalとなっている。
+一方DateTimeDigitizedはxmp:CreateDateになるらしい。両者の違いはアナログの写真の撮影日とデジタル化(スキャン)した日との違いでデジタルカメラの場合は同じになるらしい。RAW現像処理の日というわけでは無さそう。RAWの時点でデジタル化されてるわけだし。
++xmp:CreateDateを取得しようとしたらExifのDateTimeDigitizedを取得すべき。+ このマッピングはobsoleteらしい。
+** DONE editor/知らないプロパティでも自動的にTextタイプを判別する。
+CLOSED: [2024-11-04 Mon 14:53]
+Textくらいは自動的に判別して良い。
+(:pv-type text :value "1020/100")みたいなのは基本的にテキスト型として扱ってしまって良い。もちろん修飾子が無いことが前提。厳密に:pv-typeがtextで:valueがnilまたは文字列の時のみ。:qualifiersがあってもnilの時は許容すべき。
+** DONE 編集コマンドで簡単に全プロパティ編集できるようにする。
+CLOSED: [2024-11-04 Mon 16:02]
+prefix argが指定されていたら全プロパティを編集する。
+xmp-edit-file-propertiesは簡単。
+問題は xmp-dired-do-edit-properties の方。これはすでにprefix argを使っている。0や-の時は無意味のようなので、このときだけ全プロパティ指定の意味に使う。そういえばw(dired-copy-filename-as-kill)も0の時だけフルパスになる。これが理由だったんだな。
+** DONE editor/URIタイプの編集を直す
+CLOSED: [2024-11-04 Mon 16:16]
+現在はTextと同じにしてしまっている。URIは型が違うので、Textと同じにしてはならない。
+** DONE ファイル形式/TIFF・ARW対応
+CLOSED: [2024-11-04 Mon 18:37]
+ARWはTIFFベースの形式になっているので、TIFFに対応すればARWも対応される。
+EXIF対応でTIFFの読み取りはできるようになっている。
+JPEGと違いファイルの先頭がTIFFヘッダーから始まる。
+0th IFD(とEXIF IFDやGPS Info IFD)からXMPを生成するのはJPEGと同じ。
+XMPパケットはJPEGと異なりタグ番号700(XMPPacket)のフィールドにBYTE型の列として記録されている。
+[[elisp-function:xmp-tiff-field-value-bytes-range]]を使って範囲を特定し、そこから読み取れば良い。
+** DONE XML標準の名前空間宣言が出力されているのを直す。
+CLOSED: [2024-11-04 Mon 22:58]
+~xmlns:ns1="http://www.w3.org/XML/1998/namespace"~ というのが出力されてしまっている。
+実際に使用されている名前空間を収集する[[elisp-function:xmp-xml-collect-used-ns]]がxml:lang=があるとhttp://www.w3.org/XML/1998/namespace を返してしまう。それを元に名前空間宣言を生成しているので、このような出力が出る。収集とその後の出力のどちらを直すべきか。実際に使われているのだから収集するのは当然な気もする。とは言え出力部分を修正するのも同じようなミスがまた発生しそうなので、収集する方のデフォルトをxmp-xml:を除外することにして、オプションで収集できるようにする。
+** DONE XML名前空間接頭辞を統一的に管理する仕組み。
+CLOSED: [2024-11-05 Tue 10:58]
+xmp-xml.elに名前空間接頭辞を統一的に管理する仕組みが必要なんじゃないかなぁ。
+そうすればxmp.elやxmp-exif.elに分散しているのが少しはマシになるかも。
+xmp-xml.elにあまり具体的なものを書きたくないんだけど。
+まぁ、どうしてもとなったらxmp-namespaces.elでも追加するしか。
+
+Add:
+- xmp-xml-register-ns-name-prefix-group : グループ毎に名前空間を登録
+- xmp-xml-default-ns-prefix : それに基づいて接頭辞を検索
+- xmp-xml-default-ns-prefix-to-ns-name : 接頭辞から名前空間名への逆変換
+- xmp-xml-default-ns-name-prefix-alist variable : 統一されたalistは結局必要(xmp-xml-printはxmlns:??=を出力して宣言した接頭辞しか使ってはならないのでxmp-xml-default-ns-prefixを直接使うわけにはいかない)
+- xmp-xml-ns-name-ensure : 実装に必要だった
+- xmp-xml-ename-string : xmp-editorやxmp-dump系でUI向けの統一されたラベル文字列作成関数が欲しかった
+    <-- editor,dump
+    --> xmp-xml-default-ns-prefix
+
+Remove: (すべて上記新しい仕組みに移行)
+- xmp-predefined-namespace-prefix
+- xmp-user-defined-namespace-prefix
+- xmp-default-namespace-prefix
+    => xmp-xml-default-ns-prefix
+- xmp-update-default-ns-name-prefix-alist
+    => xmp-user-defined-namespaces-update
+- xmp-default-ns-name-prefix-alist variable
+    => xmp-xml-default-ns-name-prefix-alist variable
+
+exif.el内での問題には適用していない。微妙に合わない。
+** DONE xmp-dump-enameとxmp-editor-property-labelの機能を一部統合する。
+CLOSED: [2024-11-05 Tue 11:05]
+基本的には同じようなことをしているので。ただし、URIを表示するかは選べるようにしたい。prefixが得られない場合は?:titleのように?で表示する。dump目的なら基本的には表示すべき。
+dumpのときでもxmp-default-namespace-prefixを使ってできるだけprefixを表示する。それはファイル内でのprefixよりも優先される。
+
+xmp-xml-ename-string関数に統合した。
+** CANCELLED XML名前空間の宣言がおかしいのを直す。
+CLOSED: [2024-11-05 Tue 12:23]
++独自の名前空間を使ったときに接頭辞がちゃんと出力されない ~xmlns:ns2="https://ns.misohena.jp/xmp/"~ 。+
+
+基本的に、独自の名前空間を使うときは xmp-user-defined-namespaces を修正すべき。そこさえちゃんとすれば正しい接頭辞で出力される。設定しなくても現状では再出力で失われたりもしていない。もう少し具体的なシチュエーションが見つかったら検討する。
+** DONE editor/LangAltの展開後にcustomize用キーマップが使われている。
+CLOSED: [2024-11-05 Tue 13:43]
+C-x C-sがCustom-saveになっている。
+xmp-text-listも同様。string widgetはeditable-fieldを継承しているので明示的な:keymapの指定が必要。
+
+** DONE editor/Boolean Widgetを作る。
+CLOSED: [2024-11-05 Tue 13:43]
+現在はtextで代用。choiceを使えば良さそう(menu-choice?)。ただ、Booleanなプロパティってそんなに無いんだよね。
+choiceは:valueを使って値を指定しなければならないので、調整する必要がある。
+** DONE editor/未知プロパティのタイプ推測を修正する。
+CLOSED: [2024-11-05 Tue 14:20]
+全プロパティを表示させたとき、ターゲットに設定されていないがタイプが分かるプロパティが推測されたタイプを使用してしまう。
+例えばxmpRights:MarkedはBoolean用のwidgetを使うべきだが、Text用のwidgetが使われてしまう。これはxmp-editor-complete-prop-specの前段階で推測をしてしまっているのが原因。xmp-editor-complete-prop-specには名前からタイプの割り出しが含まれているが、その前にタイプを決めてしまっている。xmp-editor-complete-prop-specはpvalueも引数にとって、それも含めてプロパティ指定を補完することにする。
+** DONE EXIFからXMPを作成したときに名前空間宣言も再現する。
+CLOSED: [2024-11-05 Tue 19:30]
+JPEGとTIFFの両方。
++xmp-show-file-propertiesで表示したときにURIがそのまま出力されてしまう(URIを出力するのもどうかと思うのだがそれはまた別のTODO)。+ ←は直した。
+** DONE JPEG内のEXIFをXMPに変換したときの問題を修正する。
+CLOSED: [2024-11-05 Tue 19:31]
+- 重複するプロパティを削除する。(XMP packet優先)
+- 一つのdescriptionにマージする。
+そもそもこの処理はJPEGとTIFFの両方で重複しているのでまとめるべき。
+XMP XML DOMとproperty element listをマージする関数を作る。
+** CANCELLED xmp-show-file-propertiesはxmp-editor並にすべき？
+CLOSED: [2024-11-06 Wed 10:47]
+- +prefix argで全プロパティを表示したい。+ 表示できる。
+- +ラベル名がイマイチ。(EXIFから生成したXMPが名前空間宣言を持たないのバグがあるので)URIが表示されてしまったりする。+ xmp-xml-ename-stringによって宣言が無くても表示できるようになった。
+
+[2024-11-06 Wed]他の改善によって上記は解消した。
+
+xmp-editorとxmp-show-file-propertiesは期待される表示内容が似ている。両者の差は読み取り専用か編集可能かの違い。
+xmp-editorと統合すべきなのだろうか？
+xmp-editor.elに同コマンドがあるべき？
+
+xmp-show-file-propertiesはxmp-dumpを使用している。これはこれでデバッグ用に使いやすい。xmp-editorとはデフォルトで表示する項目を変えたいこともあるだろう。安易に統合するのは止める。
+
+ただし、dumpの表示形式は改善すべき所が多々ある。
+** DONE xmp-show-file-propertiesが開いたときにpoint-minへ移動する。
+CLOSED: [2024-11-06 Wed 11:01]
+ポイントが末尾にあるので見づらい。
+** DONE xmp-show-file-propertiesやxmp-editorのキー割り当てを改善する。
+CLOSED: [2024-11-06 Wed 11:27]
+C-u 0 ' e p や C-u 0 ' g a は面倒くさすぎる。
+
+次で良いのではないか。
+
+- ' g p : デフォルトのプロパティ => xmp-show-file-properties
+- ' g a : 全プロパティ => xmp-show-file-properties-all
+- ' e p : デフォルトのプロパティ => xmp-edit-file-properties, xmp-dired-do-edit-properties
+- ' e a : 全プロパティ => xmp-edit-file-properties-all, xmp-dired-do-edit-properties-all
+** DONE xmp-show-file-propertiesとxmp-dumpの表示形式を改善する。
+CLOSED: [2024-11-06 Wed 12:07]
+xmp-dumpはxmp-show-file-propertiesで使われている。
+
+- ヘッダー行(File:)と内容との間に空行を入れる。
+- 末尾に名前空間接頭辞と名前空間名との対応関係を出力する。
+- Qualifiersがxml:langだけのときは [lang:x-default] のように出力する。
+- 型は (array %s) (struct) のように出力する。
+- コロンは必ず名前の直後に出力する。
+- 配列要素の前にはハイフンを出力する。
+** DONE xmp-xml-standard-ns-name-prefix-alistにxmlnsは必要？
+CLOSED: [2024-11-06 Wed 13:45]
+xmlnsは必要なのだろうか。
+xmp-show-file-propertiesの末尾に出力した名前空間リストにxmlnsが表示されてしまうのだけど。他で必要なければ削除したい。本来の意味での名前空間では無いと思うし(?)。他で使っていて必要ならxmp-show-file-propertiesでの出力から削除したい。
+
+この関数を使用している場所:
+- xmp-editor.el : xmp-editor-insert-file-properties : ラベル文字列の作成に使っているだけ。xmp-xml-ename-stringに渡される。そこにxmlnsが入り込む余地はないし、xmp-xml-ename-stringは接頭辞xmlを特別に処理するのでxmlすらいらない。
+- xmp-commands.el : xmp-show-file-properties : dumpと名前空間リストに使われる。ここも最終的にはxmp-xml-ename-stringに渡されてプロパティ名ラベルを作成しているだけ。
+- xmp.el : xmp-dump-properties : ここもdump用。ただし、xmp-enumerate-file-propertiesに渡すのでは無くxmp-xml-collect-nsdeclsで収集したものと連結してxmp-dump-named-pvalue-listに渡している。xmp-dump-named-pvalue-listはxmp-xml-ename-stringに使うだけだから、本来これは全く必要ない。 →なので使用を削除した。
+
+結局ラベル名を作るところにしか使われていなかった。出力に使っているのだと思っていたが、それは無かった。書き込むときは基本的に元のDOMをそのまま流用して必要なプロパティだけを付け加えるだけなのでこの関数を呼び出して名前空間を列挙するのに使う必要は無い。ns-name-prefix-alistを収集するのはxmp-xml-print系の仕事となる。xmp-xml-print系ではxmlやxmlnsはもはやns-name-prefix-alistに必要ない。
+
+結論。xmlnsは必要ない。なんならxmlも必要ないが、xmp-enumerate-file-propertiesのDST-NS-NAME-PREFIX-ALISTに渡すのに最低1つは要素が無いとダメなので、一応入れておく。
+** DONE xmp-show-file-propertiesの名前空間リストから使われていないのを削除。
+CLOSED: [2024-11-06 Wed 14:33]
+xmlが必ず含まれる。xmp-xml-standard-ns-name-prefix-alistが返すから。([[*xmp-xml-standard-ns-name-prefix-alistにxmlnsは必要？][xmp-xml-standard-ns-name-prefix-alistにxmlnsは必要？]])
+xが必ず含まれる。x:xmpmetaがルートにあるから。
+rdfが必ず含まれる。rdf:Descriptionやrdf:about、rdf:Seq他沢山の所で使われているから。
+dump時に名前空間接頭辞が出力されるのはプロパティ名や修飾子名のみ。そこに登場する名前空間だけをリストアップする。
+** DONE editor/サムネイルをちゃんと生成する。
+CLOSED: [2024-11-06 Wed 15:33]
+[[elisp-function:image-dired--get-create-thumbnail-file]]あたりを参考にする。というか直接これを使ってしまう。
+ついでにサムネイルを表示するかをカスタマイズ出来るようにする。
+** DONE READMEにxmp-file-reader.elの説明を追加する。
+CLOSED: [2024-11-06 Wed 16:23]

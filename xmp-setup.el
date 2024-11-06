@@ -33,9 +33,6 @@
 ;; - ' s d : Set description
 ;; - ' s c : Set creators
 
-;; - ' e p : Edit properties
-
-;; - ' g a : Get all properties
 ;; - ' g r : Get rating
 ;; - ' g l : Get label
 ;; - ' g s : Get subjects
@@ -43,11 +40,17 @@
 ;; - ' g d : Get description
 ;; - ' g c : Get creators
 
-;; - ' m r : Mark by rate
+;; - ' g p : Get properties
+;; - ' g a : Get all properties
+
+;; - ' e p : Edit properties
+;; - ' e a : Edit all properties
+
+;; - ' m r : Mark by rating
 ;; - ' m l : Mark by label
 ;; - ' m s : Mark by subjects
 
-;; - ' f r : Filter by rate
+;; - ' f r : Filter by rating
 ;; - ' f l : Filter by label
 ;; - ' f s : Filter by subjects
 ;; - ' f - : Clear filter
@@ -79,7 +82,9 @@
 (autoload 'xmp-show-file-creators "xmp-commands" nil t)
 (autoload 'xmp-set-file-creators "xmp-commands" nil t)
 (autoload 'xmp-show-file-properties "xmp-commands" nil t)
+(autoload 'xmp-show-file-properties-all "xmp-commands" nil t)
 (autoload 'xmp-edit-file-properties "xmp-commands" nil t)
+(autoload 'xmp-edit-file-properties-all "xmp-commands" nil t)
 
 ;; xmp-dired.el
 (autoload 'xmp-dired-mark-rating "xmp-dired" nil t)
@@ -97,6 +102,7 @@
 (autoload 'xmp-dired-do-set-description "xmp-dired" nil t)
 (autoload 'xmp-dired-do-set-creators "xmp-dired" nil t)
 (autoload 'xmp-dired-do-edit-properties "xmp-dired" nil t)
+(autoload 'xmp-dired-do-edit-properties-all "xmp-dired" nil t)
 
 ;; xmp-image-dired.el
 (autoload 'xmp-image-dired-filter-clear "xmp-image-dired" nil t)
@@ -122,14 +128,16 @@
     (define-key km (kbd "'st") 'xmp-dired-do-set-title)
     (define-key km (kbd "'sd") 'xmp-dired-do-set-description)
     (define-key km (kbd "'sc") 'xmp-dired-do-set-creators)
-    (define-key km (kbd "'ep") 'xmp-dired-do-edit-properties)
-    (define-key km (kbd "'ga") 'xmp-show-file-properties)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)
     (define-key km (kbd "'gs") 'xmp-show-file-subjects)
     (define-key km (kbd "'gt") 'xmp-show-file-title)
     (define-key km (kbd "'gd") 'xmp-show-file-description)
     (define-key km (kbd "'gc") 'xmp-show-file-creators)
+    (define-key km (kbd "'gp") 'xmp-show-file-properties)
+    (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
+    (define-key km (kbd "'ep") 'xmp-dired-do-edit-properties)
+    (define-key km (kbd "'ea") 'xmp-dired-do-edit-properties-all)
     km))
 
 (define-minor-mode xmp-dired-mode
@@ -151,14 +159,16 @@
     (define-key km (kbd "'st") 'xmp-set-file-title)
     (define-key km (kbd "'sd") 'xmp-set-file-description)
     (define-key km (kbd "'sc") 'xmp-set-file-creators)
-    (define-key km (kbd "'ep") 'xmp-edit-file-properties)
-    (define-key km (kbd "'ga") 'xmp-show-file-properties)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)
     (define-key km (kbd "'gs") 'xmp-show-file-subjects)
     (define-key km (kbd "'gt") 'xmp-show-file-title)
     (define-key km (kbd "'gd") 'xmp-show-file-description)
     (define-key km (kbd "'gc") 'xmp-show-file-creators)
+    (define-key km (kbd "'gp") 'xmp-show-file-properties)
+    (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
+    (define-key km (kbd "'ep") 'xmp-edit-file-properties)
+    (define-key km (kbd "'ea") 'xmp-edit-file-properties-all)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

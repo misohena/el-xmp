@@ -276,5 +276,18 @@ in the same way as the general dired command."
     (xmp-edit-file-properties (dired-get-marked-files t arg nil nil t)
                               prop-spec-list)))
 
+;;;###autoload
+(defun xmp-dired-do-edit-properties-all (&optional arg)
+  "Open a buffer for editing the file's XMP properties.
+
+This command, unlike `xmp-dired-do-edit-properties', always shows all
+properties present in the file.
+
+The argument ARG is used to select the target file, just like in other
+Dired commands."
+  (interactive "P" dired-mode)
+  (xmp-edit-file-properties (dired-get-marked-files t arg nil nil t)
+                            'default-all))
+
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

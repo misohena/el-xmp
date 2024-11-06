@@ -801,13 +801,18 @@ You can customize which properties are displayed by the variable
           (view-mode))
         (pop-to-buffer buffer)))))
 
+;;;###autoload
+(defun xmp-show-file-properties-all (file)
+  (interactive (list (xmp-file-name-at-point)))
+  (xmp-show-file-properties file nil))
+
 ;;;; Editor
 
 (autoload 'xmp-editor-buffer-modified-check "xmp-editor")
 (autoload 'xmp-editor-open-files "xmp-editor")
 
 ;;;###autoload
-(defun xmp-edit-file-properties (files &optional prop-ename-list)
+(defun xmp-edit-file-properties (files &optional prop-spec-list)
   "Open a buffer for editing the properties in FILES.
 
 The properties to edit are specified by PROP-SPEC-LIST. Generally, this
@@ -819,12 +824,22 @@ can be specified here, see the description of
 If called as a command, FILES is inferred from the
 `xmp-file-name-list-at-point' function.
 
-If a prefix argument is specified, PROP-ENAME-LIST is `default-all'."
+If a prefix argument is specified, PROP-SPEC-LIST is `default-all'."
   (interactive
    (list (xmp-file-name-list-at-point)
          (when current-prefix-arg 'default-all)))
   (xmp-editor-buffer-modified-check)
-  (xmp-editor-open-files files prop-ename-list))
+  (xmp-editor-open-files files prop-spec-list))
+
+;;;###autoload
+(defun xmp-edit-file-properties-all (files)
+  "Open a buffer for editing the properties in FILES.
+
+This command calls `xmp-edit-file-properties' with `default-all' as the
+PROP-SPEC-LIST argument."
+  (interactive
+   (list (xmp-file-name-list-at-point)))
+  (xmp-edit-file-properties files 'default-all))
 
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

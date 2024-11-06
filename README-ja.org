@@ -27,9 +27,11 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-set-file-description~
 - ~xmp-set-file-creators~
 - ~xmp-edit-file-properties~
+- ~xmp-edit-file-properties-all~
 
 プロパティを表示するコマンド:
 - ~xmp-show-file-properties~
+- ~xmp-show-file-properties-all~
 - ~xmp-show-file-rating~
 - ~xmp-show-file-label~
 - ~xmp-show-file-subjects~
@@ -60,6 +62,7 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-do-set-description~
   - ~xmp-dired-do-set-creators~
   - ~xmp-dired-do-edit-properties~
+  - ~xmp-dired-do-edit-properties-all~
 
 これらに加えて、xmp-commands.el内のコマンドがDiredで使用できます。
 
@@ -104,35 +107,38 @@ xmp-setup.elはel-xmpの設定例を提供するファイルです。init.elに�
 
 diredやimage-diredにXMPプロパティを操作するためのキーを割り当てます。
 
-| キー  | 機能               |
-|-------+--------------------|
-| ' s r | Set rating         |
-| ' s l | Set label          |
-| ' s s | Set subjects       |
-| ' a s | Add subjects       |
-| ' r s | Remove subjects    |
-| ' s t | Set title          |
-| ' s d | Set description    |
-| ' s c | Set creators       |
-|-------+--------------------|
-| ' e p | Edit properties    |
-|-------+--------------------|
-| ' g r | Get rating         |
-| ' g l | Get label          |
-| ' g s | Get subjects       |
-| ' g t | Get title          |
-| ' g d | Get description    |
-| ' g c | Get creators       |
-| ' g a | Get all properties |
-|-------+--------------------|
-| ' m r | Mark by rate       |
-| ' m l | Mark by label      |
-| ' m s | Mark by subjects   |
-|-------+--------------------|
-| ' f r | Filter by rate     |
-| ' f l | Filter by label    |
-| ' f s | Filter by subjects |
-| ' f - | Clear filter       |
+| キー  | 機能                |
+|-------+---------------------|
+| ' s r | Set rating          |
+| ' s l | Set label           |
+| ' s s | Set subjects        |
+| ' a s | Add subjects        |
+| ' r s | Remove subjects     |
+| ' s t | Set title           |
+| ' s d | Set description     |
+| ' s c | Set creators        |
+|-------+---------------------|
+| ' e p | Edit properties     |
+| ' e a | Edit all properties |
+|-------+---------------------|
+| ' g r | Get rating          |
+| ' g l | Get label           |
+| ' g s | Get subjects        |
+| ' g t | Get title           |
+| ' g d | Get description     |
+| ' g c | Get creators        |
+|-------+---------------------|
+| ' g p | Get properties      |
+| ' g a | Get all properties  |
+|-------+---------------------|
+| ' m r | Mark by rating  |
+| ' m l | Mark by label       |
+| ' m s | Mark by subjects    |
+|-------+---------------------|
+| ' f r | Filter by rating |
+| ' f l | Filter by label     |
+| ' f s | Filter by subjects  |
+| ' f - | Clear filter        |
 
 これを使わずにHydraやTransient等を使用して自分でより使いやすいユーザーインタフェースを構築するのも良いでしょう。
 

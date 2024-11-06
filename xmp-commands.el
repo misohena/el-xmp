@@ -797,6 +797,7 @@ You can customize which properties are displayed by the variable
             (erase-buffer)
             (princ (format "File: %s\n" file) (current-buffer))
             (xmp-dump-named-pvalue-list buffer props ns-name-prefix-alist 0))
+          (goto-char (point-min))
           (view-mode))
         (pop-to-buffer buffer)))))
 

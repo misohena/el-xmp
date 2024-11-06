@@ -480,3 +480,6 @@ CLOSED: [2024-11-06 Wed 15:33]
 ついでにサムネイルを表示するかをカスタマイズ出来るようにする。
 ** DONE READMEにxmp-file-reader.elの説明を追加する。
 CLOSED: [2024-11-06 Wed 16:23]
+** DONE image-dired--file-name-regexpが無いと言われてしまうのを修正する。
+CLOSED: [2024-11-06 Wed 19:11]
+先にxmp-editorを使ってからimage-diredを使うとimage-dired--file-name-regexpが定義されていないと言われる。cl-letfを使っているときにロードされるから。そもそもcl-letfを使う範囲はもっと限定した方が良い。

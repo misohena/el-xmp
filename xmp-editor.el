@@ -782,26 +782,22 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
             ;; `all' is already included
             xmp-editor-target-properties))))
 
-  (cl-letf ((xmp-editor-image-file-regexp-cache
-             (xmp-editor-create-image-file-regexp))
-            ((symbol-function 'image-dired--file-name-regexp)
-             'xmp-editor-image-file-name-regexp)
-            ((symbol-function 'image-file-name-regexp)
-             'xmp-editor-image-file-name-regexp))
-    (let ((prop-ename-list
-           (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
-          (prop-spec-list
-           (xmp-editor-align-labels
-            (xmp-editor-complete-prop-spec-list prop-spec-list nil))))
+  (let ((xmp-editor-image-file-regexp-cache
+         (xmp-editor-create-image-file-regexp))
+        (prop-ename-list
+         (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
+        (prop-spec-list
+         (xmp-editor-align-labels
+          (xmp-editor-complete-prop-spec-list prop-spec-list nil))))
 
-      (setq-local xmp-editor-files
-                  (cl-loop for file in files
-                           ;;unless (xmp-sidecar-file-p file)
-                           collect
-                           (prog1 (xmp-editor-insert-file file
-                                                          prop-spec-list
-                                                          prop-ename-list)
-                             (insert "\n")))))))
+    (setq-local xmp-editor-files
+                (cl-loop for file in files
+                         ;;unless (xmp-sidecar-file-p file)
+                         collect
+                         (prog1 (xmp-editor-insert-file file
+                                                        prop-spec-list
+                                                        prop-ename-list)
+                           (insert "\n"))))))
 
 (defun xmp-editor-insert-file (file prop-spec-list prop-ename-list)
   (setq file (expand-file-name file))
@@ -833,8 +829,12 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
     ;; recognized by the developers as problematic.
     (cond
      ((fboundp 'image-dired--get-create-thumbnail-file)
-      (insert-image (create-image
-                     (image-dired--get-create-thumbnail-file file)))
+      (cl-letf (((symbol-function 'image-dired--file-name-regexp)
+                 'xmp-editor-image-file-name-regexp)
+                ((symbol-function 'image-file-name-regexp)
+                 'xmp-editor-image-file-name-regexp))
+        (insert-image (create-image
+                       (image-dired--get-create-thumbnail-file file))))
       (insert "\n"))
      ((fboundp 'image-dired-thumb-name)
       (insert-image (create-image (image-dired-thumb-name file)))

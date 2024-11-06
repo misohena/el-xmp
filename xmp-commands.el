@@ -785,10 +785,8 @@ You can customize which properties are displayed by the variable
         nil
       (xmp-show-file-properties-target-enames))))
   (let* ((ns-name-prefix-alist (xmp-xml-standard-ns-name-prefix-alist))
-         (props (xmp-enumerate-file-properties
-                 file
-                 prop-ename-list
-                 ns-name-prefix-alist)))
+         (props (xmp-enumerate-file-properties file prop-ename-list
+                                               ns-name-prefix-alist)))
     (if (null props)
         (message "No properties")
       (let ((buffer (get-buffer-create "*XMP Properties*")))
@@ -799,7 +797,7 @@ You can customize which properties are displayed by the variable
             (princ "\n\n" buffer)
             (xmp-dump-named-pvalue-list buffer props ns-name-prefix-alist 0)
             (princ "\n" buffer)
-            (xmp-dump-ns-name-prefix-alist buffer ns-name-prefix-alist))
+            (xmp-dump-used-ns-name-prefix buffer props ns-name-prefix-alist))
           (goto-char (point-min))
           (view-mode))
         (pop-to-buffer buffer)))))

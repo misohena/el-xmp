@@ -1391,7 +1391,8 @@ first language code must be \"x-default\"."
     (princ " : " stream)
     (xmp-dump-pvalue stream pvalue ns-name-prefix-alist indent)))
 
-(defun xmp-dump-named-pvalue-list (stream named-pvalue-list ns-name-prefix-alist indent)
+(defun xmp-dump-named-pvalue-list (stream named-pvalue-list
+                                          ns-name-prefix-alist indent)
   (dolist (named-pvalue named-pvalue-list)
     (xmp-dump-indent stream indent)
     (xmp-dump-named-pvalue stream named-pvalue
@@ -1403,6 +1404,53 @@ first language code must be \"x-default\"."
                              ns-prefix
                              (xmp-xml-ns-name-string ns-name))
                      stream)))
+
+(defun xmp-dump-used-ns-name-prefix (stream named-pvalue-list
+                                            ns-name-prefix-alist)
+  (let ((used-ns-names (xmp-pvalue-used-ns-names--from-named-pvalue-list
+                        named-pvalue-list nil)))
+    (xmp-dump-ns-name-prefix-alist
+     stream
+     (cl-loop for ns-name in (nreverse used-ns-names)
+              ;; TODO: Unify xmp-xml-ename-string?
+              for prefix = (or (when (equal ns-name xmp-xml:) "xml")
+                               (xmp-xml-default-ns-prefix ns-name)
+                               (alist-get ns-name ns-name-prefix-alist))
+              when prefix
+              collect (cons ns-name prefix)))))
+
+;; Collect used namespace from pvalue
+
+(defun xmp-pvalue-used-ns-names--from-named-pvalue (named-pvalue ns-names)
+  (when-let ((ns-name (xmp-xml-ename-ns (car named-pvalue))))
+    (unless (member ns-name ns-names)
+      (push ns-name ns-names)))
+  (setq ns-names
+        (xmp-pvalue-used-ns-names--from-pvalue (cdr named-pvalue) ns-names))
+  ns-names)
+
+(defun xmp-pvalue-used-ns-names--from-named-pvalue-list (pvalue-list ns-names)
+  (dolist (named-pvalue pvalue-list)
+    (setq ns-names
+          (xmp-pvalue-used-ns-names--from-named-pvalue named-pvalue ns-names)))
+  ns-names)
+
+(defun xmp-pvalue-used-ns-names--from-pvalue (pvalue ns-names)
+  ;; From value
+  (pcase (xmp-pvalue-type pvalue)
+    ;; Skip text, uri
+    ('array
+     (dolist (item (xmp-pvalue-value pvalue))
+       (setq ns-names (xmp-pvalue-used-ns-names--from-pvalue
+                       item ns-names))))
+    ('struct
+     (setq ns-names (xmp-pvalue-used-ns-names--from-named-pvalue-list
+                     (xmp-pvalue-value pvalue) ns-names))))
+  ;; From qualifiers
+  (when-let ((qualifiers (xmp-pvalue-qualifier-alist pvalue)))
+    (setq ns-names (xmp-pvalue-used-ns-names--from-named-pvalue-list
+                    qualifiers ns-names)))
+  ns-names)
 
 ;;;; Generate Property Element
 ;;;;; Property Element from Parsed Value

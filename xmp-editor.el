@@ -755,7 +755,7 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
     (concat
      "\\[xmp-editor-save]: " (xmp-msg "Save Properties") "\n"
      "\\[xmp-editor-next-same-property] / \\[xmp-editor-previous-same-property]: "
-     (xmp-msg "Next/Previous Image") "\n"
+     (xmp-msg "Next/Previous File") "\n"
      "\\[widget-forward] / \\[widget-backward]: "
      (xmp-msg "Next/Previous Widget") "\n"
      "\\[xmp-editor-open-target-file-at]: " (xmp-msg "Open File") "\n"

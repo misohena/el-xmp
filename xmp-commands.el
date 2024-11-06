@@ -795,8 +795,11 @@ You can customize which properties are displayed by the variable
         (with-current-buffer buffer
           (let ((inhibit-read-only t))
             (erase-buffer)
-            (princ (format "File: %s\n" file) (current-buffer))
-            (xmp-dump-named-pvalue-list buffer props ns-name-prefix-alist 0))
+            (princ (format (xmp-msg "File: %s") file) buffer)
+            (princ "\n\n" buffer)
+            (xmp-dump-named-pvalue-list buffer props ns-name-prefix-alist 0)
+            (princ "\n" buffer)
+            (xmp-dump-ns-name-prefix-alist buffer ns-name-prefix-alist))
           (goto-char (point-min))
           (view-mode))
         (pop-to-buffer buffer)))))

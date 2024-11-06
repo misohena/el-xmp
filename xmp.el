@@ -1357,34 +1357,42 @@ first language code must be \"x-default\"."
   (princ (xmp-xml-ename-string ename ns-name-prefix-alist 'uri) stream))
 
 (defun xmp-dump-pvalue (stream pvalue ns-name-prefix-alist indent)
-  (pcase (xmp-pvalue-type pvalue)
-    ('text (princ (format ": %s\n" (xmp-pvalue-value pvalue)) stream))
-    ('uri (princ (format "uri: %s\n" (xmp-pvalue-value pvalue)) stream))
-    ('array
-     (princ (format "array(%s):\n"
-                    (xmp-xml-ename-local (xmp-pvalue-array-type pvalue)))
-            stream)
-     (dolist (item (xmp-pvalue-value pvalue))
-       (xmp-dump-indent stream (1+ indent))
-       (xmp-dump-pvalue stream item ns-name-prefix-alist (1+ indent))))
-    ('struct
-     (princ "struct:\n" stream)
-     (xmp-dump-named-pvalue-list stream (xmp-pvalue-value pvalue)
-                                 ns-name-prefix-alist (1+ indent)))
-    (_
-     (princ (format "unknown: %s\n" pvalue) stream)))
+  (let* ((qualifiers (xmp-pvalue-qualifier-alist pvalue))
+         (lang (xmp-pvalue-as-text
+                (xmp-xml-ename-alist-get xmp-xml:lang qualifiers))))
+    (when lang
+      (princ (format "[lang:%s] " lang) stream)
+      (setf (xmp-xml-ename-alist-get xmp-xml:lang qualifiers nil t) nil))
 
-  (when-let ((qualifiers (xmp-pvalue-qualifier-alist pvalue)))
-    (xmp-dump-indent stream (1+ indent))
-    (princ "qualifiers:\n" stream)
-    (xmp-dump-named-pvalue-list stream qualifiers
-                                ns-name-prefix-alist (+ 2 indent))))
+    (pcase (xmp-pvalue-type pvalue)
+      ('text (princ (format "%s\n" (xmp-pvalue-value pvalue)) stream))
+      ('uri (princ (format "(uri)%s\n" (xmp-pvalue-value pvalue)) stream))
+      ('array
+       (princ (format "(%s array)\n"
+                      (xmp-xml-ename-local (xmp-pvalue-array-type pvalue)))
+              stream)
+       (dolist (item (xmp-pvalue-value pvalue))
+         (xmp-dump-indent stream (1+ indent))
+         (princ "- " stream)
+         (xmp-dump-pvalue stream item ns-name-prefix-alist (1+ indent))))
+      ('struct
+       (princ "(struct)\n" stream)
+       (xmp-dump-named-pvalue-list stream (xmp-pvalue-value pvalue)
+                                   ns-name-prefix-alist (1+ indent)))
+      (_
+       (princ (format "(unknown)%s\n" pvalue) stream)))
+
+    (when qualifiers
+      (xmp-dump-indent stream (1+ indent))
+      (princ "qualifiers:\n" stream)
+      (xmp-dump-named-pvalue-list stream qualifiers
+                                  ns-name-prefix-alist (+ 2 indent)))))
 
 (defun xmp-dump-named-pvalue (stream name-pvalue ns-name-prefix-alist indent)
   (let ((name (car name-pvalue))
         (pvalue (cdr name-pvalue)))
     (xmp-dump-ename stream name ns-name-prefix-alist)
-    (princ " " stream)
+    (princ " : " stream)
     (xmp-dump-pvalue stream pvalue ns-name-prefix-alist indent)))
 
 (defun xmp-dump-named-pvalue-list (stream named-pvalue-list ns-name-prefix-alist indent)
@@ -1392,6 +1400,13 @@ first language code must be \"x-default\"."
     (xmp-dump-indent stream indent)
     (xmp-dump-named-pvalue stream named-pvalue
                            ns-name-prefix-alist indent)))
+
+(defun xmp-dump-ns-name-prefix-alist (stream ns-name-prefix-alist)
+  (cl-loop for (ns-name . ns-prefix) in ns-name-prefix-alist
+           do (princ (format "%s = %s\n"
+                             ns-prefix
+                             (xmp-xml-ns-name-string ns-name))
+                     stream)))
 
 ;;;; Generate Property Element
 ;;;;; Property Element from Parsed Value

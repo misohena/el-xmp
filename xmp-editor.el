@@ -646,12 +646,20 @@ is not recommended."
 (defvar xmp-editor-image-file-regexp-cache nil)
 
 (defun xmp-editor-create-image-file-regexp ()
-  ;; Very slow
-  (image-file-name-regexp))
+  ;; Very slow and large memory consumption.
+  ;; (benchmark-run 100 (image-file-name-regexp)) => (6.006964 10 5.423421999999988)
+  (let ((image-file-name-extensions
+         ;; TODO: Customize display target
+         ;; See: `image-dired--file-name-regexp'
+         (append '("pdf") image-file-name-extensions)))
+    (image-file-name-regexp)))
 
 (defun xmp-editor-image-file-p (file)
   (when xmp-editor-image-file-regexp-cache
     (string-match-p xmp-editor-image-file-regexp-cache file)))
+
+(defun xmp-editor-image-file-name-regexp ()
+  xmp-editor-image-file-regexp-cache)
 
 ;;;; XMP Editor Mode
 
@@ -683,6 +691,11 @@ is not recommended."
   )
 
 ;;;; Initialization
+
+(defcustom xmp-editor-show-thumbnails-p t
+  "Non-nil means show thumbnails of image files in xmp-editor."
+  :group 'xmp
+  :type 'boolean)
 
 (defconst xmp-editor-default-buffer-name "*XMP Files Editor*")
 
@@ -769,27 +782,32 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
             ;; `all' is already included
             xmp-editor-target-properties))))
 
-  (let ((xmp-editor-image-file-regexp-cache
-         (xmp-editor-create-image-file-regexp))
-        (prop-ename-list
-         (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
-        (prop-spec-list
-         (xmp-editor-align-labels
-          (xmp-editor-complete-prop-spec-list prop-spec-list nil))))
+  (cl-letf ((xmp-editor-image-file-regexp-cache
+             (xmp-editor-create-image-file-regexp))
+            ((symbol-function 'image-dired--file-name-regexp)
+             'xmp-editor-image-file-name-regexp)
+            ((symbol-function 'image-file-name-regexp)
+             'xmp-editor-image-file-name-regexp))
+    (let ((prop-ename-list
+           (xmp-editor-make-prop-ename-list-to-read prop-spec-list))
+          (prop-spec-list
+           (xmp-editor-align-labels
+            (xmp-editor-complete-prop-spec-list prop-spec-list nil))))
 
-    (setq-local xmp-editor-files
-                (cl-loop for file in files
-                         ;;unless (xmp-sidecar-file-p file)
-                         collect
-                         (prog1 (xmp-editor-insert-file file
-                                                        prop-spec-list
-                                                        prop-ename-list)
-                           (insert "\n"))))))
+      (setq-local xmp-editor-files
+                  (cl-loop for file in files
+                           ;;unless (xmp-sidecar-file-p file)
+                           collect
+                           (prog1 (xmp-editor-insert-file file
+                                                          prop-spec-list
+                                                          prop-ename-list)
+                             (insert "\n")))))))
 
 (defun xmp-editor-insert-file (file prop-spec-list prop-ename-list)
   (setq file (expand-file-name file))
   (xmp-editor-insert-file-heading file)
-  (when (xmp-editor-image-file-p file)
+  (when (and xmp-editor-show-thumbnails-p
+             (xmp-editor-image-file-p file))
     (xmp-editor-insert-file-thumbnail file))
   (xmp-editor-file-info
    file
@@ -808,10 +826,19 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
                  text-props)))
 
 (defun xmp-editor-insert-file-thumbnail (file)
-  (require 'image-dired)
-  (when (fboundp 'image-dired-thumb-name)
-    (insert-image (create-image (image-dired-thumb-name file)))
-    (insert "\n")))
+  (ignore-errors
+    (require 'image-dired)
+    ;; TODO: This will probably not work in future versions of Emacs,
+    ;; as the current image-dired thumbnail update mechanism is
+    ;; recognized by the developers as problematic.
+    (cond
+     ((fboundp 'image-dired--get-create-thumbnail-file)
+      (insert-image (create-image
+                     (image-dired--get-create-thumbnail-file file)))
+      (insert "\n"))
+     ((fboundp 'image-dired-thumb-name)
+      (insert-image (create-image (image-dired-thumb-name file)))
+      (insert "\n")))))
 
 (defun xmp-editor-insert-file-properties (file prop-spec-list prop-ename-list)
   (let* ((ns-name-prefix-alist (xmp-xml-standard-ns-name-prefix-alist))

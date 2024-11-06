@@ -2,7 +2,14 @@
 
 el-xmpは、ファイル等に対するXMP(Extensible Metadata Platform)仕様に基づくメタデータを取得・設定するためのEmacs用ライブラリと、それを応用したいくつかコマンドです。例えば写真のレーティングを取得・設定したり、PDF内の著者情報を取得したりといった使い方ができます。
 
+** サポートファイル形式
+
+XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
+
+詳しくは変数 ~xmp-file-name-handler-alist~ を参照してください。
+
 ** xmp-commands.el
+
 xmp-commands.elは任意のファイルのXMPプロパティを操作する一連のコマンドを提供します。
 
 それらのコマンドのターゲットファイルは、現在のポイントや現在のバッファ等から ~xmp-file-name-at-point~ 関数によって推測されます。デフォルトでは、DiredやImage Dired、org-modeリンク、thing-at-point、buffer-file-name、read-file-nameからのファイル名を推測します。
@@ -80,6 +87,9 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
 
 これらに加えて、xmp-commands.el内のコマンドがimage-diredで使用できます。
 
+#+CAPTION: Diredで写真をRatingを元にマークしてimage-diredで表示させたところ
+[[file:./screenshot/xmp-image-dired.png]]
+
 ** xmp-editor.el
 
 xmp-editor.elは[[https://www.gnu.org/software/emacs/manual/html_mono/widget.html][The Emacs Widget Library]]を使用したXMPエディタUIを提供します。 ~xmp-edit-file-properties~ や ~xmp-dired-do-edit-properties~ といったコマンドがこのライブラリを使用しています。
@@ -94,6 +104,9 @@ xmp-editor.elは[[https://www.gnu.org/software/emacs/manual/html_mono/widget.htm
 ;; 編集するXMPプロパティはdc:titleのみです。
 (xmp-editor-open-files (dired-get-marked-files) (list xmp-dc:title))
 #+end_src
+
+#+CAPTION: 写真のメタデータを編集しているところ
+[[file:./screenshot/xmp-editor.png]]
 
 ** xmp-setup.el
 
@@ -151,25 +164,25 @@ xmp.elはXMPを操作するための基本となる関数等を提供します�
 #+begin_src elisp
 (require 'xmp)
 
-(xmp-file-enumerate-properties "test/xmp-test-value-types.xmp" nil nil t)
+(xmp-enumerate-file-properties "test/xmp-test-value-types.xmp")
 
-(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg")
+(xmp-enumerate-file-properties "test/xmp-test-uzumaki.jpg")
 
-(xmp-file-enumerate-properties "XMPSpecificationPart1.pdf")
+(xmp-enumerate-file-properties "XMPSpecificationPart1.pdf")
 
-(xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg"
-  (list (xmp-xml-ename xmp-xmp: "Rating")
-        (xmp-xml-ename xmp-dc: "title")))
+(xmp-enumerate-file-properties "test/xmp-test-uzumaki.jpg"
+                               (list (xmp-xml-ename xmp-xmp: "Rating")
+                                     (xmp-xml-ename xmp-dc: "title")))
 
 (xmp-pvalue-as-text
-  (xmp-file-get-property "test/xmp-test-uzumaki.jpg"
-    (xmp-xml-ename xmp-xmp: "Rating")))
+ (xmp-get-file-property "test/xmp-test-uzumaki.jpg"
+                        (xmp-xml-ename xmp-xmp: "Rating")))
 #+end_src
 
 次のコードはファイルへプロパティを設定する例です。
 
 #+begin_src elisp
-(xmp-file-set-properties "tmp-example.xmp"
+(xmp-set-file-properties "tmp-example.xmp"
   (list
     (cons xmp-xmp:Rating "5")
     (cons xmp-dc:title
@@ -185,7 +198,7 @@ xmp.elはXMPを操作するための基本となる関数等を提供します�
                 "テストタイトル"
                 (list (xmp-pvalue-make-named xmp-xml:lang 'text "ja"))))))))
 
-(xmp-file-set-property "tmp-example.xmp" xmp-xmp:Rating "3")
+(xmp-set-file-property "tmp-example.xmp" xmp-xmp:Rating "3")
 #+end_src
 
 より低レベルな、XMLを解析した後のDOMに対する関数や、DOMを解析した後のXMPプロパティ値(Parsed Value)を操作する関数もあります。
@@ -252,3 +265,19 @@ TIFFを解析してタグ情報を読み取るためのライブラリです。
 ** xmp-pdf.el
 
 PDFを解析してメタデータを読み取るためのライブラリです。
+
+Emacs Lisp実装は読み込めないPDFが多いので、可能であればpdfinfoをインストールして変数 ~xmp-file-pdfinfo-program~ を設定してください。
+
+** xmp-file-reader.el
+
+バイナリファイルの読み取りを行うライブラリです。
+
+** ユーザー定義のXMPプロパティ
+
+ユーザーが新しいプロパティを追加したい場合、まずは変数 ~xmp-user-defined-namespaces~ に名前空間に関する情報(名前空間名(URI)と接頭辞)を登録してください(変数 ~xmp-predefined-namespaces~ にすでに含まれている場合は不要です。接頭辞は他と重複しないように設定してください)。これによって名前空間の出力や表示が適切なものとなります。もしこれを正しく設定しないと、名前空間接頭辞がns1、ns2、……のように連番で出力される場合があります。
+
+次に変数 ~xmp-user-defined-properties~ にプロパティ情報(名前と型)を登録してください。一部のコマンドはこの情報を使用してUIを適切なものに変更します(設定しなくても値から推測してUIを作成する場合もあります)。
+
+コマンド ~xmp-show-file-properties~ がデフォルトで表示するプロパティのリストを変数 ~xmp-show-file-properties-target~ で設定できます。
+
+コマンド ~xmp-edit-file-properties~ や ~xmp-dired-do-edit-properties~ がデフォルトで編集するプロパティのリストを変数 ~xmp-editor-target-properties~ で設定できます。

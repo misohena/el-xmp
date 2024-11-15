@@ -543,7 +543,7 @@ object."
   (if (> (- (float-time) xmp-sqlite-db-auto-close-last-access)
          xmp-sqlite-db-auto-close-timeout)
       (progn
-        (message "Close XMP cache DB")
+        ;;(message "Close XMP cache DB")
         (xmp-sqlite-cache-odb-close))
     (xmp-sqlite-db-auto-close-set-timer)))
 

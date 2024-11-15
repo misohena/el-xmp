@@ -102,7 +102,9 @@ text from source code."
 (eval-and-compile
   (defconst xmp-predefined-namespaces
     ;; (<namespace name string> . (<prefix> ...more info))
-    '(("adobe:ns:meta/"
+    '(("elxmp://el-xmp/xmlns/"
+       "elxmp")
+      ("adobe:ns:meta/"
        "x") ;;[XMP1 7.3.3]
       ("http://www.w3.org/1999/02/22-rdf-syntax-ns#"
        "rdf") ;;[XMP1 6.2]
@@ -2063,27 +2065,33 @@ is the pvalue (parsed value: returned by `xmp-parse-property-element').
 This function is used to read from a specified file. If you just want to
 get metadata about what the file is, without specifying where to read
 from, use `xmp-enumerate-file-properties'."
-  (let ((use-cache (xmp-file-cache-enabled use-cache)))
-    (if-let ((cached-result
-              (and use-cache
-                   (xmp-file-cache-get-properties
-                    file prop-ename-list dst-ns-name-prefix-alist))))
+  (let ((cached-result (if (xmp-file-cache-enabled use-cache)
+                           ;; 'no-cache | 'not-covered | <property-alist-or-nil>
+                           (xmp-file-cache-get-properties
+                            file prop-ename-list dst-ns-name-prefix-alist)
+                         'do-not-use-cache)))
+    (if (listp cached-result) ;; Not 'no-cache, 'not-covered
         ;; From cache
-        (cdr cached-result)
+        cached-result
       ;; From FILE
-      (let ((dom (if noerror
-                     (ignore-errors (xmp-file-read-rdf file))
-                   (xmp-file-read-rdf file)))) ;; TODO: Should errors also be recorded in the cache?
+      (when-let ((dom (if noerror
+                          ;; non-nil or nil(error)
+                          (ignore-errors (xmp-file-read-rdf file))
+                        ;; non-nil or error
+                        (xmp-file-read-rdf file))))
 
-        (when use-cache
-          (xmp-file-cache-make-entry file dom)) ;; DOM may be nil
+        ;; Make a cache entry
+        ;; Do not update when `not-covered' or `do-not-use-cache'
+        (when (eq cached-result 'no-cache)
+          (xmp-file-cache-make-entry file dom))
 
-        (when dom
-          (when (consp dst-ns-name-prefix-alist)
-            (nconc dst-ns-name-prefix-alist
-                   (xmp-xml-collect-nsdecls dom)))
+        ;; Collect namespace prefixes
+        (when (consp dst-ns-name-prefix-alist)
+          (nconc dst-ns-name-prefix-alist
+                 (xmp-xml-collect-nsdecls dom)))
 
-          (xmp-enumerate-properties dom prop-ename-list about noerror))))))
+        ;; Return properties
+        (xmp-enumerate-properties dom prop-ename-list about noerror)))))
 ;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt2"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val") ((:http://misohena.jp/ns1/ . "LiteralPropElt2") :pv-type text :value "LiteralPropElt1Val" :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja"))))
 ;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val"))
 ;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "ResPropElt3"))) => (((:http://misohena.jp/ns1/ . "ResPropElt3") :pv-type array :value ((:pv-type text :value "ResPropElt3Item1") (:pv-type text :value "ResPropElt3Item2")) :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Bag")))
@@ -2177,74 +2185,319 @@ If TARGET-FILE has the extension of a sidecar file, it will be returned."
 
 ;;;; File Cache
 
-(defconst xmp-file-cache-target-properties ;; TODO: To customization variable
-  (list (list "http://ns.adobe.com/xap/1.0/" "xmp" "Rating")
-        (list "http://ns.adobe.com/xap/1.0/" "xmp" "Label")
-        (list "http://ns.adobe.com/xap/1.0/" "xmp" "CreateDate")
-        (list "http://purl.org/dc/elements/1.1/" "dc" "title")
-        (list "http://purl.org/dc/elements/1.1/" "dc" "description")
-        (list "http://purl.org/dc/elements/1.1/" "dc" "subject")
-        (list "http://purl.org/dc/elements/1.1/" "dc" "creator")))
+;;;;; Cache Target Properties
 
-;; Cache Enable
+(defvar xmp-file-cache-target-prop-ename-list nil
+  "A list of expanded names of properties that are cache targets.
+Generated from the variable `xmp-file-cache-target-properties' by the
+function `xmp-file-cache-target-properties-update'.
+
+Use the function `xmp-file-cache-target-prop-ename-list' instead of
+referencing this variable directly.")
+
+(defvar xmp-file-cache-target-properties) ;; Forward Declaration
+
+(defun xmp-file-cache-target-properties-update ()
+  "Perform update processing when the customization variable
+`xmp-file-cache-target-properties' is changed.
+
+Update the variable `xmp-file-cache-target-prop-ename-list'."
+  (setq xmp-file-cache-target-prop-ename-list
+        (cl-loop for (prop-name _ns-prefix) in xmp-file-cache-target-properties
+                 for ename = (xmp-xml-ename-ensure prop-name)
+                 unless (xmp-xml-ename-member ename result)
+                 collect ename into result
+                 finally return (sort result #'xmp-xml-ename<))))
+
+(defcustom xmp-file-cache-target-properties
+  '((("http://ns.adobe.com/xap/1.0/" . "Rating") "xmp")
+    (("http://ns.adobe.com/xap/1.0/" . "Label") "xmp")
+    (("http://ns.adobe.com/xap/1.0/" . "CreateDate") "xmp")
+    (("http://ns.adobe.com/xap/1.0/" . "ModifyDate") "xmp")
+    (("http://purl.org/dc/elements/1.1/" . "title") "dc")
+    (("http://purl.org/dc/elements/1.1/" . "description") "dc")
+    (("http://purl.org/dc/elements/1.1/" . "subject") "dc")
+    (("http://purl.org/dc/elements/1.1/" . "creator") "dc")
+    (("http://purl.org/dc/elements/1.1/" . "date") "dc")
+    (("http://ns.adobe.com/exif/1.0/" . "DateTimeOriginal") "exif")
+    (("http://ns.adobe.com/exif/1.0/" . "DateTimeDigitized") "exif")
+    )
+  "A list that holds information about the properties that are cached.
+
+To get a list of cache target properties, use the function
+`xmp-file-cache-target-prop-ename-list'."
+  :group 'xmp
+  ;; TODO: Allow nil to be specified to cache all properties.
+  :type '(repeat
+          (list
+           (cons
+            :tag "Property name"
+            (string :tag "Namespace name (URI)")
+            (string :tag "Property local name"))
+           (string :tag "Namespace prefix")))
+  :set (lambda (var val)
+         (set var val)
+         ;; Update
+         (xmp-file-cache-target-properties-update)))
+
+(defun xmp-file-cache-target-prop-ename-list ()
+  "Return a list of expanded names of properties to be cached."
+  (when (and (null xmp-file-cache-target-prop-ename-list)
+             xmp-file-cache-target-properties)
+    (xmp-file-cache-target-properties-update))
+  xmp-file-cache-target-prop-ename-list)
+
+(defun xmp-file-cache-target-properties-p (prop-ename-list)
+  "Return non-nil if PROP-ENAME-LIST contains only the names of cache
+target properties specified `xmp-file-cache-target-properties'."
+  (and prop-ename-list ;; Not to get all properties
+       (seq-every-p
+        (lambda (prop-ename)
+          (xmp-xml-ename-member prop-ename
+                                (xmp-file-cache-target-prop-ename-list)))
+        prop-ename-list)))
+;; TEST: (xmp-file-cache-target-properties-p nil) => nil
+;; EXAMPLE: (xmp-file-cache-target-properties-p (list xmp-xmp:Rating xmp-dc:title))
+
+(defun xmp-file-cache-nconc-ns-name-prefix-alist (dst-ns-name-prefix-alist)
+  "Create a namespace names and prefixes alist from
+`xmp-file-cache-target-properties' and concatenate it to the end of
+DST-NS-NAME-PREFIX-ALIST."
+  (when dst-ns-name-prefix-alist
+    (nconc
+     dst-ns-name-prefix-alist
+     ;; Collect ns names and prefixes from `xmp-file-cache-target-properties'.
+     (cl-loop with ns-names = nil
+              for (prop-name ns-prefix) in xmp-file-cache-target-properties
+              for prop-ename = (xmp-xml-ename-ensure prop-name)
+              for ns-name = (xmp-xml-ename-ns prop-ename)
+              unless (assq ns-name ns-names)
+              do (push (cons ns-name ns-prefix) ns-names)
+              finally return ns-names))))
+
+;;;;; Cache Enable
 
 (defcustom xmp-file-cache-enabled t
-  "When non-nil, file caching is enabled."
+  "Non-nil means enable file metadata caching."
   :type 'boolean
   :group 'xmp)
 
 (defun xmp-file-cache-enabled (&optional use-cache)
+  "Return non-nil if file caching is enabled."
   (pcase use-cache
     ('t t)
     ('no-cache nil)
     (_ xmp-file-cache-enabled)))
 
+(defvar xmp-sqlite-available-p
+  (and (fboundp 'sqlite-available-p)
+       (sqlite-available-p))
+  "A variable that holds whether the current Emacs session can use SQLite.")
+
+(defcustom xmp-file-cache-sqlite-enabled t
+  "Non-nil means use SQLite (if available) for file metadata caching."
+  :group 'xmp
+  :type 'boolean)
+
+(defun xmp-file-cache-sqlite-enabled-p ()
+  (and xmp-sqlite-available-p
+       xmp-file-cache-sqlite-enabled))
+
+;;;;; Get/Set Cache
+
+(autoload 'xmp-sqlite-cache-get-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-remove-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-make-file-entry "xmp-sqlite")
+
+(defun xmp-file-cache-get-properties (file
+                                      prop-ename-list
+                                      &optional dst-ns-name-prefix-alist)
+  "Return the cached properties of the FILE.
+
+PROP-ENAME-LIST is a list of property names to get. If this list
+contains a property that is not a cache target, return `not-covered'.
+
+If there is no valid cache, return `no-cache'.
+
+If all properties specified in PROP-ENAME-LIST are cache targets and a
+valid cache exists, return only the properties specified in
+PROP-ENAME-LIST from the cache. Properties that do not exist in the file
+are not included in the result. If none of the properties specified in
+PROP-ENAME-LIST exist in the file, return nil."
+  ;; All properties specified in PROP-ENAME-LIST must be cache targets.
+  (if (xmp-file-cache-target-properties-p prop-ename-list)
+      (let ((file-attrs (file-attributes file))
+            (result 'undecided)
+            (sources '(mem db)))
+
+        ;; Try to get the cache entry from in memory, then from the database.
+        (while (and (eq result 'undecided) sources)
+          (let* ((from-mem (eq (pop sources) 'mem))
+                 (file-entry (if from-mem
+                                 (xmp-file-cache-memory-get-file-entry file)
+                               (when (xmp-file-cache-sqlite-enabled-p)
+                                 (xmp-sqlite-cache-get-file-entry file)))))
+            (cond
+             ;; No cache => Do nothing and next source
+             ((null file-entry))
+             ;; Invalid cache => discard cache and return `no-cache'
+             ((not (xmp-file-cache-file-entry-valid-p file-entry
+                                                      file-attrs
+                                                      prop-ename-list))
+              (when from-mem
+                (xmp-file-cache-memory-remove-file-entry file))
+              (when (xmp-file-cache-sqlite-enabled-p)
+                (xmp-sqlite-cache-remove-file-entry file))
+              (setq result 'no-cache))
+             ;; Valid cache (Use FILE-ENTRY)
+             (t
+              ;; Reflect upper-level cache
+              (unless from-mem
+                (xmp-file-cache-memory-make-file-entry-from-db
+                 file file-entry))
+              ;; Output namespace prefix alist
+              (xmp-file-cache-nconc-ns-name-prefix-alist
+               dst-ns-name-prefix-alist)
+              ;; Return properties
+              (setq result
+                    (xmp-file-cache-file-entry-get-properties
+                     file-entry prop-ename-list))))))
+
+        (when (eq result 'undecided)
+          (setq result 'no-cache))
+        result)
+    'not-covered))
+
+(defun xmp-file-cache-make-entry (file dom)
+  "Create a metadata cache entry for FILE from the DOM.
+If an error or other irregularity occurs, return without doing anything."
+  (let ((file-attrs (file-attributes file)))
+    (when (and file-attrs  ;; file exists
+               (not (eq (file-attribute-type file-attrs) t))) ;; not directory
+      (let* ((target-prop-ename-list (xmp-file-cache-target-prop-ename-list))
+             (properties
+              (condition-case nil
+                  ;; If parse error, signal error and don't create the entry.
+                  ;; Note: PROPERTIES can be nil.
+                  (xmp-file-cache-collect-target-property-values
+                   dom
+                   target-prop-ename-list)
+                (error 'error))))
+        (unless (eq properties 'error)
+          ;; In-memory cache
+          (xmp-file-cache-memory-make-file-entry file file-attrs properties
+                                                 target-prop-ename-list)
+          ;; Database cache
+          (when (xmp-file-cache-sqlite-enabled-p)
+            (xmp-sqlite-cache-make-file-entry file file-attrs properties
+                                              target-prop-ename-list)))))))
+
+(defun xmp-file-cache-collect-target-property-values (dom
+                                                      target-prop-ename-list)
+  "Create an alist of property names and values to register in file
+metadata cache entries.
+
+Get property elements from the DOM. (Strictly speaking, it may be
+obtained from attributes, not necessarily elements.)
+
+Get only the properties specified in TARGET-PROP-ENAME-LIST If the
+property is retrieved from the DOM, the resulting alist contains (ENAME
+. PVALUE). If the property does not exist in the DOM, the resulting
+alist does not contain a cell for that property.
+
+Signal an error if an error occurs while parsing the element."
+  (cl-loop
+   for prop-ename in target-prop-ename-list
+   for prop-elem = (xmp-get-property-element dom prop-ename)
+   when prop-elem
+   ;; Collect (PROP-ENAME . PVALUE )
+   ;; Note: A nil PVALUE means an empty value
+   ;; (<Prop></Prop> => (Prop . nil not ""))
+   collect (xmp-parse-property-element prop-elem
+                                       ;; If parse error, signal error.
+                                       nil)))
+
+
+;;;;; In-memory cache
+
+;; - File Entry
+;; - Directory Entry
+;; - Directory Entry Table (`xmp-file-cache-dirs')
 
 ;; File Entry
 
-(defun xmp-file-cache-file-entry-make (filename modtime properties)
+(defun xmp-file-cache-file-entry-make (filename modtime properties
+                                                target-prop-ename-list)
   "Construct an xmp-file-cache-entry object."
-  (list filename modtime properties))
+  (list filename modtime properties target-prop-ename-list))
 
 (defmacro xmp-file-cache-file-entry-file-name (file-entry)
   "Return FILE-ENTRY's file name without directory part."
   `(car ,file-entry))
 
 (defmacro xmp-file-cache-file-entry-modtime (file-entry)
-  "Return FILE-ENTRY's modification time."
+  "Return FILE-ENTRY's modification time.
+
+This is typically a list representing a time, but could also be a float
+type (e.g. when restoring from a database)."
   `(cadr ,file-entry))
 
 (defmacro xmp-file-cache-file-entry-properties (file-entry)
   "Return FILE-ENTRY's properties."
   `(caddr ,file-entry))
 
+(defmacro xmp-file-cache-file-entry-target-prop-ename-list (file-entry)
+  "Return a list of the expanded names of the properties that the
+FILE-ENTRY targets for caching."
+  `(cadddr ,file-entry))
+
 (defsubst xmp-file-cache-file-entry-full-path (file-entry dir)
   (file-name-concat dir (xmp-file-cache-file-entry-file-name file-entry)))
 
-(defun xmp-file-cache-file-entry-valid-p (file-entry dir)
-  (when file-entry ;; nil if no entry
-    (when-let ((file-attrs ;; nil if no file exists
-                (file-attributes
-                 (xmp-file-cache-file-entry-full-path file-entry dir))))
-      (time-equal-p (xmp-file-cache-file-entry-modtime file-entry)
-                    (file-attribute-modification-time file-attrs)))))
+(defconst xmp-file-cache-file-entry-time-tolerance 1e-6) ;; 1 microsecond
 
-(defun xmp-file-cache-file-entry-contains-all-props-p (entry prop-ename-list)
-  (while (and prop-ename-list
-              (xmp-xml-ename-assoc
-               (car prop-ename-list)
-               (xmp-file-cache-file-entry-properties entry)))
-    (setq prop-ename-list (cdr prop-ename-list)))
-  (null prop-ename-list))
+(defun xmp-file-cache-file-entry-modtime-equal-p (file-entry modtime)
+  ;; Since (xmp-file-cache-file-entry-modtime file-entry) may be a
+  ;; float (when using DB cache), always calculate as floats.
+  (< (abs (- (float-time (xmp-file-cache-file-entry-modtime file-entry))
+             (float-time modtime)))
+     xmp-file-cache-file-entry-time-tolerance))
 
-(defun xmp-file-cache-file-entry-get-properties (entry prop-ename-list)
-  (when entry
+(defun xmp-file-cache-file-entry-valid-p (file-entry file-attrs prop-ename-list)
+  "Return non-nil if FILE-ENTRY is valid."
+  (and file-entry ;; The file is cached
+       file-attrs ;; The file exists
+       ;; The file has not been modified
+       (xmp-file-cache-file-entry-modtime-equal-p
+        file-entry
+        (file-attribute-modification-time file-attrs))
+       ;; The cache target properties have not increased since the
+       ;; file was cached.
+       (xmp-file-cache-file-entry-targets-all-props-p file-entry
+                                                      prop-ename-list)))
+
+(defun xmp-file-cache-file-entry-targets-all-props-p (file-entry
+                                                      prop-ename-list)
+  "Return non-nil if FILE-ENTRY targets all properties in PROP-ENAME-LIST
+for caching."
+  (seq-every-p
+   (lambda (prop-ename)
+     (xmp-xml-ename-member
+      prop-ename
+      (xmp-file-cache-file-entry-target-prop-ename-list file-entry)))
+   prop-ename-list))
+
+(defun xmp-file-cache-file-entry-get-properties (file-entry prop-ename-list)
+  "Extract and return the properties specified by PROP-ENAME-LIST from
+FILE-ENTRY."
+  (when file-entry
     (cl-loop for ename in prop-ename-list
              for ename-pvalue = (xmp-xml-ename-assoc
                                  ename
-                                 (xmp-file-cache-file-entry-properties entry))
-             when (and ename-pvalue
-                       (not (eq (cdr ename-pvalue) 'no-property-element)))
+                                 (xmp-file-cache-file-entry-properties
+                                  file-entry))
+             when ename-pvalue
+             ;; TODO: No copying needed if DB is used.
              collect (copy-tree ename-pvalue))))
 
 ;; Dir Entry
@@ -2289,97 +2542,55 @@ If TARGET-FILE has the extension of a sidecar file, it will be returned."
 (defun xmp-file-cache-dir-entry-empty-p (dir-entry)
   (hash-table-count (xmp-file-cache-dir-entry-files-hash dir-entry)))
 
-;; Directory Table
+;; Directory Table (In-memory cache)
 
-(defvar xmp-file-cache-dirs nil)
+(defvar xmp-file-cache-memory-dirs nil)
 
-(defun xmp-file-cache-clear ()
+(defun xmp-file-cache-memory-clear ()
+  "Clear the in-memory cache."
   (interactive)
-  (setq xmp-file-cache-dirs nil))
+  (setq xmp-file-cache-memory-dirs nil))
 
-(defun xmp-file-cache-get-dir-entry (dir)
-  (assoc dir xmp-file-cache-dirs #'string=))
+(defun xmp-file-cache-memory-get-dir-entry (dir)
+  (assoc dir xmp-file-cache-memory-dirs #'string=))
 
-(defun xmp-file-cache-get-dir-entry-create (dir)
-  (or (assoc dir xmp-file-cache-dirs #'string=)
-      (car (push (xmp-file-cache-dir-entry-make dir) xmp-file-cache-dirs))))
+(defun xmp-file-cache-memory-get-dir-entry-create (dir)
+  (or (assoc dir xmp-file-cache-memory-dirs #'string=)
+      (car (push (xmp-file-cache-dir-entry-make dir)
+                 xmp-file-cache-memory-dirs))))
 
-;; Cache
-
-(defun xmp-file-cache-get-file-entry (dir file)
-  (when-let ((dir-entry (xmp-file-cache-get-dir-entry dir)))
+(defun xmp-file-cache-memory-get-file-entry (file)
+  (when-let ((dir-entry (xmp-file-cache-memory-get-dir-entry
+                         (file-name-directory (expand-file-name file)))))
     (xmp-file-cache-dir-entry-get-file-entry dir-entry file)))
 
-(defun xmp-file-cache-make-entry (file dom)
-  (when-let ((file-attrs (file-attributes file))) ;; nil if no file exists
-    (unless (eq (file-attribute-type file-attrs) t) ;; not directory
-      (let* ((dir (file-name-directory (expand-file-name file)))
-             (dir-entry (xmp-file-cache-get-dir-entry-create dir)))
-        (xmp-file-cache-dir-entry-set-file-entry
-         dir-entry
-         (xmp-file-cache-file-entry-make
-          (file-name-nondirectory file)
-          (file-attribute-modification-time file-attrs)
-          (cl-loop
-           for (ns-name-str _ local-name) in xmp-file-cache-target-properties
-           for ename = (xmp-xml-ename (xmp-xml-ns-name ns-name-str)
-                                      local-name)
-           for prop-elem = (xmp-get-property-element dom ename)
-           collect (if prop-elem
-                       ;; nil means removed (empty value specified)
-                       (xmp-parse-property-element prop-elem t)
-                     ;; no property element
-                     (cons ename 'no-property-element)))))))))
+(defun xmp-file-cache-memory-set-file-entry (file file-entry)
+  (xmp-file-cache-dir-entry-set-file-entry
+   (xmp-file-cache-memory-get-dir-entry-create
+    (file-name-directory (expand-file-name file)))
+   file-entry))
 
-(defun xmp-file-cache-get-properties (file prop-ename-list
-                                           &optional dst-ns-name-prefix-alist)
-  (when prop-ename-list ;; Not all
-    (when-let* ((dir (file-name-directory (expand-file-name file)))
-                (dir-entry (xmp-file-cache-get-dir-entry dir))
-                (file-entry (xmp-file-cache-dir-entry-get-file-entry
-                             dir-entry file)))
-      (if (not (xmp-file-cache-file-entry-valid-p file-entry dir))
-          ;; Remove invalid entry
-          (xmp-file-cache-remove-entry file)
-        ;; When everything specified in PROP-ENAME-LIST is cached
-        (when (xmp-file-cache-file-entry-contains-all-props-p file-entry
-                                                              prop-ename-list)
-          (when dst-ns-name-prefix-alist
-            (nconc dst-ns-name-prefix-alist
-                   ;; TODO: cache
-                   (cl-loop with ns-names = nil
-                            for (ns-name-str ns-prefix)
-                            in xmp-file-cache-target-properties
-                            for ns-name = (xmp-xml-ns-name ns-name-str)
-                            unless (assq ns-name ns-names)
-                            do (push (cons ns-name ns-prefix) ns-names)
-                            finally return ns-names)))
+(defun xmp-file-cache-memory-make-file-entry (file file-attrs properties
+                                                   target-prop-ename-list)
+  (xmp-file-cache-memory-set-file-entry
+   file
+   (xmp-file-cache-file-entry-make
+    (file-name-nondirectory file)
+    (file-attribute-modification-time file-attrs)
+    properties
+    target-prop-ename-list)))
 
-          (cons
-           t
-           (xmp-file-cache-file-entry-get-properties
-            file-entry prop-ename-list)))))))
+(defun xmp-file-cache-memory-make-file-entry-from-db (file db-file-entry)
+  (xmp-file-cache-memory-set-file-entry file db-file-entry))
 
-(defun xmp-file-cache-valid-p (file)
-  (when-let* ((dir (file-name-directory (expand-file-name file)))
-              (dir-entry (xmp-file-cache-get-dir-entry dir))
-              (file-entry (xmp-file-cache-dir-entry-get-file-entry dir-entry
-                                                                   file)))
-    (xmp-file-cache-file-entry-valid-p file-entry dir)))
-
-(defun xmp-file-cache-remove-entry (file)
+(defun xmp-file-cache-memory-remove-file-entry (file)
   (let* ((dir (file-name-directory (expand-file-name file)))
-         (dir-entry (assoc dir xmp-file-cache-dirs #'string=)))
+         (dir-entry (assoc dir xmp-file-cache-memory-dirs #'string=)))
     (when dir-entry
       (xmp-file-cache-dir-entry-remove-file-entry dir-entry file)
       (when (xmp-file-cache-dir-entry-empty-p dir-entry)
-        (setq xmp-file-cache-dirs
-              (delq dir-entry xmp-file-cache-dirs))))))
-
-(defun xmp-file-cache-verify (file)
-  (unless (xmp-file-cache-valid-p file)
-    (xmp-file-cache-remove-entry file)))
-
+        (setq xmp-file-cache-memory-dirs
+              (delq dir-entry xmp-file-cache-memory-dirs))))))
 
 ;;;; Access File Metadata
 

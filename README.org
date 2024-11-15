@@ -274,6 +274,12 @@ The Emacs Lisp implementation cannot read many PDF files, so please install pdfi
 
 A library for reading binary files.
 
+** xmp-sqlite.el
+
+A library for adding SQLite-based functionality to xmp.el.
+
+Implement a persistent cache mechanism that will not be lost even if Emacs is terminated. By default it creates the database file in ~/.emacs.d/el-xmp/el-xmp-file-cache.db .
+
 ** User-defined XMP properties
 
 If a user wants to add a new property, first register the namespace information (namespace name (URI) and prefix) in the variable ~xmp-user-defined-namespaces~ (if the variable ~xmp-predefined-namespaces~ already contains it, this is not necessary. Set the prefix so that it does not overlap with other prefixes). This ensures that the namespace is output and displayed correctly. If this is not set correctly, the namespace prefixes may be output in sequential numbers such as ns1, ns2, ....

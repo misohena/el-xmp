@@ -310,6 +310,14 @@ The value is actually the tail of LIST whose car is ENAME."
     (setq list (cdr list)))
   list)
 
+(defun xmp-xml-ename-list-equal (ename-list-1 ename-list-2)
+  ;; (equal ename-list-1 ename-list-2)
+  (while (and ename-list-1 ename-list-2
+              (xmp-xml-ename-equal (car ename-list-1) (car ename-list-2)))
+    (setq ename-list-1 (cdr ename-list-1)
+          ename-list-2 (cdr ename-list-2)))
+  (and (null ename-list-1) (null ename-list-2)))
+
 (defun xmp-xml-ename-clone (ename)
   "Duplicate the expanded name ENAME.
 

@@ -2009,7 +2009,7 @@ elements.
 
 This function is used to write to a specified file. If you just want to
 set metadata about what the file is, without specifying where to write
-to, use `xmp-enumerate-file-properties'."
+to, use `xmp-set-file-properties'."
   (let ((dom (xmp-file-read-rdf-or-new-dom file)))
 
     ;; Modify
@@ -2105,83 +2105,6 @@ This function calls `xmp-file-enumerate-properties' with a single-element list."
 ;; TEST: (xmp-pvalue-as-text (xmp-file-get-property "test/xmp-test-uzumaki.jpg" (xmp-xml-ename xmp-xmp: "Rating"))) => "5"
 ;; TEST: (xmp-file-get-property "test/xmp-test-uzumaki.jpg" (xmp-xml-ename xmp-dc: "creator")) => (:pv-type array :value ((:pv-type text :value "AKIYAMA Kouhei")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Seq"))
 
-
-;;;; Sidecar Files
-
-(defun xmp-sidecar-file-p (file)
-  (equal (file-name-extension file) "xmp"))
-
-(defun xmp-sidecar-file-name (target-file)
-  "Return the file name of the sidecar file used to record the metadata of
-TARGET-FILE.
-
-Return nil if TARGET-FILE is in a format that cannot have a sidecar
-file. For example, TARGET-FILE itself is a sidecar file (with the
-extension .xmp).
-
-If there is an existing file that can be recognized as a sidecar file,
-return the file name. If not, return the default sidecar file name."
-  (unless (equal (file-name-extension target-file) "xmp")
-    ;; TODO: Customize sidecar file name rules
-    (let ((sidecar-file-candidates
-           (list (concat target-file ".xmp")
-                 (concat (file-name-sans-extension target-file) ".xmp"))))
-      (or
-       ;; From existing files
-       (seq-find #'file-regular-p sidecar-file-candidates)
-       ;; From the first candidate
-       (car sidecar-file-candidates)))))
-
-(defun xmp-file-names-for-read (target-file)
-  "Return a list of files that may contain metadata for the TARGET-FILE.
-If there is a sidecar file for the TARGET-FILE, it will be listed first.
-The TARGET-FILE itself may also contain metadata, so it will be listed as well."
-  (delq nil
-        (list
-         ;; From sidecar file
-         (xmp-sidecar-file-name target-file) ;; or nil
-         ;; From target file
-         target-file)))
-
-;; TODO: Make it a customizable variable ?
-(defconst xmp-editor-allow-direct-modification-of-target-files nil
-  "Non-nil means direct modification of target files is allowed.
-
-[Warning]: if non-nil, the target file may be corrupted if there is a bug.
-Please use at your own risk.
-
-For example, when changing the properties of a jpg file, it attempts to
-rewrite the XMP packet already in the jpg file. If it fails, it will
-try to write to the sidecar file next.")
-
-(defun xmp-file-names-for-write (target-file)
-  "Return a list of candidate files to which TARGET-FILE's metadata will be
-written.
-
-If a file that can be recognized as a sidecar file already exists, it
-will be returned first.
-
-If there is no sidecar file, the file name returned will depend on the
-variable `xmp-editor-allow-direct-modification-of-target-files'. By
-default, the file name of the new sidecar file is returned. If rewriting
-TARGET-FILE is allowed, TARGET-FILE itself will also be included in the
-list returned (not recommended).
-
-If TARGET-FILE has the extension of a sidecar file, it will be returned."
-  (let ((sidecar-file (xmp-sidecar-file-name target-file)))
-
-    (if sidecar-file
-        (if (file-regular-p sidecar-file)
-            ;; SIDECAR-FILE exists
-            (list sidecar-file)
-          ;; TARGET-FILE (if allowed) or SIDECAR-FILE
-          (delq nil
-                (list
-                 (when xmp-editor-allow-direct-modification-of-target-files
-                   target-file)
-                 sidecar-file)))
-      ;; TARGET-FILE extension is .xmp
-      (list target-file))))
 
 ;;;; File Cache
 
@@ -2592,7 +2515,185 @@ FILE-ENTRY."
         (setq xmp-file-cache-memory-dirs
               (delq dir-entry xmp-file-cache-memory-dirs))))))
 
-;;;; Access File Metadata
+;;;; Sidecar Files
+
+(defun xmp-sidecar-file-p (file)
+  (equal (file-name-extension file) "xmp"))
+
+(defun xmp-sidecar-file-name-and-exists-p (target-file)
+  (unless (xmp-sidecar-file-p target-file)
+    ;; TODO: Customize sidecar file name rules
+    (let ((sidecar-file-candidates
+           (list (concat target-file ".xmp")
+                 (concat (file-name-sans-extension target-file) ".xmp"))))
+      (or
+       ;; From existing files
+       (when-let ((file (seq-find #'file-regular-p sidecar-file-candidates)))
+         (cons file t))
+       ;; From the first candidate
+       (cons (car sidecar-file-candidates) nil)))))
+
+(defun xmp-sidecar-file-name (target-file)
+  "Return the file name of the sidecar file used to record the metadata of
+TARGET-FILE.
+
+Return nil if TARGET-FILE is in a format that cannot have a sidecar
+file. For example, TARGET-FILE itself is a sidecar file (with the
+extension .xmp).
+
+If there is an existing file that can be recognized as a sidecar file,
+return the file name. If not, return the default sidecar file name."
+  (car (xmp-sidecar-file-name-and-exists-p target-file)))
+
+
+;;;; Metadata Describing Files
+
+(defcustom xmp-file-property-storage-type
+  'sidecar-or-db
+  "The type of storage location for modified file metadata.
+
+The storage type can be one of the symbols `db', `sidecar-or-db', or
+`sidecar'. Their meanings are as follows:
+
+  - db : Save to the database. If a sidecar file exists, it will be ignored.
+
+  - sidecar : Save to the sidecar file.
+
+  - sidecar-or-db : Save to the sidecar file if there is one. If not,
+    save to the database. If a sidecar file is found later, the contents
+    of the database will be merged into the sidecar file and saved to
+    the sidecar file thereafter.
+
+If this variable value is a list, it specifies the storage type for each
+file condition. The elements of the list are in the format (MATCHER
+. STORAGE). Files that match MATCHER will have the storage type STORAGE.
+
+MATCHER can be one of the following:
+- (dir-under . DIRECTORY-STRING) :
+  The prefix of the file's full pathname matches DIRECTORY-STRING.
+- (dir-equal . DIRECTORY-STRING) :
+  The directory in which the file is located matches DIRECTORY-STRING.
+- (regexp . REGEXP-STRING) :
+   The file's full pathname matches the regular expression REGEXP-STRING.
+- (extensions . EXTENSION-STRING-LIST) :
+  The file's extension (without the dot) matches one of the elements of
+  EXTENSION-STRING-LIST.
+- all :
+  Matches all files unconditionally.
+
+STORAGE is one of the symbols `db', `sidecar-or-db', or `sidecar'."
+  :group 'xmp
+  :type '(choice
+          (const :tag "Sidecar file or DB" sidecar-or-db)
+          (const :tag "Sidecar file only" sidecar)
+          (const :tag "DB only" db)
+          (repeat
+           :tag "Decide for each file"
+           (cons
+            :tag "File and storage"
+            (choice
+             :tag "Matcher"
+             (cons :tag "All Subdirectories"
+                   (const :format "" dir-under)
+                   directory)
+             (cons :tag "Same Directory"
+                   (const :format "" dir-equal)
+                   directory)
+             (cons :tag "Regexp"
+                   (const :format "" regexp)
+                   regexp)
+             (cons :tag "Extensions"
+                   (const :format "" extensions)
+                   (repeat :tag "Extension (without dot)" (string :tag "")))
+             (const :tag "All Files (unconditionally)" all))
+            ;; Storage
+            (choice
+             :tag "Storage"
+             (const :tag "Sidecar file or DB" sidecar-or-db)
+             (const :tag "Sidecar file only" sidecar)
+             (const :tag "DB only" db))))))
+
+(defun xmp-file-property-storage-match-p (matcher file)
+  "Return non-nil if MATCHER matches FILE.
+
+Used in interpreting the `xmp-file-property-storage-type' variable."
+  (setq file (expand-file-name file))
+  (pcase matcher
+    (`(dir-under . ,dir)
+     (string-prefix-p dir file))
+    (`(dir-equal . ,dir)
+     (equal (file-name-directory file) dir))
+    (`(regexp . ,regexp)
+     (string-match-p regexp file))
+    (`(extensions . ,extensions)
+     (member (file-name-extension file) extensions))
+    ('all t)))
+
+(defun xmp-file-property-storage-type (file)
+  "Return the type of where to store FILE's metadata (properties)."
+  (pcase xmp-file-property-storage-type
+    ('db 'db)
+    ('sidecar-or-db 'sidecar-or-db)
+    ('sidecar 'sidecar)
+    ((pred consp)
+     (cl-loop for (matcher . storage) in xmp-file-property-storage-type
+              when (xmp-file-property-storage-match-p matcher file)
+              return storage))
+    (_ ;; Including nil
+     'sidecar-or-db)))
+
+(defun xmp-file-property-storage-location (file)
+  "Return the storage location of FILE metadata (properties).
+
+If the storage location is a database, return the symbol db. If it is a
+sidecar file, return the file name as a string."
+  (let* ((storage-type (xmp-file-property-storage-type file))
+         (sidecar-file-and-exists-p
+          (when (or (eq storage-type 'sidecar)
+                    (eq storage-type 'sidecar-or-db))
+            (or
+             (xmp-sidecar-file-name-and-exists-p file)
+             ;; target-file is .xmp
+             (cons file 'unknown)))))
+    ;; Resolve sidecar or DB
+    (when (eq storage-type 'sidecar-or-db)
+      (setq storage-type
+            (if (and xmp-sqlite-available-p
+                     (not
+                      (if (eq (cdr sidecar-file-and-exists-p) 'unknown)
+                          (file-regular-p (car sidecar-file-and-exists-p))
+                        (cdr sidecar-file-and-exists-p))))
+                'db
+              'sidecar)))
+    (if (eq storage-type 'db)
+        'db
+      (car sidecar-file-and-exists-p))))
+;; EXAMPLE: (xmp-file-property-storage-location "C:/home/a.jpg")
+
+(autoload 'xmp-sqlite-mod-db-set-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-enumerate-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
+
+(defun xmp-file-merge-db-entry-into-sidecar-file (target-file sidecar-file)
+  (when xmp-sqlite-available-p
+    (when-let* ((db-properties-info
+                 (xmp-sqlite-mod-db-get-file-properties-info target-file))
+                (db-properties (plist-get db-properties-info :properties))
+                ;; (db-modtime (plist-get db-properties-info :modtime))
+                )
+      ;; (let ((sidecar-properties (xmp-file-enumerate-properties
+      ;;                            sidecar-file
+      ;;                            (mapcar #'car db-properties)
+      ;;                            nil
+      ;;                            t)))
+
+      ;; TODO: Add merge option.
+      (xmp-file-set-properties sidecar-file db-properties)
+      (xmp-sqlite-mod-db-remove-file-properties-all target-file)
+      )))
+
+;; Property Change Hook
 
 (defvar xmp-file-property-change-hook nil
   "Hook called when a file's XMP metadata properties change.
@@ -2615,72 +2716,68 @@ following function:
                       target-file
                       prop-ename-alist))
 
+;; Write
+
+(defun xmp-set-file-properties (target-file prop-ename-value-alist)
+  "Set the XMP properties for TARGET-FILE.
+
+Note that this does not mean writing to TARGET-FILE. Write the metadata
+describing TARGET-FILE to the appropriate location.
+
+PROP-ENAME-VALUE-ALIST is an alist of the expanded names and values of
+the properties to set. The values must be in a format recognized by
+`xmp-property-element-from' and `xmp-pvalue-from'."
+  (let ((storage-location (xmp-file-property-storage-location target-file)))
+    (when (stringp storage-location)
+      (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
+
+    (cond
+     ((eq storage-location 'db)
+      (xmp-sqlite-mod-db-set-file-properties target-file prop-ename-value-alist)
+      (xmp-run-file-property-change-hook target-file prop-ename-value-alist))
+     ((stringp storage-location)
+      (xmp-file-set-properties storage-location prop-ename-value-alist)
+      (xmp-run-file-property-change-hook target-file prop-ename-value-alist))
+     (t
+      (error "Unknown storage location `%s'" storage-location))))
+  prop-ename-value-alist)
+
 (defun xmp-set-file-property (target-file prop-ename value)
-  "Set the XMP property PROP-ENAME of the TARGET-FILE to VALUE.
+  "Set the XMP property PROP-ENAME of TARGET-FILE to VALUE.
 
-Note that this does not mean writing to the TARGET-FILE. Write the
-metadata describing TARGET-FILE to the appropriate location.
-
-PROP-ENAME-ALIST is an alist of the expanded names and values of the
-properties to set. The values must be in a format recognized by
-`xmp-property-element-from'."
-  (when-let ((candidate-files (xmp-file-names-for-write target-file)))
-    (while (and candidate-files
-                (let* ((file (pop candidate-files))
-                       (succeeded
-                        (if (null candidate-files)
-                            (progn
-                              (xmp-file-set-property file prop-ename value)
-                              t)
-                          ;; If any candidate files remain, suppress the error.
-                          (ignore-errors
-                            (xmp-file-set-property file prop-ename value)
-                            t))))
-                  (not succeeded))))
-    (xmp-run-file-property-change-hook target-file
-                                       (list (cons prop-ename value))))
+Note that this does not mean writing to TARGET-FILE. Write the metadata
+describing TARGET-FILE to the appropriate location."
+  ;; TODO: Optimize for setting one property
+  (xmp-set-file-properties target-file (list (cons prop-ename value)))
   value)
 
-(defun xmp-set-file-properties (target-file prop-ename-alist)
-  "Set the XMP properties of the TARGET-FILE.
 
-Note that this does not mean writing to the TARGET-FILE. Write the
-metadata describing TARGET-FILE to the appropriate location."
-  (when-let ((candidate-files (xmp-file-names-for-write target-file)))
-    (while (and candidate-files
-                (let* ((file (pop candidate-files))
-                       (succeeded
-                        (if (null candidate-files)
-                            (progn
-                              (xmp-file-set-properties file prop-ename-alist)
-                              t)
-                          ;; If any candidate files remain, suppress the error.
-                          (ignore-errors
-                            (xmp-file-set-properties file prop-ename-alist)
-                            t))))
-                  (not succeeded))))
-    (xmp-run-file-property-change-hook target-file prop-ename-alist))
-  prop-ename-alist)
+;; Read
 
-(defun xmp-get-file-property (target-file prop-ename)
-  "Get the XMP property PROP-ENAME of the TARGET-FILE.
-
-Note that this does not mean reading from the TARGET-FILE. Get the
-metadata describing TARGET-FILE from the appropriate location."
-  (seq-some
-   (lambda (file)
-     (when (file-regular-p file)
-       (xmp-file-get-property file prop-ename nil t)))
-   (xmp-file-names-for-read target-file)))
+(defun xmp-enumerate-file-properties--internal (source
+                                                target-file
+                                                prop-ename-list
+                                                dst-ns-name-prefix-alist)
+  (cond
+   ((eq source 'db)
+    (xmp-sqlite-mod-db-enumerate-file-properties target-file prop-ename-list
+                                                 ;; TODO: noerror?
+                                                 dst-ns-name-prefix-alist))
+   ((stringp source)
+    (xmp-file-enumerate-properties source
+                                   prop-ename-list
+                                   nil t
+                                   dst-ns-name-prefix-alist))))
 
 (defun xmp-enumerate-file-properties (target-file
                                       &optional
                                       prop-ename-list
                                       dst-ns-name-prefix-alist)
-  "Get the XMP properties of the TARGET-FILE.
+  "Get the XMP properties of TARGET-FILE.
 
-Note that this does not mean reading from the TARGET-FILE. Get the
-metadata describing TARGET-FILE from the appropriate location.
+Note that this does not mean reading from TARGET-FILE. Get the metadata
+describing TARGET-FILE from the appropriate location. Use
+`xmp-file-enumerate-properties' to read metadata from specified files.
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
 retrieve. Order and duplication within the list has no meaning. If nil,
@@ -2690,33 +2787,47 @@ DST-NS-NAME-PREFIX-ALIST is the destination for name declarations
 encountered during XML parsing. If non-nil, it is treated as a non-empty
 list, and the list of (<namespace name> . <namespace prefix>) is
 concatenated to the end of it."
-  (let ((candidate-files (xmp-file-names-for-read target-file))
-        result)
-    (if prop-ename-list
-        ;; Enumerate specified properties
-        (let ((unloaded-prop-ename-list prop-ename-list))
-          (while (and unloaded-prop-ename-list
-                      candidate-files)
-            (let* ((file (pop candidate-files))
-                   (file-props (xmp-file-enumerate-properties
-                                file
-                                unloaded-prop-ename-list
-                                nil t
-                                dst-ns-name-prefix-alist)))
-              ;; Remove loaded property names from UNLOADED-PROP-ENAME-LIST
-              (setq unloaded-prop-ename-list
-                    (seq-remove (lambda (prop-ename)
-                                  (xmp-xml-ename-assoc prop-ename file-props))
-                                unloaded-prop-ename-list))
-              ;; Merge
-              (setq result (nconc result file-props)))))
-      ;; Enumerate all properties
-      (while candidate-files
-        (let* ((file (pop candidate-files))
-               (file-props (xmp-file-enumerate-properties
-                            file nil nil t dst-ns-name-prefix-alist)))
-          (setq result (xmp-xml-ename-alist-merge result file-props)))))
-    result))
+  (let ((storage-location (xmp-file-property-storage-location target-file)))
+    ;; TODO: Do not write files
+    (when (stringp storage-location)
+      (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
+
+    (let ((sources (nconc (unless (equal storage-location target-file)
+                            (list storage-location)) ;; db or sidecar-file
+                          (list target-file)))
+          result)
+      (if prop-ename-list
+          ;; Enumerate specified properties
+          (let ((unloaded-prop-ename-list prop-ename-list))
+            (while (and unloaded-prop-ename-list sources)
+              (let* ((source (pop sources))
+                     (props (xmp-enumerate-file-properties--internal
+                             source target-file unloaded-prop-ename-list
+                             dst-ns-name-prefix-alist)))
+                ;; Remove loaded property names from UNLOADED-PROP-ENAME-LIST
+                (setq unloaded-prop-ename-list
+                      (seq-remove (lambda (prop-ename)
+                                    (xmp-xml-ename-assoc prop-ename props))
+                                  unloaded-prop-ename-list))
+                ;; Merge
+                (setq result (nconc result props)))))
+        ;; Enumerate all properties
+        (while sources
+          (let* ((source (pop sources))
+                 (file-props (xmp-enumerate-file-properties--internal
+                              source target-file nil
+                              dst-ns-name-prefix-alist)))
+            (setq result (xmp-xml-ename-alist-merge result file-props)))))
+      result)))
+
+(defun xmp-get-file-property (target-file prop-ename)
+  "Get the XMP property PROP-ENAME of TARGET-FILE.
+
+Note that this does not mean reading from TARGET-FILE. Get the metadata
+describing TARGET-FILE from the appropriate location."
+  (xmp-xml-ename-alist-get ;; TODO: Optimize for retrieving one property
+   prop-ename
+   (xmp-enumerate-file-properties target-file (list prop-ename))))
 
 
 (provide 'xmp)

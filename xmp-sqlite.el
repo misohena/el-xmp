@@ -102,6 +102,8 @@
   (xmp-xml-ename xmp-elxmp: "TargetProperties"))
 (defconst xmp-sqlite-elxmp:PropertyIdList
   (xmp-xml-ename xmp-elxmp: "PropertyIdList"))
+(defconst xmp-sqlite-elxmp:MetadataModifyTime
+  (xmp-xml-ename xmp-elxmp: "MetadataModifyTime"))
 (defconst xmp-sqlite-elxmp:EndOfReservedId
   (xmp-xml-ename xmp-elxmp: "EndOfReservedId"))
 
@@ -112,6 +114,7 @@
         (cons 4 xmp-sqlite-elxmp:FileModifyTime)
         (cons 5 xmp-sqlite-elxmp:TargetProperties)
         (cons 6 xmp-sqlite-elxmp:PropertyIdList)
+        (cons 7 xmp-sqlite-elxmp:MetadataModifyTime)
         (cons 99 xmp-sqlite-elxmp:EndOfReservedId)))
 
 (cl-defstruct (xmp-sqlite-odb (:constructor xmp-sqlite-odb--new))
@@ -389,7 +392,7 @@ returned."
 ;; EXAMPLE: (xmp-sqlite-odb-delete-object (xmp-sqlite-cache-odb) 8)
 
 
-;;;; PropertyIdList
+;;;; PropertyIdList Object
 
 ;; PropertyIdList is a database object that simply holds multiple property IDs.
 
@@ -507,12 +510,25 @@ object."
       (xmp-pvalue-make-text db-value)))))
 
 
+;;;; Directory Object
 
-;;;; File XMP Metadata Cache
+(defun xmp-sqlite-get-dir-object-or-create (odb dir)
+  ;; Ensure that DIR is `/' terminated and an absolute path.
+  (setq dir (file-name-as-directory (expand-file-name dir)))
 
-;; These are called by the following functions:
-;; - `xmp-file-cache-get-properties'
-;; - `xmp-file-cache-make-entry'
+  (if-let ((object-id (xmp-sqlite-odb-get-object-by-property-value
+                       odb
+                       xmp-sqlite-elxmp:FilePath
+                       dir)))
+      object-id
+    (xmp-sqlite-odb-new-object
+     odb
+     (list (cons xmp-sqlite-elxmp:ObjectType "Directory")
+           (cons xmp-sqlite-elxmp:FilePath dir)))))
+
+
+
+;;;; Automatic Closing
 
 ;; Automatic closing
 ;; Close databases that have not been used for an extended period of time.
@@ -544,7 +560,8 @@ object."
          xmp-sqlite-db-auto-close-timeout)
       (progn
         ;;(message "Close XMP cache DB")
-        (xmp-sqlite-cache-odb-close))
+        (xmp-sqlite-cache-odb-close)
+        (xmp-sqlite-mod-odb-close))
     (xmp-sqlite-db-auto-close-set-timer)))
 
 (defun xmp-sqlite-db-auto-close-touch ()
@@ -554,6 +571,14 @@ object."
 
 (defun xmp-sqlite-db-auto-close-on-close-db ()
   (xmp-sqlite-db-auto-close-cancel-timer))
+
+
+
+;;;; File XMP Metadata Cache Database
+
+;; These are called by the following functions:
+;; - `xmp-file-cache-get-properties'
+;; - `xmp-file-cache-make-entry'
 
 ;; Cache DB - Open / Close
 
@@ -582,30 +607,6 @@ object."
 
 ;; Cache DB - Access file entries
 
-(defun xmp-sqlite-cache-get-file-properties (file)
-  (when-let ((object-id (xmp-sqlite-odb-get-object-by-property-value
-                         (xmp-sqlite-cache-odb)
-                         xmp-sqlite-elxmp:FilePath
-                         (expand-file-name file))))
-    (cons
-     object-id
-     (xmp-sqlite-odb-get-object-properties (xmp-sqlite-cache-odb)
-                                           object-id))))
-
-(defun xmp-sqlite-cache-get-dir-entry-or-create (dir)
-  ;; Ensure that DIR is `/' terminated and an absolute path.
-  (setq dir (file-name-as-directory (expand-file-name dir)))
-
-  (if-let ((object-id (xmp-sqlite-odb-get-object-by-property-value
-                       (xmp-sqlite-cache-odb)
-                       xmp-sqlite-elxmp:FilePath
-                       dir)))
-      object-id
-    (xmp-sqlite-odb-new-object
-     (xmp-sqlite-cache-odb)
-     (list (cons xmp-sqlite-elxmp:ObjectType "Directory")
-           (cons xmp-sqlite-elxmp:FilePath dir)))))
-
 (defun xmp-sqlite-cache-make-file-entry (file file-attrs properties
                                               target-prop-ename-list)
   (setq file (expand-file-name file))
@@ -618,7 +619,8 @@ object."
            (list (cons xmp-sqlite-elxmp:ObjectType "File")
                  (cons xmp-sqlite-elxmp:FilePath file)
                  (cons xmp-sqlite-elxmp:FileParent
-                       (xmp-sqlite-cache-get-dir-entry-or-create
+                       (xmp-sqlite-get-dir-object-or-create
+                        (xmp-sqlite-cache-odb)
                         (file-name-directory file)))
                  (cons xmp-sqlite-elxmp:FileModifyTime
                        (float-time
@@ -674,6 +676,128 @@ object."
   (let* ((odb (xmp-sqlite-cache-odb))
          (object-id (xmp-sqlite-odb-get-object-by-property-value
                      odb xmp-sqlite-elxmp:FilePath file)))
+    (when object-id
+      (xmp-sqlite-odb-delete-object odb object-id))))
+
+
+;;;; File XMP Metadata Modification Database
+
+(defcustom xmp-sqlite-mod-db-file
+  (expand-file-name "el-xmp/el-xmp-file-mod.db" user-emacs-directory)
+  "Location of the metadata modification database.
+
+The metadata modification database is used to store edited metadata for
+files instead of sidecar files.
+
+This is different from the cache database, which is used to quickly
+retrieve metadata stored in existing files. The cache database can be
+deleted and recreated, but deleting this database will cause any edits
+you have made to the metadata to be lost."
+  :group 'xmp :type 'file)
+
+(defvar xmp-sqlite-mod-odb nil)
+
+(defun xmp-sqlite-mod-odb ()
+  (xmp-sqlite-db-auto-close-touch)
+  (if (and xmp-sqlite-mod-odb
+           (xmp-sqlite-odb-db xmp-sqlite-mod-odb))
+      xmp-sqlite-mod-odb
+    (setq xmp-sqlite-mod-odb (xmp-sqlite-odb-open xmp-sqlite-mod-db-file))))
+;; EXAMPLE: (xmp-sqlite-mod-odb)
+
+(defun xmp-sqlite-mod-odb-close ()
+  (interactive)
+  (when xmp-sqlite-mod-odb
+    (prog1 (xmp-sqlite-odb-close xmp-sqlite-mod-odb)
+      (setq xmp-sqlite-mod-odb nil)
+      (xmp-sqlite-db-auto-close-on-close-db))))
+;; EXAMPLE: (xmp-sqlite-mod-odb-close)
+
+(defconst xmp-sqlite-mod-db-management-properties
+  (list xmp-sqlite-elxmp:ObjectType
+        xmp-sqlite-elxmp:FilePath
+        xmp-sqlite-elxmp:FileParent
+        xmp-sqlite-elxmp:MetadataModifyTime))
+
+(defun xmp-sqlite-mod-db-set-file-properties (target-file
+                                              prop-ename-value-alist)
+  ;; TODO: Use memory cache?
+  (setq target-file (expand-file-name target-file))
+  (let* ((odb (xmp-sqlite-mod-odb))
+         (object-id (xmp-sqlite-odb-get-object-by-property-value
+                     odb xmp-sqlite-elxmp:FilePath target-file))
+         ;; Convert to DB value
+         (prop-ename-dbvalue-alist
+          (cl-loop for (ename . value) in prop-ename-value-alist
+                   collect (cons ename
+                                 (xmp-sqlite-encode-pvalue
+                                  (xmp-pvalue-from value))))))
+    (if object-id
+        ;; Update
+        (xmp-sqlite-odb-set-object-properties
+         odb object-id
+         (nconc
+          (list (cons xmp-sqlite-elxmp:MetadataModifyTime (float-time)))
+          prop-ename-dbvalue-alist))
+      ;; Create
+      (xmp-sqlite-odb-new-object
+       odb
+       (nconc
+        ;; Note: Change `xmp-sqlite-mod-db-management-properties'
+        (list (cons xmp-sqlite-elxmp:ObjectType "File")
+              (cons xmp-sqlite-elxmp:FilePath target-file)
+              (cons xmp-sqlite-elxmp:FileParent
+                    (xmp-sqlite-get-dir-object-or-create
+                     odb (file-name-directory target-file)))
+              (cons xmp-sqlite-elxmp:MetadataModifyTime (float-time)))
+        prop-ename-dbvalue-alist)))))
+
+(defun xmp-sqlite-mod-db-get-file-properties-info (target-file)
+  (setq target-file (expand-file-name target-file))
+  (let* ((odb (xmp-sqlite-mod-odb))
+         (object-id (xmp-sqlite-odb-get-object-by-property-value
+                     odb xmp-sqlite-elxmp:FilePath target-file)))
+    (when object-id
+      (let ((db-properties (xmp-sqlite-odb-get-object-properties odb
+                                                                 object-id)))
+        (list
+         :properties
+         (cl-loop for (ename . db-value) in db-properties
+                  unless (xmp-xml-ename-member
+                          ename
+                          xmp-sqlite-mod-db-management-properties)
+                  collect (cons ename
+                                (xmp-sqlite-decode-pvalue db-value)))
+         :modtime
+         (xmp-xml-ename-alist-get xmp-sqlite-elxmp:MetadataModifyTime
+                                  db-properties))))))
+
+(defun xmp-sqlite-mod-db-enumerate-file-properties (target-file
+                                                    &optional
+                                                    prop-ename-list
+                                                    dst-ns-name-prefix-alist)
+  ;; TODO: Use memory cache?
+  (let* ((info (xmp-sqlite-mod-db-get-file-properties-info target-file))
+         (props (if prop-ename-list
+                    (xmp-xml-ename-alist-get-member (plist-get info :properties)
+                                                    prop-ename-list)
+                  ;; All properties
+                  (plist-get info :properties))))
+    ;; TODO: Record namespace prefixes in database?
+    (when dst-ns-name-prefix-alist
+      (nconc
+       dst-ns-name-prefix-alist
+       (seq-uniq
+        (cl-loop for (ename . _value) in props
+                 collect (xmp-xml-default-ns-prefix
+                          (xmp-xml-ename-ns ename))))))
+    props))
+
+(defun xmp-sqlite-mod-db-remove-file-properties-all (target-file)
+  (setq target-file (expand-file-name target-file))
+  (let* ((odb (xmp-sqlite-mod-odb))
+         (object-id (xmp-sqlite-odb-get-object-by-property-value
+                     odb xmp-sqlite-elxmp:FilePath target-file)))
     (when object-id
       (xmp-sqlite-odb-delete-object odb object-id))))
 

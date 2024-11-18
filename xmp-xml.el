@@ -301,6 +301,11 @@ whose keys are expanded-name."
     (nreverse l-alist)))
 ;; TEST: (xmp-xml-ename-alist-merge (list (cons xmp-xmp:Label "LABEL1") (cons xmp-xmp:Rating "5")) (list (cons xmp-xmp:Rating "0") (cons xmp-xmp:CreateDate "2024-10-03"))) => (((:http://ns.adobe.com/xap/1.0/ . "Label") . "LABEL1") ((:http://ns.adobe.com/xap/1.0/ . "Rating") . "5") ((:http://ns.adobe.com/xap/1.0/ . "CreateDate") . "2024-10-03"))
 
+(defun xmp-xml-ename-alist-get-member (ename-alist ename-list)
+  (cl-loop for item in ename-alist
+           when (xmp-xml-ename-member (car item) ename-list)
+           collect item))
+
 (defun xmp-xml-ename-member (ename list)
   "Return non-nil if ENAME is an element of LIST.
 Comparison done with `xmp-xml-ename-equal'.

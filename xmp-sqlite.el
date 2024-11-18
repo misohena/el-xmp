@@ -213,9 +213,9 @@ Return a `xmp-sqlite-odb' structure."
 (defun xmp-sqlite-odb-open--get-property-id-alist (db)
   (cl-loop for (id name)
            in (sqlite-select db "select id, name from properties")
-           for parts = (split-string name ":") ;; NSNAME(URI):LOCAL
-           for ns-name-str = (when (cdr parts) (pop parts))
-           for local-name = (car parts)
+           for (ns-name-str . local-name)
+           = (when (string-match "\\(?:\\(.*\\):\\)?\\([^:]+\\)" name)
+               (cons (match-string 1 name) (match-string 2 name)))
            when (and ns-name-str local-name)
            collect (cons (xmp-xml-ename (xmp-xml-ns-name ns-name-str)
                                         local-name)

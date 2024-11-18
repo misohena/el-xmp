@@ -640,3 +640,10 @@ xmp-file-property-storage-merge-precedence
    sidecar-or-dbの時はサイドカーファイルが存在するならsidecarが、存在しなければdbが指定されたものとして扱う。
 2. 保存先がサイドカーファイルでかつデータベースに修正データがある場合は、データベースの修正データをサイドカーファイルへマージする。
 3. これまでと同じように複数の読み込み元からプロパティを読み込んでマージする。ただし、読み込み元としてサイドカーファイルの代わりにdbになることがある。
+** DONE DB/データベースの統計情報を表示するコマンドを追加する。
+CLOSED: [2024-11-18 Mon 22:26]
+- データベース全体の容量を確認する:
+  - xmp-sqlite-cache-db-statistics
+  - xmp-sqlite-mod-db-statistics
+- ディレクトリにあるメタデータの保存状況を確認する:
+  - xmp-sqlite-mod-db-directory-statistics

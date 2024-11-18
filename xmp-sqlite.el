@@ -383,6 +383,16 @@ returned."
     (list (xmp-sqlite-odb-get-property-id odb prop-ename) value))))
 ;; EXAMPLE: (xmp-sqlite-odb-get-object-by-property-value (xmp-sqlite-cache-odb) xmp-xmp:Label "Red")
 
+(defun xmp-sqlite-odb-count-objects-by-property-value (odb prop-ename value)
+  "Return the number of objects whose property matches VALUE."
+  (caar
+   (sqlite-select
+    (xmp-sqlite-odb-db odb)
+    "select count(*) from object_property_values
+     where property_id=? and value=?"
+    (list (xmp-sqlite-odb-get-property-id odb prop-ename) value))))
+;; EXAMPLE: (xmp-sqlite-odb-count-objects-by-property-value (xmp-sqlite-cache-odb) xmp-sqlite-elxmp:ObjectType "Directory")
+
 (defun xmp-sqlite-odb-delete-object (odb object-id)
   "Delete the object specified by OBJECT-ID."
   (sqlite-execute
@@ -391,6 +401,27 @@ returned."
    (list object-id)))
 ;; EXAMPLE: (xmp-sqlite-odb-delete-object (xmp-sqlite-cache-odb) 8)
 
+
+(defun xmp-sqlite-odb-show-statistics (odb db-file)
+  (let* ((files (xmp-sqlite-odb-count-objects-by-property-value
+                 odb xmp-sqlite-elxmp:ObjectType "File"))
+         (dirs (xmp-sqlite-odb-count-objects-by-property-value
+                odb xmp-sqlite-elxmp:ObjectType "Directory"))
+         (properties
+          (caar
+           (sqlite-select
+            (xmp-sqlite-odb-db odb)
+            "select count(*) from properties"))))
+    (message (concat (xmp-msg "DB file: %s (size:%s)") "\n"
+                     (xmp-msg "Files: %d") "\n"
+                     (xmp-msg "Directories: %d") "\n"
+                     (xmp-msg "Properties: %d"))
+             db-file
+             (file-size-human-readable
+              (file-attribute-size (file-attributes db-file)))
+             files
+             dirs
+             properties)))
 
 ;;;; PropertyIdList Object
 
@@ -526,7 +557,24 @@ object."
      (list (cons xmp-sqlite-elxmp:ObjectType "Directory")
            (cons xmp-sqlite-elxmp:FilePath dir)))))
 
+(defun xmp-sqlite-get-directory-id (odb dir)
+  (setq dir (expand-file-name dir))
+  (xmp-sqlite-odb-get-object-by-property-value odb
+                                               xmp-sqlite-elxmp:FilePath
+                                               dir))
 
+(defun xmp-sqlite-get-directory-file-ids (odb dir)
+  (when-let ((dir-id (xmp-sqlite-get-directory-id odb dir)))
+    (xmp-sqlite-odb-get-objects-by-property-value
+     odb
+     xmp-sqlite-elxmp:FileParent
+     dir-id)))
+
+(defun xmp-sqlite-get-directory-file-paths (odb dir)
+  ;; TODO: Optimize. Write in one SQL.
+  (cl-loop for file-id in (xmp-sqlite-get-directory-file-ids odb dir)
+           collect (xmp-sqlite-odb-get-object-property
+                    odb file-id xmp-sqlite-elxmp:FilePath)))
 
 ;;;; Automatic Closing
 
@@ -604,6 +652,11 @@ object."
       (setq xmp-sqlite-cache-odb nil)
       (xmp-sqlite-db-auto-close-on-close-db))))
 ;; EXAMPLE: (xmp-sqlite-cache-odb-close)
+
+(defun xmp-sqlite-cache-db-statistics ()
+  (interactive)
+  (xmp-sqlite-odb-show-statistics (xmp-sqlite-cache-odb)
+                                  xmp-sqlite-cache-db-file))
 
 ;; Cache DB - Access file entries
 
@@ -712,6 +765,33 @@ you have made to the metadata to be lost."
       (setq xmp-sqlite-mod-odb nil)
       (xmp-sqlite-db-auto-close-on-close-db))))
 ;; EXAMPLE: (xmp-sqlite-mod-odb-close)
+
+(defun xmp-sqlite-mod-db-statistics ()
+  (interactive)
+  (xmp-sqlite-odb-show-statistics (xmp-sqlite-mod-odb) xmp-sqlite-mod-db-file))
+
+(defun xmp-sqlite-mod-db-directory-statistics (dir)
+  (interactive "D")
+
+  (let ((sidecar-files
+         (seq-count #'xmp-sidecar-file-p (directory-files dir)))
+        (db-dir-exists
+         (not (null (xmp-sqlite-get-directory-id (xmp-sqlite-mod-odb) dir))))
+        (db-valid-files 0)
+        (db-invalid-files 0))
+
+    (dolist (file (xmp-sqlite-get-directory-file-paths (xmp-sqlite-mod-odb)
+                                                       dir))
+      (cond
+       ((directory-name-p file)) ;; Ignore
+       ((file-exists-p file) (cl-incf db-valid-files))
+       (t (cl-incf db-invalid-files))))
+
+    (message (concat (xmp-msg "Sidecar files: %d") "\n"
+                     (xmp-msg "DB directory entry exists: %s") "\n"
+                     (xmp-msg "DB valid file entries: %d") "\n"
+                     (xmp-msg "DB invalid file entries: %d"))
+             sidecar-files db-dir-exists db-valid-files db-invalid-files)))
 
 (defconst xmp-sqlite-mod-db-management-properties
   (list xmp-sqlite-elxmp:ObjectType

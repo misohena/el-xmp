@@ -27,10 +27,10 @@
 (require 'ert)
 (require 'xmp)
 
-;; (pp (xmp-file-enumerate-properties "xmp-test-value-types.xmp" nil t) (current-buffer))
+;; (pp (xmp-file-get-properties "xmp-test-value-types.xmp" 'all t) (current-buffer))
 
 (ert-deftest xmp--test-value-types ()
-  (let ((pvalues (xmp-file-enumerate-properties "xmp-test-value-types.xmp" nil nil t))
+  (let ((pvalues (xmp-file-get-properties "xmp-test-value-types.xmp" 'all nil t))
         (expected
          '(
            ;;

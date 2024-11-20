@@ -166,15 +166,15 @@ The following code is an example of getting properties from a file.
 #+begin_src elisp
 (require 'xmp)
 
-(xmp-enumerate-file-properties "test/xmp-test-value-types.xmp")
+(xmp-get-file-properties "test/xmp-test-value-types.xmp" 'all)
 
-(xmp-enumerate-file-properties "test/xmp-test-uzumaki.jpg")
+(xmp-get-file-properties "test/xmp-test-uzumaki.jpg" 'all)
 
-(xmp-enumerate-file-properties "XMPSpecificationPart1.pdf")
+(xmp-get-file-properties "XMPSpecificationPart1.pdf" 'all)
 
-(xmp-enumerate-file-properties "test/xmp-test-uzumaki.jpg"
-                               (list (xmp-xml-ename xmp-xmp: "Rating")
-                                     (xmp-xml-ename xmp-dc: "title")))
+(xmp-get-file-properties "test/xmp-test-uzumaki.jpg"
+                         (list (xmp-xml-ename xmp-xmp: "Rating")
+                               (xmp-xml-ename xmp-dc: "title")))
 
 (xmp-pvalue-as-text
  (xmp-get-file-property "test/xmp-test-uzumaki.jpg"
@@ -207,7 +207,7 @@ There are also lower level functions for the DOM after parsing the XML, and func
 
 #+begin_src elisp
 (let* ((dom (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg")) ;; File to XML DOM
-       (property-elements (xmp-enumerate-property-elements dom)) ;; XML DOM to Property Element List
+       (property-elements (xmp-get-property-elements dom 'all)) ;; XML DOM to Property Element List
        (property-pvalues (mapcar #'xmp-parse-property-element property-elements)) ;; Property Element List to Parsed Value List
        (rating-pvalue (xmp-xml-ename-alist-get xmp-xmp:Rating property-pvalues))) ;; Pick xmp:Rating property
   ;; PValue to String

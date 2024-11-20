@@ -852,26 +852,27 @@ you have made to the metadata to be lost."
          (xmp-xml-ename-alist-get xmp-sqlite-elxmp:MetadataModifyTime
                                   db-properties))))))
 
-(defun xmp-sqlite-mod-db-enumerate-file-properties (target-file
-                                                    &optional
-                                                    prop-ename-list
-                                                    dst-ns-name-prefix-alist)
-  ;; TODO: Use memory cache?
-  (let* ((info (xmp-sqlite-mod-db-get-file-properties-info target-file))
-         (props (if prop-ename-list
+(defun xmp-sqlite-mod-db-get-file-properties (target-file
+                                              &optional
+                                              prop-ename-list
+                                              dst-ns-name-prefix-alist)
+  (when prop-ename-list
+    ;; TODO: Use memory cache?
+    (let* ((info (xmp-sqlite-mod-db-get-file-properties-info target-file))
+           (props (if (eq prop-ename-list 'all)
+                      ;; All properties
+                      (plist-get info :properties)
                     (xmp-xml-ename-alist-get-member (plist-get info :properties)
-                                                    prop-ename-list)
-                  ;; All properties
-                  (plist-get info :properties))))
-    ;; TODO: Record namespace prefixes in database?
-    (when dst-ns-name-prefix-alist
-      (nconc
-       dst-ns-name-prefix-alist
-       (seq-uniq
-        (cl-loop for (ename . _value) in props
-                 collect (xmp-xml-default-ns-prefix
-                          (xmp-xml-ename-ns ename))))))
-    props))
+                                                    prop-ename-list))))
+      ;; TODO: Record namespace prefixes in database?
+      (when dst-ns-name-prefix-alist
+        (nconc
+         dst-ns-name-prefix-alist
+         (seq-uniq
+          (cl-loop for (ename . _value) in props
+                   collect (xmp-xml-default-ns-prefix
+                            (xmp-xml-ename-ns ename))))))
+      props)))
 
 (defun xmp-sqlite-mod-db-remove-file-properties-all (target-file)
   (setq target-file (expand-file-name target-file))

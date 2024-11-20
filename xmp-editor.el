@@ -842,11 +842,11 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
 
 (defun xmp-editor-insert-file-properties (file prop-spec-list prop-ename-list)
   (let* ((ns-name-prefix-alist (xmp-xml-standard-ns-name-prefix-alist))
-         (props (xmp-enumerate-file-properties file prop-ename-list
-                                               ns-name-prefix-alist)))
+         (props (xmp-get-file-properties file prop-ename-list
+                                         ns-name-prefix-alist)))
 
     ;; Expand properties not specified in PROP-SPEC-LIST.
-    (unless prop-ename-list
+    (when (eq prop-ename-list 'all)
       (setq prop-spec-list
             (xmp-editor-align-labels
              (xmp-editor-expand-all-in-prop-spec-list prop-spec-list
@@ -894,20 +894,21 @@ editor. If it is nil, `xmp-editor-default-buffer-name' is used."
 (defun xmp-editor-prop-spec-type (prop-spec) (nth 2 prop-spec))
 
 (defun xmp-editor-make-prop-ename-list-to-read (prop-spec-list)
-  "Create a prop-ename-list to pass to `xmp-enumerate-file-properties'.
-Return nil if all properties should be read."
-  (when (listp prop-spec-list)
-    (cl-loop for prop-spec in prop-spec-list
-             unless (listp prop-spec) return nil ;; Return nil if contains 'all
-             collect (if (or (xmp-xml-ename-p prop-spec)
-                             (and (consp prop-spec)
-                                  (stringp (car prop-spec))
-                                  (stringp (cdr prop-spec))))
-                         ;; ENAME
-                         (xmp-xml-ename-ensure prop-spec)
-                       ;; ( ENAME LABEL TYPE )
-                       (xmp-xml-ename-ensure
-                        (xmp-editor-prop-spec-ename prop-spec))))))
+  "Create a prop-ename-list to pass to `xmp-get-file-properties'.
+Return `all' if all properties should be read."
+  (if (listp prop-spec-list)
+      (cl-loop for prop-spec in prop-spec-list
+               unless (listp prop-spec) return 'all ;; Return 'all if contains 'all
+               collect (if (or (xmp-xml-ename-p prop-spec)
+                               (and (consp prop-spec)
+                                    (stringp (car prop-spec))
+                                    (stringp (cdr prop-spec))))
+                           ;; ENAME
+                           (xmp-xml-ename-ensure prop-spec)
+                         ;; ( ENAME LABEL TYPE )
+                         (xmp-xml-ename-ensure
+                          (xmp-editor-prop-spec-ename prop-spec))))
+    'all))
 
 (defun xmp-editor-complete-prop-spec-list (prop-spec-list ns-name-prefix-alist)
   "Fill in the missing information in PROP-SPEC-LIST.

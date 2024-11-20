@@ -27,10 +27,10 @@
 (require 'ert)
 (require 'xmp)
 
-;; (pp (xmp-file-enumerate-properties "xmp-test-syntax-property-elements.xmp" nil t) (current-buffer))
+;; (pp (xmp-file-get-properties "xmp-test-syntax-property-elements.xmp" 'all t) (current-buffer))
 
 (ert-deftest xmp--test-syntax-property-elements ()
-  (let ((pvalues (xmp-file-enumerate-properties "xmp-test-syntax-property-elements.xmp" nil nil t))
+  (let ((pvalues (xmp-file-get-properties "xmp-test-syntax-property-elements.xmp" 'all nil t))
         (expected
          '(
            ;;

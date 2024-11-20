@@ -758,7 +758,7 @@ CREATORS is a list of strings."
   "A list that specifies which properties to display in
 command `xmp-show-file-properties'."
   :type '(choice
-          (const :tag "All properties" nil)
+          (const :tag "All properties" all)
           (repeat
            (list
             (string :tag "Namespace name (URI)")
@@ -766,14 +766,14 @@ command `xmp-show-file-properties'."
   :group 'xmp)
 
 (defun xmp-show-file-properties-target-enames ()
-  (if xmp-show-file-properties-target
+  (if (listp xmp-show-file-properties-target)
       (cl-loop for (ns-name prop-local-name) in xmp-show-file-properties-target
                collect (xmp-xml-ename (xmp-xml-ns-name ns-name)
                                       prop-local-name))
-    nil))
+    'all))
 
 ;;;###autoload
-(defun xmp-show-file-properties (file &optional prop-ename-list)
+(defun xmp-show-file-properties (file prop-ename-list)
   "Pop up a buffer showing the XMP properties of a FILE.
 
 You can customize which properties are displayed by the variable
@@ -782,11 +782,11 @@ You can customize which properties are displayed by the variable
    (list
     (xmp-file-name-at-point)
     (if current-prefix-arg
-        nil
+        'all
       (xmp-show-file-properties-target-enames))))
   (let* ((ns-name-prefix-alist (xmp-xml-standard-ns-name-prefix-alist))
-         (props (xmp-enumerate-file-properties file prop-ename-list
-                                               ns-name-prefix-alist)))
+         (props (xmp-get-file-properties file prop-ename-list
+                                         ns-name-prefix-alist)))
     (if (null props)
         (message "No properties")
       (let ((buffer (get-buffer-create "*XMP Properties*")))
@@ -805,7 +805,7 @@ You can customize which properties are displayed by the variable
 ;;;###autoload
 (defun xmp-show-file-properties-all (file)
   (interactive (list (xmp-file-name-at-point)))
-  (xmp-show-file-properties file nil))
+  (xmp-show-file-properties file 'all))
 
 ;;;; Editor
 

@@ -22,13 +22,13 @@
 
 ;; Get properties from file:
 ;;
-;;  (xmp-file-enumerate-properties "test/xmp-test-value-types.xmp" nil nil t)
+;;  (xmp-file-get-properties "test/xmp-test-value-types.xmp" 'all nil t)
 ;;
-;;  (xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg")
+;;  (xmp-file-get-properties "test/xmp-test-uzumaki.jpg" 'all)
 ;;
-;;  (xmp-file-enumerate-properties "XMPSpecificationPart1.pdf")
+;;  (xmp-file-get-properties "XMPSpecificationPart1.pdf" 'all)
 ;;
-;;  (xmp-file-enumerate-properties "test/xmp-test-uzumaki.jpg"
+;;  (xmp-file-get-properties "test/xmp-test-uzumaki.jpg"
 ;;    (list (xmp-xml-ename xmp-xmp: "Rating")
 ;;          (xmp-xml-ename xmp-dc: "title")))
 ;;
@@ -459,17 +459,17 @@ elements. If omitted, it is the empty string."
                   (xmp-xml-element-child-find-by-ename node prop-ename))))
               (xmp-xml-element-children rdf))))
 
-(defun xmp-enumerate-properties (dom &optional prop-ename-list about noerror)
+(defun xmp-get-properties (dom prop-ename-list &optional about noerror)
   "Return a list of XMP properties contained in DOM.
 
-The elements of the list are cons cells whose car is the expanded name
-of the property and whose cdr is the pvalue (the parsed value: as
-returned by `xmp-parse-property-element').
+Each element in the returned list is a cons cells whose car is the
+expanded name of the property and whose cdr is the pvalue (the parsed
+value: as returned by `xmp-parse-property-element').
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
-enumerate. nil means to enumerate all properties.
-The order or duplication of properties in the list does not affect the
-value returned.
+retrieve, or the symbol `all'. nil means to retrieve none. The symbol
+`all' means to enumerate all properties. The order or duplication of
+properties in the list does not affect the value returned.
 
 ABOUT specifies a string that matches the about attribute of Description
 elements. Get properties only from matching Description
@@ -477,13 +477,13 @@ elements. Specifying nil is the same as specifying an empty string.
 
 If NOERROR is non-nil, then nil is returned if an error occurs, whenever
 possible."
-  (cl-loop for prop-elt in (xmp-enumerate-property-elements dom prop-ename-list
-                                                            about)
+  (cl-loop for prop-elt in (xmp-get-property-elements dom prop-ename-list
+                                                      about)
            for pvalue = (xmp-parse-property-element prop-elt noerror)
            when pvalue ;; <ns:Prop /> => nil or parse error (noerror is non-nil)
            collect pvalue))
 
-(defun xmp-enumerate-property-elements (dom &optional prop-ename-list about)
+(defun xmp-get-property-elements (dom prop-ename-list &optional about)
   "Return a list of elements that represent the XMP properties contained in
 DOM.
 
@@ -494,20 +494,20 @@ elements (property attributes), a temporary property element is created
 and returned.
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
-enumerate. nil means to enumerate all properties.
-The order or duplication of properties in the list does not affect the
-value returned.
+retrieve or the symbol `all'. nil means to retrieve none. The symbol
+`all' means to enumerate all properties. The order or duplication of
+properties in the list does not affect the value returned.
 
 ABOUT specifies a string that matches the about attribute of Description
 elements. Get properties only from matching Description
 elements. Specifying nil is the same as specifying an empty string."
-  (when-let ((rdf (xmp-find-rdf dom)))
-    ;; At the top level there are only Description elements.
-    ;; [XMP1 C.2.3]
-    (cl-loop for desc in (xmp-xml-element-children rdf)
-             when (xmp-target-description-p desc about)
-             nconc (xmp-desc-enumerate-property-elements desc
-                                                         prop-ename-list))))
+  (when prop-ename-list
+    (when-let ((rdf (xmp-find-rdf dom)))
+      ;; At the top level there are only Description elements.
+      ;; [XMP1 C.2.3]
+      (cl-loop for desc in (xmp-xml-element-children rdf)
+               when (xmp-target-description-p desc about)
+               nconc (xmp-desc-get-property-elements desc prop-ename-list)))))
 
 (defun xmp-get-property-element (dom prop-ename &optional about)
   "Return the property element with the name PROP-ENAME in DOM, or nil
@@ -550,7 +550,8 @@ DOM, do not insert it and discard it."
                                                prop-ename))
                         prop-elem-list))
                  ;; Stop if PROP-ELEM-LIST is empty
-                 (null prop-elem-list)))))))
+                 (null prop-elem-list))
+               'all)))))
 
       ;; Insert property elements
       (let ((desc (or (xmp-find-description dom nil about)
@@ -588,7 +589,7 @@ user-friendly format.
 ABOUT specifies a string that matches the about attribute of Description
 elements. Get properties only from matching Description
 elements. Specifying nil is the same as specifying an empty string."
-  (let ((props (xmp-enumerate-properties dom nil about t)))
+  (let ((props (xmp-get-properties dom 'all about t)))
     (when sort
       (setq props (xmp-xml-ename-alist-sort props)))
 
@@ -608,35 +609,35 @@ ABOUT specifies a string that matches the about attribute."
         (or (xmp-xml-element-attr-value node xmp-rdf:about) "")
         (or about ""))))
 
-(defun xmp-desc-enumerate-property-elements (desc &optional prop-ename-list)
+(defun xmp-desc-get-property-elements (desc prop-ename-list)
   "Return the list of XMP property elements present within the
 rdf:Description element DESC.
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
-enumerate. nil means to enumerate all properties.
-The order or duplication of properties in the list does not affect the
-value returned.
+retrieve or the symbol `all'. nil means to retrieve none. The symbol
+`all' means to enumerate all properties. The order or duplication of
+properties in the list does not affect the value returned.
 
 If the properties are expressed in the form of attribute values of the
 Description element (property attributes), a temporary property element
 will be created and returned."
-  (let (result)
-    (xmp-desc-some-property-elements
-     desc
-     (lambda (_prop-ename place elem attr)
-       (cond
-        ((eq place 'attribute)
-         ;; Convert attribute to element
-         (push (xmp-property-element-from-attr attr) result))
-        ((eq place 'element)
-         (push elem result)))
-       ;; Continue
-       nil)
-     prop-ename-list)
-    (nreverse result)))
+  (when prop-ename-list
+    (let (result)
+      (xmp-desc-some-property-elements
+       desc
+       (lambda (_prop-ename place elem attr)
+         (cond
+          ((eq place 'attribute)
+           ;; Convert attribute to element
+           (push (xmp-property-element-from-attr attr) result))
+          ((eq place 'element)
+           (push elem result)))
+         ;; Continue
+         nil)
+       prop-ename-list)
+      (nreverse result))))
 
-(defun xmp-desc-some-property-elements (desc predicate
-                                             &optional prop-ename-list)
+(defun xmp-desc-some-property-elements (desc predicate prop-ename-list)
   "Call PREDICATE for each XMP property that element DESC has, and when a
 non-nil value is returned, exit and return that value.
 
@@ -655,8 +656,9 @@ element that represents the property.
 ATTRIBUTE is an attribute object that represents a property when PLACE
 is `attribute', or nil when PLACE is `element'.
 
-When PROP-ENAME-LIST is non-nil, only properties with the specified
-names are considered."
+PROP-ENAME-LIST limits the properties to be processed. When it is the
+symbol all, all properties are targeted. When it is a list of property
+names, the properties included in the list are targeted."
   (or
    ;; Enumerate from the DESC's attributes
    ;; (simple, non-URI, unqualified values)
@@ -675,7 +677,7 @@ names are considered."
                              ;; xmlns:* is namespace declaration
                              (list xmp-rdf: xmp-xml:)))
                 ;; Filter by prop-ename-list
-                (or (null prop-ename-list)
+                (or (eq prop-ename-list 'all)
                     (xmp-xml-ename-member (xmp-xml-attr-ename attr)
                                           prop-ename-list)))
            (setq result (funcall predicate
@@ -692,7 +694,7 @@ names are considered."
          (when (and
                 (xmp-xml-element-p child)
                 ;; Filter by prop-ename-list
-                (or (null prop-ename-list)
+                (or (eq prop-ename-list 'all)
                     (xmp-xml-ename-member (xmp-xml-element-ename child)
                                           prop-ename-list)))
            (setq result (funcall predicate
@@ -2041,16 +2043,17 @@ element."
 ;; EXAMPLE: (xmp-file-set-property "test/tmp/xml-example-for-write.xmp" (xmp-xml-ename xmp-xmp: "Rating") "3")
 ;; EXAMPLE: (xmp-file-set-property "test/tmp/xmp-test-uzumaki.jpg" (xmp-xml-ename xmp-xmp: "Rating") "3")
 
-(defun xmp-file-enumerate-properties (file
-                                      &optional prop-ename-list about noerror
-                                      dst-ns-name-prefix-alist
-                                      use-cache)
+(defun xmp-file-get-properties (file
+                                prop-ename-list
+                                &optional about noerror
+                                dst-ns-name-prefix-alist
+                                use-cache)
   "Return a list of XMP properties contained in the FILE.
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
-enumerate. nil means to enumerate all properties.
-The order or duplication of properties in the list does not affect the
-value returned.
+retrieve or the symbol `all'. nil means to retrieve none. The symbol
+`all' means to enumerate all properties. The order or duplication of
+properties in the list does not affect the value returned.
 
 ABOUT specifies a string that matches the about attribute of Description
 elements. Get properties only from matching Description
@@ -2064,44 +2067,58 @@ is the pvalue (parsed value: returned by `xmp-parse-property-element').
 
 This function is used to read from a specified file. If you just want to
 get metadata about what the file is, without specifying where to read
-from, use `xmp-enumerate-file-properties'."
-  (let ((cached-result (if (xmp-file-cache-enabled use-cache)
-                           ;; 'no-cache | 'not-covered | <property-alist-or-nil>
-                           (xmp-file-cache-get-properties
-                            file prop-ename-list dst-ns-name-prefix-alist)
-                         'do-not-use-cache)))
-    (if (listp cached-result) ;; Not 'no-cache, 'not-covered
-        ;; From cache
-        cached-result
-      ;; From FILE
-      (when-let ((dom (if noerror
-                          ;; non-nil or nil(error)
-                          (ignore-errors (xmp-file-read-rdf file))
-                        ;; non-nil or error
-                        (xmp-file-read-rdf file))))
+from, use `xmp-get-file-properties'."
+  (when prop-ename-list
+    (let ((cached-result (if (xmp-file-cache-enabled use-cache)
+                             ;; 'no-cache | 'not-covered | <property-alist-or-nil>
+                             (xmp-file-cache-get-properties
+                              file prop-ename-list dst-ns-name-prefix-alist)
+                           'do-not-use-cache)))
+      (if (listp cached-result) ;; Not 'no-cache, 'not-covered
+          ;; From cache
+          cached-result
+        ;; From FILE
+        (when-let ((dom (if noerror
+                            ;; non-nil or nil(error)
+                            (ignore-errors (xmp-file-read-rdf file))
+                          ;; non-nil or error
+                          (xmp-file-read-rdf file))))
 
-        ;; Make a cache entry
-        ;; Do not update when `not-covered' or `do-not-use-cache'
-        (when (eq cached-result 'no-cache)
-          (xmp-file-cache-make-entry file dom))
+          ;; Make a cache entry
+          ;; Do not update when `not-covered' or `do-not-use-cache'
+          (when (eq cached-result 'no-cache)
+            (xmp-file-cache-make-entry file dom))
 
-        ;; Collect namespace prefixes
-        (when (consp dst-ns-name-prefix-alist)
-          (nconc dst-ns-name-prefix-alist
-                 (xmp-xml-collect-nsdecls dom)))
+          ;; Collect namespace prefixes
+          (when (consp dst-ns-name-prefix-alist)
+            (nconc dst-ns-name-prefix-alist
+                   (xmp-xml-collect-nsdecls dom)))
 
-        ;; Return properties
-        (xmp-enumerate-properties dom prop-ename-list about noerror)))))
-;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt2"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val") ((:http://misohena.jp/ns1/ . "LiteralPropElt2") :pv-type text :value "LiteralPropElt1Val" :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja"))))
-;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val"))
-;; TEST: (xmp-file-enumerate-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "ResPropElt3"))) => (((:http://misohena.jp/ns1/ . "ResPropElt3") :pv-type array :value ((:pv-type text :value "ResPropElt3Item1") (:pv-type text :value "ResPropElt3Item2")) :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Bag")))
+          ;; Return properties
+          (xmp-get-properties dom prop-ename-list about noerror))))))
+;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt2"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val") ((:http://misohena.jp/ns1/ . "LiteralPropElt2") :pv-type text :value "LiteralPropElt1Val" :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja"))))
+;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val"))
+;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "ResPropElt3"))) => (((:http://misohena.jp/ns1/ . "ResPropElt3") :pv-type array :value ((:pv-type text :value "ResPropElt3Item1") (:pv-type text :value "ResPropElt3Item2")) :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Bag")))
+
+(defun xmp-file-enumerate-properties (file
+                                      &optional prop-ename-list about noerror
+                                      dst-ns-name-prefix-alist
+                                      use-cache)
+  "Return a list of XMP properties contained in the FILE.
+
+Same as `xmp-file-get-properties', but PROP-ENAME-LIST is optional and
+nil means to get all properties."
+  (xmp-file-get-properties file
+                           (or prop-ename-list 'all)
+                           about noerror
+                           dst-ns-name-prefix-alist use-cache))
 
 (defun xmp-file-get-property (file prop-ename &optional about noerror)
   "Return the XMP property contained in the FILE.
 
-This function calls `xmp-file-enumerate-properties' with a single-element list."
-  (cdr (car (xmp-file-enumerate-properties file (list prop-ename)
-                                           about noerror))))
+This function calls `xmp-file-get-properties' with a single-element list."
+  (cdr (car (xmp-file-get-properties file (list prop-ename)
+                                     about noerror))))
 ;; TEST: (xmp-pvalue-as-text (xmp-file-get-property "test/xmp-test-uzumaki.jpg" (xmp-xml-ename xmp-xmp: "Rating"))) => "5"
 ;; TEST: (xmp-file-get-property "test/xmp-test-uzumaki.jpg" (xmp-xml-ename xmp-dc: "creator")) => (:pv-type array :value ((:pv-type text :value "AKIYAMA Kouhei")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Seq"))
 
@@ -2173,13 +2190,15 @@ To get a list of cache target properties, use the function
 (defun xmp-file-cache-target-properties-p (prop-ename-list)
   "Return non-nil if PROP-ENAME-LIST contains only the names of cache
 target properties specified `xmp-file-cache-target-properties'."
-  (and prop-ename-list ;; Not to get all properties
+  (and (listp prop-ename-list) ;; Not to get all properties (not (eq 'all))
+       prop-ename-list
        (seq-every-p
         (lambda (prop-ename)
           (xmp-xml-ename-member prop-ename
                                 (xmp-file-cache-target-prop-ename-list)))
         prop-ename-list)))
 ;; TEST: (xmp-file-cache-target-properties-p nil) => nil
+;; TEST: (xmp-file-cache-target-properties-p 'all) => nil
 ;; EXAMPLE: (xmp-file-cache-target-properties-p (list xmp-xmp:Rating xmp-dc:title))
 
 (defun xmp-file-cache-nconc-ns-name-prefix-alist (dst-ns-name-prefix-alist)
@@ -2672,7 +2691,7 @@ sidecar file, return the file name as a string."
 
 (autoload 'xmp-sqlite-mod-db-set-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-enumerate-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
 
 (defun xmp-file-merge-db-entry-into-sidecar-file (target-file sidecar-file)
@@ -2682,7 +2701,7 @@ sidecar file, return the file name as a string."
                 (db-properties (plist-get db-properties-info :properties))
                 ;; (db-modtime (plist-get db-properties-info :modtime))
                 )
-      ;; (let ((sidecar-properties (xmp-file-enumerate-properties
+      ;; (let ((sidecar-properties (xmp-file-get-properties
       ;;                            sidecar-file
       ;;                            (mapcar #'car db-properties)
       ;;                            nil
@@ -2754,54 +2773,55 @@ describing TARGET-FILE to the appropriate location."
 
 ;; Read
 
-(defun xmp-enumerate-file-properties--internal (source
-                                                target-file
-                                                prop-ename-list
-                                                dst-ns-name-prefix-alist)
+(defun xmp-get-file-properties--internal (source
+                                          target-file
+                                          prop-ename-list
+                                          dst-ns-name-prefix-alist)
   (cond
    ((eq source 'db)
-    (xmp-sqlite-mod-db-enumerate-file-properties target-file prop-ename-list
-                                                 ;; TODO: noerror?
-                                                 dst-ns-name-prefix-alist))
+    (xmp-sqlite-mod-db-get-file-properties target-file prop-ename-list
+                                           ;; TODO: noerror?
+                                           dst-ns-name-prefix-alist))
    ((stringp source)
-    (xmp-file-enumerate-properties source
-                                   prop-ename-list
-                                   nil t
-                                   dst-ns-name-prefix-alist))))
+    (xmp-file-get-properties source prop-ename-list nil t
+                             dst-ns-name-prefix-alist))))
 
-(defun xmp-enumerate-file-properties (target-file
-                                      &optional
-                                      prop-ename-list
-                                      dst-ns-name-prefix-alist)
+(defun xmp-get-file-properties (target-file
+                                prop-ename-list
+                                &optional
+                                dst-ns-name-prefix-alist)
   "Get the XMP properties of TARGET-FILE.
 
 Note that this does not mean reading from TARGET-FILE. Get the metadata
 describing TARGET-FILE from the appropriate location. Use
-`xmp-file-enumerate-properties' to read metadata from specified files.
+`xmp-file-get-properties' to read metadata from specified files.
 
 PROP-ENAME-LIST is a list of the expanded names of the properties to
-retrieve. Order and duplication within the list has no meaning. If nil,
-get all properties.
+retrieve or the symbol `all'. nil means to retrieve none. The symbol
+`all' means to enumerate all properties. The order or duplication of
+properties in the list does not affect the value returned.
 
 DST-NS-NAME-PREFIX-ALIST is the destination for name declarations
 encountered during XML parsing. If non-nil, it is treated as a non-empty
 list, and the list of (<namespace name> . <namespace prefix>) is
 concatenated to the end of it."
-  (let ((storage-location (xmp-file-property-storage-location target-file)))
-    ;; TODO: Do not write files
-    (when (stringp storage-location)
-      (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
+  (when prop-ename-list ;; nil means to get nothing
+    (let ((storage-location (xmp-file-property-storage-location target-file)))
+      ;; TODO: Do not write files
+      (when (stringp storage-location)
+        (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
 
-    (let ((sources (nconc (unless (equal storage-location target-file)
-                            (list storage-location)) ;; db or sidecar-file
-                          (list target-file)))
-          result)
-      (if prop-ename-list
-          ;; Enumerate specified properties
+      (let ((sources (nconc (unless (equal storage-location target-file)
+                              (list storage-location)) ;; db or sidecar-file
+                            (list target-file)))
+            result)
+        (cond
+         ;; Get specified properties
+         ((listp prop-ename-list)
           (let ((unloaded-prop-ename-list prop-ename-list))
             (while (and unloaded-prop-ename-list sources)
               (let* ((source (pop sources))
-                     (props (xmp-enumerate-file-properties--internal
+                     (props (xmp-get-file-properties--internal
                              source target-file unloaded-prop-ename-list
                              dst-ns-name-prefix-alist)))
                 ;; Remove loaded property names from UNLOADED-PROP-ENAME-LIST
@@ -2810,15 +2830,30 @@ concatenated to the end of it."
                                     (xmp-xml-ename-assoc prop-ename props))
                                   unloaded-prop-ename-list))
                 ;; Merge
-                (setq result (nconc result props)))))
-        ;; Enumerate all properties
-        (while sources
-          (let* ((source (pop sources))
-                 (file-props (xmp-enumerate-file-properties--internal
-                              source target-file nil
-                              dst-ns-name-prefix-alist)))
-            (setq result (xmp-xml-ename-alist-merge result file-props)))))
-      result)))
+                (setq result (nconc result props))))))
+         ;; Enumerate all properties
+         ((eq prop-ename-list 'all)
+          (while sources
+            (let* ((source (pop sources))
+                   (file-props (xmp-get-file-properties--internal
+                                source target-file 'all
+                                dst-ns-name-prefix-alist)))
+              (setq result (xmp-xml-ename-alist-merge result file-props)))))
+         (t
+          (error "Invalid prop-ename-list `%s'" prop-ename-list)))
+        result))))
+
+(defun xmp-enumerate-file-properties (target-file
+                                      &optional
+                                      prop-ename-list
+                                      dst-ns-name-prefix-alist)
+  "Get the XMP properties of TARGET-FILE.
+
+Same as `xmp-get-file-properties', but PROP-ENAME-LIST is optional and
+nil means to get all properties."
+  (xmp-get-file-properties target-file
+                           (or prop-ename-list 'all)
+                           dst-ns-name-prefix-alist))
 
 (defun xmp-get-file-property (target-file prop-ename)
   "Get the XMP property PROP-ENAME of TARGET-FILE.
@@ -2827,7 +2862,7 @@ Note that this does not mean reading from TARGET-FILE. Get the metadata
 describing TARGET-FILE from the appropriate location."
   (xmp-xml-ename-alist-get ;; TODO: Optimize for retrieving one property
    prop-ename
-   (xmp-enumerate-file-properties target-file (list prop-ename))))
+   (xmp-get-file-properties target-file (list prop-ename))))
 
 
 (provide 'xmp)

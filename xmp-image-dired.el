@@ -50,14 +50,14 @@
     ;; However, it must be updated when the metadata changes.
     ;; (unless (get-text-property (point) 'xmp-properties)
     ;;   (let* ((file (get-text-property (point) 'original-file-name))
-    ;;          (props (xmp-enumerate-file-properties
+    ;;          (props (xmp-get-file-properties
     ;;                  file (xmp-image-dired-metadata-properties))))
     ;;     (put-text-property (point) (1+ (point)) 'xmp-properties props)))
     ;; (get-text-property (point) 'xmp-properties)
 
     ;; It's simpler to retrieve it every time, and since caching works
     ;; it shouldn't be that slow.
-    (xmp-enumerate-file-properties
+    (xmp-get-file-properties
      (get-text-property (point) 'original-file-name)
      (xmp-image-dired-metadata-properties))))
 

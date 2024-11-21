@@ -618,7 +618,9 @@ object."
     (xmp-sqlite-db-auto-close-set-timer)))
 
 (defun xmp-sqlite-db-auto-close-on-close-db ()
-  (xmp-sqlite-db-auto-close-cancel-timer))
+  (unless (or (xmp-sqlite-cache-odb-open-p)
+              (xmp-sqlite-mod-odb-open-p))
+    (xmp-sqlite-db-auto-close-cancel-timer)))
 
 
 
@@ -644,6 +646,9 @@ object."
       xmp-sqlite-cache-odb
     (setq xmp-sqlite-cache-odb (xmp-sqlite-odb-open xmp-sqlite-cache-db-file))))
 ;; EXAMPLE: (xmp-sqlite-cache-odb)
+
+(defun xmp-sqlite-cache-odb-open-p ()
+  (not (null xmp-sqlite-cache-odb)))
 
 (defun xmp-sqlite-cache-odb-close ()
   (interactive)
@@ -757,6 +762,9 @@ you have made to the metadata to be lost."
       xmp-sqlite-mod-odb
     (setq xmp-sqlite-mod-odb (xmp-sqlite-odb-open xmp-sqlite-mod-db-file))))
 ;; EXAMPLE: (xmp-sqlite-mod-odb)
+
+(defun xmp-sqlite-mod-odb-open-p ()
+  (not (null xmp-sqlite-mod-odb)))
 
 (defun xmp-sqlite-mod-odb-close ()
   (interactive)

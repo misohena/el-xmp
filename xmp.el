@@ -2482,7 +2482,7 @@ FILE-ENTRY."
   (remhash (file-name-nondirectory file)
            (xmp-file-cache-dir-entry-files-hash dir-entry)))
 (defun xmp-file-cache-dir-entry-empty-p (dir-entry)
-  (hash-table-count (xmp-file-cache-dir-entry-files-hash dir-entry)))
+  (= (hash-table-count (xmp-file-cache-dir-entry-files-hash dir-entry)) 0))
 
 ;; Directory Table (In-memory cache)
 

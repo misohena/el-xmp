@@ -2125,6 +2125,15 @@ This function calls `xmp-file-get-properties' with a single-element list."
 
 ;;;; File Cache
 
+(autoload 'xmp-sqlite-cache-db-make-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-get-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-file-entries-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-dir-entries "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-clear "xmp-sqlite")
+
 ;;;;; Cache Target Properties
 
 (defvar xmp-file-cache-target-prop-ename-list nil
@@ -2245,11 +2254,67 @@ DST-NS-NAME-PREFIX-ALIST."
   (and xmp-sqlite-available-p
        xmp-file-cache-sqlite-enabled))
 
-;;;;; Get/Set Cache
+;;;;; Cache Maintenance
 
-(autoload 'xmp-sqlite-cache-get-file-entry "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-remove-file-entry "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-make-file-entry "xmp-sqlite")
+(defun xmp-clear-file-cache ()
+  "Clear all file metadata caches."
+  (interactive
+   (unless (yes-or-no-p
+            (xmp-msg "Do you want to clear all file metadata caches?"))
+     (error "Abort"))
+   nil)
+  (xmp-file-cache-memory-clear)
+  (xmp-sqlite-cache-db-clear))
+
+(defun xmp-clear-file-cache-in-dir (dir)
+  "Clear file metadata caches in DIR."
+  (interactive "D")
+  (setq dir (expand-file-name dir))
+  (message
+   (xmp-msg "Number of cache entries deleted:\nIn-memory: %d\nIn DB: %d")
+   (xmp-file-cache-memory-remove-dir-entry dir)
+   (xmp-sqlite-cache-db-remove-file-entries-in-dir dir)))
+
+(defun xmp-clear-file-cache-under-dir (dir)
+  "Clear file metadata caches under DIR."
+  (interactive "D")
+  (setq dir (expand-file-name dir))
+  (message
+   (xmp-msg "Number of cache entries deleted:\nIn-memory: %d\nIn DB: %d")
+   (xmp-file-cache-memory-remove-dir-entries-if
+    (lambda (entry-dir) (string-prefix-p dir entry-dir)))
+   (xmp-sqlite-cache-db-remove-dir-entries
+    (lambda (entry-dir) (string-prefix-p dir entry-dir)))))
+
+(defun xmp-clear-invalid-file-cache ()
+  "Clear invalid file metadata caches."
+  (interactive)
+  (message
+   (xmp-msg "Number of cache entries deleted:\nIn-memory: %d\nIn DB: %d")
+   (xmp-file-cache-memory-remove-invalid-file-entries)
+   (xmp-sqlite-cache-db-remove-invalid-file-entries)))
+
+(defun xmp-clear-invalid-file-cache-in-dir (dir)
+  "Clear invalid file metadata caches in DIR."
+  (interactive "D")
+  (setq dir (expand-file-name dir))
+  (message
+   (xmp-msg "Number of cache entries deleted:\nIn-memory: %d\nIn DB: %d")
+   (xmp-file-cache-memory-remove-invalid-file-entries-in-dir dir)
+   (xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir dir)))
+
+(defun xmp-clear-invalid-file-cache-under-dir (dir)
+  "Clear invalid file metadata caches under DIR."
+  (interactive "D")
+  (setq dir (expand-file-name dir))
+  (message
+   (xmp-msg "Number of cache entries deleted:\nIn-memory: %d\nIn DB: %d")
+   (xmp-file-cache-memory-remove-invalid-file-entries
+    (lambda (entry-dir) (string-prefix-p dir entry-dir)))
+   (xmp-sqlite-cache-db-remove-invalid-file-entries
+    (lambda (entry-dir) (string-prefix-p dir entry-dir)))))
+
+;;;;; Get/Set Cache
 
 (defun xmp-file-cache-get-properties (file
                                       prop-ename-list
@@ -2278,7 +2343,7 @@ PROP-ENAME-LIST exist in the file, return nil."
                  (file-entry (if from-mem
                                  (xmp-file-cache-memory-get-file-entry file)
                                (when (xmp-file-cache-sqlite-enabled-p)
-                                 (xmp-sqlite-cache-get-file-entry file)))))
+                                 (xmp-sqlite-cache-db-get-file-entry file)))))
             (cond
              ;; No cache => Do nothing and next source
              ((null file-entry))
@@ -2289,7 +2354,7 @@ PROP-ENAME-LIST exist in the file, return nil."
               (when from-mem
                 (xmp-file-cache-memory-remove-file-entry file))
               (when (xmp-file-cache-sqlite-enabled-p)
-                (xmp-sqlite-cache-remove-file-entry file))
+                (xmp-sqlite-cache-db-remove-file-entry file))
               (setq result 'no-cache))
              ;; Valid cache (Use FILE-ENTRY)
              (t
@@ -2331,7 +2396,7 @@ If an error or other irregularity occurs, return without doing anything."
                                                  target-prop-ename-list)
           ;; Database cache
           (when (xmp-file-cache-sqlite-enabled-p)
-            (xmp-sqlite-cache-make-file-entry file file-attrs properties
+            (xmp-sqlite-cache-db-make-file-entry file file-attrs properties
                                               target-prop-ename-list)))))))
 
 (defun xmp-file-cache-collect-target-property-values (dom
@@ -2366,7 +2431,7 @@ Signal an error if an error occurs while parsing the element."
 ;; - Directory Entry
 ;; - Directory Entry Table (`xmp-file-cache-dirs')
 
-;; File Entry
+;;;;;; File Entry
 
 (defun xmp-file-cache-file-entry-make (filename modtime properties
                                                 target-prop-ename-list)
@@ -2396,14 +2461,21 @@ FILE-ENTRY targets for caching."
 (defsubst xmp-file-cache-file-entry-full-path (file-entry dir)
   (file-name-concat dir (xmp-file-cache-file-entry-file-name file-entry)))
 
-(defconst xmp-file-cache-file-entry-time-tolerance 1e-6) ;; 1 microsecond
+(defconst xmp-file-cache-time-tolerance 1e-6) ;; 1 microsecond
+
+(defun xmp-file-cache-time-equal-p (time1 time2)
+  ;; Since (xmp-file-cache-file-entry-modtime file-entry) may be a
+  ;; float (when using DB cache), always calculate as floats.
+  (< (abs (- (float-time time1)
+             (float-time time2)))
+     xmp-file-cache-time-tolerance))
 
 (defun xmp-file-cache-file-entry-modtime-equal-p (file-entry modtime)
   ;; Since (xmp-file-cache-file-entry-modtime file-entry) may be a
   ;; float (when using DB cache), always calculate as floats.
-  (< (abs (- (float-time (xmp-file-cache-file-entry-modtime file-entry))
-             (float-time modtime)))
-     xmp-file-cache-file-entry-time-tolerance))
+  (xmp-file-cache-time-equal-p
+   (xmp-file-cache-file-entry-modtime file-entry)
+   modtime))
 
 (defun xmp-file-cache-file-entry-valid-p (file-entry file-attrs prop-ename-list)
   "Return non-nil if FILE-ENTRY is valid."
@@ -2417,6 +2489,13 @@ FILE-ENTRY targets for caching."
        ;; file was cached.
        (xmp-file-cache-file-entry-targets-all-props-p file-entry
                                                       prop-ename-list)))
+
+(defun xmp-file-cache-file-entry-invalid-p (file-entry dir)
+  (not
+   (xmp-file-cache-file-entry-valid-p
+    file-entry
+    (file-attributes (xmp-file-cache-file-entry-full-path file-entry dir))
+    nil)))
 
 (defun xmp-file-cache-file-entry-targets-all-props-p (file-entry
                                                       prop-ename-list)
@@ -2442,7 +2521,7 @@ FILE-ENTRY."
              ;; TODO: No copying needed if DB is used.
              collect (copy-tree ename-pvalue))))
 
-;; Dir Entry
+;;;;;; Dir Entry
 
 ;; ;; Alist Version
 ;; (defun xmp-file-cache-dir-entry-make (dir)
@@ -2469,6 +2548,8 @@ FILE-ENTRY."
 ;; Hash Table Version
 (defun xmp-file-cache-dir-entry-make (dir)
   (cons dir (make-hash-table :test 'equal)))
+(defmacro xmp-file-cache-dir-entry-directory (dir-entry)
+  `(car ,dir-entry))
 (defmacro xmp-file-cache-dir-entry-files-hash (dir-entry)
   `(cdr ,dir-entry))
 (defun xmp-file-cache-dir-entry-set-file-entry (dir-entry file-entry)
@@ -2483,20 +2564,38 @@ FILE-ENTRY."
            (xmp-file-cache-dir-entry-files-hash dir-entry)))
 (defun xmp-file-cache-dir-entry-empty-p (dir-entry)
   (= (hash-table-count (xmp-file-cache-dir-entry-files-hash dir-entry)) 0))
+(defun xmp-file-cache-dir-entry-file-count (dir-entry)
+  (hash-table-count (xmp-file-cache-dir-entry-files-hash dir-entry)))
 
-;; Directory Table (In-memory cache)
+(defun xmp-file-cache-dir-entry-remove-file-entries-if (dir-entry pred)
+  (let ((dir (xmp-file-cache-dir-entry-directory dir-entry))
+        (hashtable (xmp-file-cache-dir-entry-files-hash dir-entry))
+        (num-removed 0))
+    (maphash (lambda (file-name file-entry)
+               (when (funcall pred file-entry dir)
+                 (remhash file-name hashtable)
+                 ;; (message "Remove In-memory cache  %s" file-name)
+                 (cl-incf num-removed)))
+             hashtable)
+    num-removed))
+
+(defun xmp-file-cache-dir-entry-remove-invalid-file-entries (dir-entry)
+  (xmp-file-cache-dir-entry-remove-file-entries-if
+   dir-entry
+   #'xmp-file-cache-file-entry-invalid-p))
+
+;;;;;; Directory Table (In-memory cache)
 
 (defvar xmp-file-cache-memory-dirs nil)
 
-(defun xmp-file-cache-memory-clear ()
-  "Clear the in-memory cache."
-  (interactive)
-  (setq xmp-file-cache-memory-dirs nil))
+;; Get
 
 (defun xmp-file-cache-memory-get-dir-entry (dir)
+  (setq dir (expand-file-name dir))
   (assoc dir xmp-file-cache-memory-dirs #'string=))
 
 (defun xmp-file-cache-memory-get-dir-entry-create (dir)
+  (setq dir (expand-file-name dir))
   (or (assoc dir xmp-file-cache-memory-dirs #'string=)
       (car (push (xmp-file-cache-dir-entry-make dir)
                  xmp-file-cache-memory-dirs))))
@@ -2512,6 +2611,8 @@ FILE-ENTRY."
     (file-name-directory (expand-file-name file)))
    file-entry))
 
+;; Set
+
 (defun xmp-file-cache-memory-make-file-entry (file file-attrs properties
                                                    target-prop-ename-list)
   (xmp-file-cache-memory-set-file-entry
@@ -2525,14 +2626,92 @@ FILE-ENTRY."
 (defun xmp-file-cache-memory-make-file-entry-from-db (file db-file-entry)
   (xmp-file-cache-memory-set-file-entry file db-file-entry))
 
+;; Remove
+
+(defun xmp-file-cache-memory-clear ()
+  "Clear the in-memory cache."
+  (interactive)
+  (setq xmp-file-cache-memory-dirs nil))
+
+(defun xmp-file-cache-memory-remove-dir-entry (dir)
+  (setq dir (expand-file-name dir))
+  (if-let ((dir-entry (xmp-file-cache-memory-get-dir-entry dir)))
+      (progn
+        (setq xmp-file-cache-memory-dirs
+              (delq dir-entry xmp-file-cache-memory-dirs))
+        ;; Return the number of removed files
+        (xmp-file-cache-dir-entry-file-count dir-entry))
+    0))
+
+(defun xmp-file-cache-memory-remove-dir-entry-if-empty (dir-entry)
+  (when (xmp-file-cache-dir-entry-empty-p dir-entry)
+    (setq xmp-file-cache-memory-dirs
+          (delq dir-entry xmp-file-cache-memory-dirs))))
+
+(defun xmp-file-cache-memory-remove-dir-entries-if (pred)
+  (let ((num-removed 0)
+        (prev-cell nil)
+        (curr-cell xmp-file-cache-memory-dirs))
+    (while curr-cell
+      (let* ((dir-entry (car curr-cell))
+             (dir-path (xmp-file-cache-dir-entry-directory dir-entry)))
+        (when (funcall pred dir-path)
+          ;; Count
+          (cl-incf num-removed (xmp-file-cache-dir-entry-file-count dir-entry))
+          ;; Remove dir-entry
+          (if prev-cell
+              (setcdr prev-cell (cdr curr-cell))
+            (setq xmp-file-cache-memory-dirs (cdr curr-cell)))))
+      ;; Next dir entry
+      (setq prev-cell curr-cell
+            curr-cell (cdr curr-cell)))
+    num-removed))
+
 (defun xmp-file-cache-memory-remove-file-entry (file)
   (let* ((dir (file-name-directory (expand-file-name file)))
          (dir-entry (assoc dir xmp-file-cache-memory-dirs #'string=)))
     (when dir-entry
       (xmp-file-cache-dir-entry-remove-file-entry dir-entry file)
-      (when (xmp-file-cache-dir-entry-empty-p dir-entry)
-        (setq xmp-file-cache-memory-dirs
-              (delq dir-entry xmp-file-cache-memory-dirs))))))
+      (xmp-file-cache-memory-remove-dir-entry-if-empty dir-entry))))
+
+(defun xmp-file-cache-memory-remove-file-entries-if (dir-pred file-pred)
+  (let ((num-removed 0)
+        (prev-cell nil)
+        (curr-cell xmp-file-cache-memory-dirs))
+    (while curr-cell
+      (let ((dir-entry (car curr-cell)))
+        (when (or (null dir-pred)
+                  (funcall dir-pred
+                           (xmp-file-cache-dir-entry-directory dir-entry)))
+          ;; Remove invalid file entries
+          (cl-incf
+           num-removed
+           (xmp-file-cache-dir-entry-remove-file-entries-if dir-entry
+                                                            file-pred))
+          ;; Remove dir-entry if empty
+          (when (xmp-file-cache-dir-entry-empty-p dir-entry)
+            (if prev-cell
+                (setcdr prev-cell (cdr curr-cell))
+              (setq xmp-file-cache-memory-dirs (cdr curr-cell))))))
+      ;; Next dir entry
+      (setq prev-cell curr-cell
+            curr-cell (cdr curr-cell)))
+    num-removed))
+
+(defun xmp-file-cache-memory-remove-invalid-file-entries (&optional dir-pred)
+  (xmp-file-cache-memory-remove-file-entries-if
+   dir-pred
+   #'xmp-file-cache-file-entry-invalid-p))
+
+(defun xmp-file-cache-memory-remove-invalid-file-entries-in-dir (dir)
+  (let ((num-removed 0))
+    (when-let ((dir-entry (xmp-file-cache-memory-get-dir-entry dir)))
+      (cl-incf
+       num-removed
+       (xmp-file-cache-dir-entry-remove-invalid-file-entries dir-entry))
+      (xmp-file-cache-memory-remove-dir-entry-if-empty dir-entry))
+    num-removed))
+
 
 ;;;; Sidecar Files
 

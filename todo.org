@@ -649,3 +649,14 @@ CLOSED: [2024-11-20 Wed 15:51]
 全部のプロパティを取得するには、prop-ename-listにnilではなく'allを指定する。
 あちこちで使われている関数なので地味に大変。
 一応xmp-file-enumerate-propertiesとxmp-enumerate-file-propertiesだけ残しておく。
+** DONE DB/キャッシュを削除するコマンドを追加する。
+CLOSED: [2024-11-21 Thu 22:51]
+
+- clear
+  - [X] [[elisp-function:xmp-clear-file-cache]]
+  - [X] [[elisp-function:xmp-clear-file-cache-in-dir]] DIR
+  - [X] [[elisp-function:xmp-clear-file-cache-under-dir]] DIR
+- clear-invalid
+  - [X] [[elisp-function:xmp-clear-invalid-file-cache]]
+  - [X] [[elisp-function:xmp-clear-invalid-file-cache-in-dir]] DIR
+  - [X] [[elisp-function:xmp-clear-invalid-file-cache-under-dir]] DIR

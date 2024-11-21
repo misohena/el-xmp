@@ -393,6 +393,17 @@ returned."
     (list (xmp-sqlite-odb-get-property-id odb prop-ename) value))))
 ;; EXAMPLE: (xmp-sqlite-odb-count-objects-by-property-value (xmp-sqlite-cache-odb) xmp-sqlite-elxmp:ObjectType "Directory")
 
+(defun xmp-sqlite-odb-get-objects-by-type (odb object-type)
+  (mapcan
+   #'identity ;; unwrap ((x) (y) (z)) => (x y z)
+   (sqlite-select
+    (xmp-sqlite-odb-db odb)
+    "select object_id from object_property_values
+     where property_id=? and value=?"
+    (list (xmp-sqlite-odb-get-property-id odb xmp-sqlite-elxmp:ObjectType)
+          object-type))))
+;; EXAMPLE: (xmp-sqlite-odb-get-objects-by-type (xmp-sqlite-cache-odb) "Directory")
+
 (defun xmp-sqlite-odb-delete-object (odb object-id)
   "Delete the object specified by OBJECT-ID."
   (sqlite-execute
@@ -543,6 +554,9 @@ object."
 
 ;;;; Directory Object
 
+(defun xmp-sqlite-get-all-directory-ids (odb)
+  (xmp-sqlite-odb-get-objects-by-type odb "Directory"))
+
 (defun xmp-sqlite-get-dir-object-or-create (odb dir)
   ;; Ensure that DIR is `/' terminated and an absolute path.
   (setq dir (file-name-as-directory (expand-file-name dir)))
@@ -563,8 +577,14 @@ object."
                                                xmp-sqlite-elxmp:FilePath
                                                dir))
 
-(defun xmp-sqlite-get-directory-file-ids (odb dir)
-  (when-let ((dir-id (xmp-sqlite-get-directory-id odb dir)))
+(defun xmp-sqlite-get-directory-file-ids (odb dir-path-or-id)
+  (when-let ((dir-id (cond
+                      ((integerp dir-path-or-id)
+                       dir-path-or-id)
+                      ((stringp dir-path-or-id)
+                       (xmp-sqlite-get-directory-id odb dir-path-or-id))
+                      (t (signal 'wrong-type-argument
+                                 (list 'stringp dir-path-or-id))))))
     (xmp-sqlite-odb-get-objects-by-property-value
      odb
      xmp-sqlite-elxmp:FileParent
@@ -573,8 +593,24 @@ object."
 (defun xmp-sqlite-get-directory-file-paths (odb dir)
   ;; TODO: Optimize. Write in one SQL.
   (cl-loop for file-id in (xmp-sqlite-get-directory-file-ids odb dir)
-           collect (xmp-sqlite-odb-get-object-property
-                    odb file-id xmp-sqlite-elxmp:FilePath)))
+           collect (xmp-sqlite-get-file-path odb file-id)))
+
+;;;; File Object
+
+(defun xmp-sqlite-get-file-path (odb file-id)
+  (xmp-sqlite-odb-get-object-property odb file-id xmp-sqlite-elxmp:FilePath))
+
+(defun xmp-sqlite-valid-file-p (odb file-id)
+  (let* ((path (xmp-sqlite-get-file-path odb file-id))
+         (modtime (xmp-sqlite-odb-get-object-property
+                   odb
+                   file-id
+                   xmp-sqlite-elxmp:FileModifyTime))
+         (attrs (file-attributes path)))
+    (and attrs
+         (xmp-file-cache-time-equal-p
+          (file-attribute-modification-time attrs)
+          modtime))))
 
 ;;;; Automatic Closing
 
@@ -630,7 +666,7 @@ object."
 ;; - `xmp-file-cache-get-properties'
 ;; - `xmp-file-cache-make-entry'
 
-;; Cache DB - Open / Close
+;;;;; Cache DB - Open / Close
 
 (defcustom xmp-sqlite-cache-db-file
   (expand-file-name "el-xmp/el-xmp-file-cache.db" user-emacs-directory)
@@ -658,15 +694,75 @@ object."
       (xmp-sqlite-db-auto-close-on-close-db))))
 ;; EXAMPLE: (xmp-sqlite-cache-odb-close)
 
+;;;;; Cache DB - Maintenance
+
 (defun xmp-sqlite-cache-db-statistics ()
   (interactive)
   (xmp-sqlite-odb-show-statistics (xmp-sqlite-cache-odb)
                                   xmp-sqlite-cache-db-file))
 
-;; Cache DB - Access file entries
+(defun xmp-sqlite-cache-db-clear ()
+  (xmp-sqlite-cache-odb-close)
+  (delete-file xmp-sqlite-cache-db-file))
 
-(defun xmp-sqlite-cache-make-file-entry (file file-attrs properties
-                                              target-prop-ename-list)
+(defun xmp-sqlite-cache-db-remove-dir-entries (dir-pred)
+  (let ((odb (xmp-sqlite-cache-odb))
+        (num-removed 0))
+    (dolist (dir-id (xmp-sqlite-get-all-directory-ids odb))
+      (when (funcall dir-pred (xmp-sqlite-get-file-path odb dir-id))
+        (cl-incf
+         num-removed
+         (xmp-sqlite-cache-db-remove-file-entries-in-dir dir-id))))
+    num-removed))
+
+(defun xmp-sqlite-cache-db-remove-invalid-file-entries (&optional dir-pred)
+  (let ((odb (xmp-sqlite-cache-odb))
+        (num-removed 0))
+    (dolist (dir-id (xmp-sqlite-get-all-directory-ids odb))
+      (when (or (null dir-pred)
+                (funcall dir-pred (xmp-sqlite-get-file-path odb dir-id)))
+        (cl-incf
+         num-removed
+         (xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir dir-id))))
+    num-removed))
+
+(defun xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir (dir-path-or-id)
+  (xmp-sqlite-cache-db-remove-file-entries-in-dir
+   dir-path-or-id
+   (lambda (file-id)
+     (not (xmp-sqlite-valid-file-p (xmp-sqlite-cache-odb) file-id)))))
+
+(defun xmp-sqlite-cache-db-remove-file-entries-in-dir (dir-path-or-id
+                                                       &optional file-pred)
+  (let ((odb (xmp-sqlite-cache-odb))
+        (num-removed 0))
+    (when-let ((dir-id (cond
+                        ((integerp dir-path-or-id)
+                         dir-path-or-id)
+                        ((stringp dir-path-or-id)
+                         (xmp-sqlite-get-directory-id odb dir-path-or-id))
+                        (t
+                         (signal 'wrong-type-argument
+                                 (list 'stringp dir-path-or-id))))))
+      (let ((dir-has-valid-files nil))
+        (dolist (file-id (xmp-sqlite-get-directory-file-ids odb dir-id))
+          (if (or (null file-pred)
+                  (funcall file-pred file-id))
+              ;; Remove
+              (progn
+                ;;(message "Remove DB cache %s" (xmp-sqlite-get-file-path odb file-id))
+                (xmp-sqlite-odb-delete-object odb file-id)
+                (cl-incf num-removed))
+            ;; Keep
+            (setq dir-has-valid-files t)))
+        (unless dir-has-valid-files
+          (xmp-sqlite-odb-delete-object odb dir-id))))
+    num-removed))
+
+;;;;; Cache DB - Access file entries
+
+(defun xmp-sqlite-cache-db-make-file-entry (file file-attrs properties
+                                                 target-prop-ename-list)
   (setq file (expand-file-name file))
   (let* ((object-id (xmp-sqlite-odb-get-object-by-property-value
                      (xmp-sqlite-cache-odb)
@@ -702,7 +798,7 @@ object."
        (xmp-sqlite-cache-odb)
        db-properties))))
 
-(defun xmp-sqlite-cache-get-file-entry (file)
+(defun xmp-sqlite-cache-db-get-file-entry (file)
   (setq file (expand-file-name file))
   (let* ((odb (xmp-sqlite-cache-odb))
          (object-id (xmp-sqlite-odb-get-object-by-property-value
@@ -729,7 +825,7 @@ object."
                                         properties
                                         target-prop-ename-list)))))
 
-(defun xmp-sqlite-cache-remove-file-entry (file)
+(defun xmp-sqlite-cache-db-remove-file-entry (file)
   (setq file (expand-file-name file))
   (let* ((odb (xmp-sqlite-cache-odb))
          (object-id (xmp-sqlite-odb-get-object-by-property-value
@@ -889,6 +985,16 @@ you have made to the metadata to be lost."
                      odb xmp-sqlite-elxmp:FilePath target-file)))
     (when object-id
       (xmp-sqlite-odb-delete-object odb object-id))))
+
+;;;;; Stray File Entries
+
+(defun xmp-sqlite-mod-db-get-stray-file-paths-in-directory (dir)
+  (cl-loop for file in (xmp-sqlite-get-directory-file-paths
+                        (xmp-sqlite-mod-odb) dir)
+           when (and (not (directory-name-p file)) ;; Ignore
+                     (not (file-exists-p file)))
+           collect file))
+
 
 (provide 'xmp-sqlite)
 ;;; xmp-sqlite.el ends here

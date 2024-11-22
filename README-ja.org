@@ -120,38 +120,40 @@ xmp-setup.elはel-xmpの設定例を提供するファイルです。init.elに�
 
 diredやimage-diredにXMPプロパティを操作するためのキーを割り当てます。
 
-| キー  | 機能                |
-|-------+---------------------|
-| ' s r | Set rating          |
-| ' s l | Set label           |
-| ' s s | Set subjects        |
-| ' a s | Add subjects        |
-| ' r s | Remove subjects     |
-| ' s t | Set title           |
-| ' s d | Set description     |
-| ' s c | Set creators        |
-|-------+---------------------|
-| ' e p | Edit properties     |
-| ' e a | Edit all properties |
-|-------+---------------------|
-| ' g r | Get rating          |
-| ' g l | Get label           |
-| ' g s | Get subjects        |
-| ' g t | Get title           |
-| ' g d | Get description     |
-| ' g c | Get creators        |
-|-------+---------------------|
-| ' g p | Get properties      |
-| ' g a | Get all properties  |
-|-------+---------------------|
-| ' m r | Mark by rating  |
-| ' m l | Mark by label       |
-| ' m s | Mark by subjects    |
-|-------+---------------------|
-| ' f r | Filter by rating |
-| ' f l | Filter by label     |
-| ' f s | Filter by subjects  |
-| ' f - | Clear filter        |
+| キー  | 機能                     |
+|-------+--------------------------|
+| ' s r | Set rating               |
+| ' s l | Set label                |
+| ' s s | Set subjects             |
+| ' a s | Add subjects             |
+| ' r s | Remove subjects          |
+| ' s t | Set title                |
+| ' s d | Set description          |
+| ' s c | Set creators             |
+|-------+--------------------------|
+| ' e p | Edit properties          |
+| ' e a | Edit all properties      |
+|-------+--------------------------|
+| ' g r | Get rating               |
+| ' g l | Get label                |
+| ' g s | Get subjects             |
+| ' g t | Get title                |
+| ' g d | Get description          |
+| ' g c | Get creators             |
+|-------+--------------------------|
+| ' g p | Get properties           |
+| ' g a | Get all properties       |
+|-------+--------------------------|
+| ' m r | Mark by rating           |
+| ' m l | Mark by label            |
+| ' m s | Mark by subjects         |
+|-------+--------------------------|
+| ' f r | Filter by rating         |
+| ' f l | Filter by label          |
+| ' f s | Filter by subjects       |
+| ' f - | Clear filter             |
+|-------+--------------------------|
+| ' l m | List managed file status |
 
 これを使わずにHydraやTransient等を使用して自分でより使いやすいユーザーインタフェースを構築するのも良いでしょう。
 

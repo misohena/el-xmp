@@ -2133,6 +2133,7 @@ This function calls `xmp-file-get-properties' with a single-element list."
 (autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir "xmp-sqlite")
 (autoload 'xmp-sqlite-cache-db-remove-dir-entries "xmp-sqlite")
 (autoload 'xmp-sqlite-cache-db-clear "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-get-files-in-dir "xmp-sqlite")
 
 ;;;;; Cache Target Properties
 
@@ -2584,6 +2585,14 @@ FILE-ENTRY."
    dir-entry
    #'xmp-file-cache-file-entry-invalid-p))
 
+(defun xmp-file-cache-dir-entry-get-files (dir-entry)
+  (let ((dir (xmp-file-cache-dir-entry-directory dir-entry))
+        result)
+    (maphash (lambda (file-name _file-entry)
+               (push (file-name-concat dir file-name) result))
+             (xmp-file-cache-dir-entry-files-hash dir-entry))
+    (nreverse result)))
+
 ;;;;;; Directory Table (In-memory cache)
 
 (defvar xmp-file-cache-memory-dirs nil)
@@ -2712,6 +2721,12 @@ FILE-ENTRY."
       (xmp-file-cache-memory-remove-dir-entry-if-empty dir-entry))
     num-removed))
 
+;; List
+
+(defun xmp-file-cache-memory-get-files-in-dir (dir)
+  (when-let ((dir-entry (xmp-file-cache-memory-get-dir-entry dir)))
+    (xmp-file-cache-dir-entry-get-files dir-entry)))
+
 
 ;;;; Sidecar Files
 
@@ -2743,8 +2758,39 @@ If there is an existing file that can be recognized as a sidecar file,
 return the file name. If not, return the default sidecar file name."
   (car (xmp-sidecar-file-name-and-exists-p target-file)))
 
+(defun xmp-sidecar-file-target (sidecar-file)
+  ;; TODO: Customize sidecar file name rules
+  ;; TODO: Search foo.xmp => foo.jpg or etc.
+  (file-name-sans-extension sidecar-file))
 
-;;;; Metadata Describing Files
+(defun xmp-sidecar-files-in-dir (dir)
+  (seq-filter (lambda (file)
+                (and (xmp-sidecar-file-p file)
+                     ;; Exclude directory with .xmp
+                     (file-regular-p file)))
+              (directory-files dir t)))
+
+(defun xmp-sidecar-file-targets-in-dir (dir)
+  (mapcar #'xmp-sidecar-file-target
+          (xmp-sidecar-files-in-dir dir)))
+
+;;;; Non-embedded File Metadata
+
+;; There are two types of non-embedded file metadata:
+;;
+;; - Sidecar files
+;; - DB file entries
+;;
+;; Both add new metadata (XMP properties) to target files without
+;; modifying them.
+;;
+;; File metadata is set using `xmp-set-file-properties' and retrieved
+;; using `xmp-get-file-properties'. These functions do not read or
+;; write metadata directly to the specified files. Instead, they read
+;; and write metadata to pre-configured storage locations (as
+;; specified by `xmp-file-property-storage-type').
+
+;;;;; Storage Location
 
 (defcustom xmp-file-property-storage-type
   'sidecar-or-db
@@ -2872,6 +2918,7 @@ sidecar file, return the file name as a string."
 (autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-files-in-dir "xmp-sqlite")
 
 (defun xmp-file-merge-db-entry-into-sidecar-file (target-file sidecar-file)
   (when xmp-sqlite-available-p
@@ -2891,7 +2938,7 @@ sidecar file, return the file name as a string."
       (xmp-sqlite-mod-db-remove-file-properties-all target-file)
       )))
 
-;; Property Change Hook
+;;;;; Property Change Hook
 
 (defvar xmp-file-property-change-hook nil
   "Hook called when a file's XMP metadata properties change.
@@ -2914,7 +2961,7 @@ following function:
                       target-file
                       prop-ename-alist))
 
-;; Write
+;;;;; Write Properties
 
 (defun xmp-set-file-properties (target-file prop-ename-value-alist)
   "Set the XMP properties for TARGET-FILE.
@@ -2950,7 +2997,7 @@ describing TARGET-FILE to the appropriate location."
   value)
 
 
-;; Read
+;;;;; Read Properties
 
 (defun xmp-get-file-properties--internal (source
                                           target-file
@@ -3043,6 +3090,63 @@ describing TARGET-FILE from the appropriate location."
    prop-ename
    (xmp-get-file-properties target-file (list prop-ename))))
 
+;;;;; List Files
+
+(defun xmp-get-managed-file-alist-in-dir (dir)
+  "Return a list of metadata target files in DIR and their status."
+  (let (file-alist)
+    ;; Collect
+    (cl-loop
+     for (fun . key) in '((xmp-sidecar-file-targets-in-dir . :sidecar)
+                          (xmp-sqlite-mod-db-get-files-in-dir . :mod-db)
+                          (xmp-sqlite-cache-db-get-files-in-dir . :cache-db)
+                          (xmp-file-cache-memory-get-files-in-dir . :cache-mem))
+     do
+     (dolist (file (funcall fun dir))
+       (setf (plist-get (alist-get file file-alist nil nil #'string=) key) t)))
+    ;; Sort
+    (setq file-alist (sort file-alist :key #'car :lessp #'string<))
+    ;; Check for stray status
+    (cl-loop for file-info in file-alist
+             unless (file-exists-p (car file-info))
+             do (setf (plist-get (cdr file-info) :stray) t))
+    file-alist))
+
+(defun xmp-list-managed-files-in-dir (dir)
+  "Display a list of metadata target files in DIR and their status."
+  (interactive
+   (list (if current-prefix-arg
+             (read-directory-name "Directory: " nil nil t)
+           default-directory)))
+  (if-let ((file-alist (xmp-get-managed-file-alist-in-dir dir)))
+      (let ((buffer (get-buffer-create "*XMP Managed File List*")))
+        (with-current-buffer buffer
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (princ (format (xmp-msg "Dir: %s") dir) buffer)
+            (princ "\n" buffer)
+            (cl-loop for (file . props) in file-alist
+                     do (princ
+                         (concat
+                          " "
+                          (if (plist-get props :stray) "Stray" "     ")
+                          " "
+                          (if (plist-get props :sidecar) "SC" "  ")
+                          " "
+                          (if (plist-get props :mod-db) "DB" "  ")
+                          " "
+                          (if (plist-get props :cache-mem) "MC" "  ")
+                          " "
+                          (if (plist-get props :cache-db) "DC" "  ")
+                          " "
+                          file
+                          "\n")
+                         buffer))
+            (goto-char (point-min))
+            (setq-local truncate-lines t)
+            (view-mode)))
+        (pop-to-buffer buffer))
+    (message (xmp-msg "No managed files"))))
 
 (provide 'xmp)
 ;;; xmp.el ends here

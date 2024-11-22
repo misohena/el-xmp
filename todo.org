@@ -660,3 +660,14 @@ CLOSED: [2024-11-21 Thu 22:51]
   - [X] [[elisp-function:xmp-clear-invalid-file-cache]]
   - [X] [[elisp-function:xmp-clear-invalid-file-cache-in-dir]] DIR
   - [X] [[elisp-function:xmp-clear-invalid-file-cache-under-dir]] DIR
+** DONE メタデータを持つファイルの状態を一覧表示するコマンドを追加する。
+CLOSED: [2024-11-22 Fri 15:28]
+コマンド:xmp-list-managed-files-in-dir DIR
+
+次のような形式で一覧表示する。
+
+: Stray Sidecar DB MemCache DBCache FILENAME
+
+省略して
+
+: Stray SC DB MC DC FILENAME

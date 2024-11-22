@@ -59,6 +59,9 @@
 
 ;;;; Autoloads
 
+;; xmp.el
+(autoload 'xmp-list-managed-files-in-dir "xmp" nil t)
+
 ;; xmp-commands.el
 (autoload 'xmp-show-file-rating "xmp-commands" nil t)
 (autoload 'xmp-rate-file "xmp-commands" nil t)
@@ -138,6 +141,7 @@
     (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
     (define-key km (kbd "'ep") 'xmp-dired-do-edit-properties)
     (define-key km (kbd "'ea") 'xmp-dired-do-edit-properties-all)
+    (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     km))
 
 (define-minor-mode xmp-dired-mode
@@ -169,6 +173,7 @@
     (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
     (define-key km (kbd "'ep") 'xmp-edit-file-properties)
     (define-key km (kbd "'ea") 'xmp-edit-file-properties-all)
+    (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

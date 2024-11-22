@@ -585,6 +585,7 @@ object."
                        (xmp-sqlite-get-directory-id odb dir-path-or-id))
                       (t (signal 'wrong-type-argument
                                  (list 'stringp dir-path-or-id))))))
+    ;; TODO: Limit object type?
     (xmp-sqlite-odb-get-objects-by-property-value
      odb
      xmp-sqlite-elxmp:FileParent
@@ -701,6 +702,8 @@ object."
   (xmp-sqlite-odb-show-statistics (xmp-sqlite-cache-odb)
                                   xmp-sqlite-cache-db-file))
 
+;; Remove
+
 (defun xmp-sqlite-cache-db-clear ()
   (xmp-sqlite-cache-odb-close)
   (delete-file xmp-sqlite-cache-db-file))
@@ -758,6 +761,11 @@ object."
         (unless dir-has-valid-files
           (xmp-sqlite-odb-delete-object odb dir-id))))
     num-removed))
+
+;; List
+
+(defun xmp-sqlite-cache-db-get-files-in-dir (dir)
+  (xmp-sqlite-get-directory-file-paths (xmp-sqlite-cache-odb) dir))
 
 ;;;;; Cache DB - Access file entries
 
@@ -986,14 +994,8 @@ you have made to the metadata to be lost."
     (when object-id
       (xmp-sqlite-odb-delete-object odb object-id))))
 
-;;;;; Stray File Entries
-
-(defun xmp-sqlite-mod-db-get-stray-file-paths-in-directory (dir)
-  (cl-loop for file in (xmp-sqlite-get-directory-file-paths
-                        (xmp-sqlite-mod-odb) dir)
-           when (and (not (directory-name-p file)) ;; Ignore
-                     (not (file-exists-p file)))
-           collect file))
+(defun xmp-sqlite-mod-db-get-files-in-dir (dir)
+  (xmp-sqlite-get-directory-file-paths (xmp-sqlite-mod-odb) dir))
 
 
 (provide 'xmp-sqlite)

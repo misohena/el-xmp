@@ -459,6 +459,14 @@ elements. If omitted, it is the empty string."
                   (xmp-xml-element-child-find-by-ename node prop-ename))))
               (xmp-xml-element-children rdf))))
 
+(defun xmp-remove-all-descriptions (dom &optional about)
+  (when-let ((rdf (xmp-find-rdf dom)))
+    (xmp-xml-element-child-remove-if
+     rdf
+     (lambda (child-node)
+       (xmp-target-description-p child-node about)))
+    (null (xmp-xml-element-children rdf))))
+
 (defun xmp-get-properties (dom prop-ename-list &optional about noerror)
   "Return a list of XMP properties contained in DOM.
 
@@ -1995,9 +2003,31 @@ This is because the XML read may not be XMP."
       (error "No RDF elements in file: %s" file))
     dom))
 
+(defun xmp-file-remove-properties (file prop-ename-list-or-all
+                                        &optional about use-cache)
+  "Remove XMP properties from FILE."
+  (let ((dom (xmp-file-read-rdf-or-new-dom file)))
+
+    ;; Modify
+    (if (eq prop-ename-list-or-all 'all)
+        ;; Remove all properties
+        (xmp-remove-all-descriptions dom about)
+      ;; Remove specified properties
+      (dolist (prop-ename prop-ename-list-or-all)
+        (when-let ((desc (xmp-find-description dom prop-ename about)))
+          (xmp-desc-remove-property desc prop-ename))))
+
+    ;; Write (Do not delete FILE even if it has no XMP properties)
+    (xmp-file-write-xml file dom)
+
+    (when (xmp-file-cache-enabled use-cache)
+      (xmp-file-cache-make-entry file dom))
+
+    nil))
+
 (defun xmp-file-set-properties (file prop-ename-value-alist
                                      &optional about use-cache)
-  "Change XMP properties in a FILE.
+  "Change XMP properties in FILE.
 
 Read the XMP metadata from FILE, modify the properties specified in
 PROP-ENAME-VALUE-ALIST, and write back to FILE.
@@ -2034,7 +2064,7 @@ to, use `xmp-set-file-properties'."
     prop-ename-value-alist))
 
 (defun xmp-file-set-property (file prop-ename value &optional about)
-  "Change XMP property in a FILE.
+  "Change XMP property in FILE.
 
 This function just calls `xmp-file-set-properties' on an alist with one
 element."
@@ -2400,6 +2430,10 @@ If an error or other irregularity occurs, return without doing anything."
             (xmp-sqlite-cache-db-make-file-entry file file-attrs properties
                                               target-prop-ename-list)))))))
 
+(defun xmp-file-cache-remove-file-entry (file)
+  (xmp-file-cache-memory-remove-file-entry file)
+  (xmp-sqlite-cache-db-remove-file-entry file))
+
 (defun xmp-file-cache-collect-target-property-values (dom
                                                       target-prop-ename-list)
   "Create an alist of property names and values to register in file
@@ -2764,19 +2798,26 @@ return the file name. If not, return the default sidecar file name."
   (file-name-sans-extension sidecar-file))
 
 (defun xmp-sidecar-files-in-dir (dir)
-  (seq-filter (lambda (file)
-                (and (xmp-sidecar-file-p file)
-                     ;; Exclude directory with .xmp
-                     (file-regular-p file)))
-              (directory-files dir t)))
+  (when (file-directory-p dir)
+    (seq-filter (lambda (file)
+                  (and (xmp-sidecar-file-p file)
+                       ;; Exclude directory with .xmp
+                       (file-regular-p file)))
+                (directory-files dir t))))
 
 (defun xmp-sidecar-file-targets-in-dir (dir)
   (mapcar #'xmp-sidecar-file-target
           (xmp-sidecar-files-in-dir dir)))
 
-;;;; Non-embedded File Metadata
+;;;; XMP Properties of Files
 
-;; There are two types of non-embedded file metadata:
+;; Properties describing a file do not need to be embedded within the
+;; file itself. Modifications to the properties can be stored
+;; externally without directly altering the file.
+;;
+;; External file properties are XMP properties that are stored outside
+;; the description target file. There are two locations where external
+;; file properties can be stored:
 ;;
 ;; - Sidecar files
 ;; - DB file entries
@@ -2917,6 +2958,7 @@ sidecar file, return the file name as a string."
 (autoload 'xmp-sqlite-mod-db-set-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-remove-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-files-in-dir "xmp-sqlite")
 
@@ -2956,10 +2998,55 @@ following function:
 - `xmp-set-file-property'
 - `xmp-set-file-properties'")
 
-(defun xmp-run-file-property-change-hook (target-file prop-ename-alist)
-  (run-hook-with-args 'xmp-file-property-change-hook
-                      target-file
-                      prop-ename-alist))
+(defun xmp-run-file-property-change-hook (target-file event)
+  (run-hook-with-args 'xmp-file-property-change-hook target-file event))
+
+;;;;; Remove Properties
+
+(defun xmp-remove-external-file-properties (target-file prop-ename-list-or-all)
+  "Remove only externally stored file properties."
+  (when (and prop-ename-list-or-all ;; nil means to get nothing
+             ;; Sidecar files cannot have external properties
+             (not (xmp-sidecar-file-p target-file)))
+    (let ((storage-location (xmp-file-property-storage-location target-file)))
+      (when (stringp storage-location)
+        (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
+
+      (cond
+       ((eq storage-location 'db)
+        (xmp-sqlite-mod-db-remove-file-properties target-file
+                                                  prop-ename-list-or-all)
+        (xmp-run-file-property-change-hook
+         target-file (cons 'remove prop-ename-list-or-all)))
+       ((stringp storage-location) ;; sidecar file (not TARGET-FILE)
+        (if (eq prop-ename-list-or-all 'all)
+            ;; Remove all properties
+            (progn
+              ;; TODO: Check empty XML file before delete
+              (delete-file storage-location)
+              (when (xmp-file-cache-enabled nil)
+                (xmp-file-cache-remove-file-entry storage-location)))
+          ;; Remove properties partially
+          (xmp-file-remove-properties storage-location prop-ename-list-or-all))
+        (xmp-run-file-property-change-hook
+         target-file (cons 'remove prop-ename-list-or-all)))
+       (t
+        (error "Unknown storage location `%s'" storage-location)))))
+  nil)
+
+;;;###autoload
+(defun xmp-remove-external-file-metadata (target-file)
+  (interactive
+   (list (read-file-name (xmp-msg "Target file: "))))
+  (xmp-remove-external-file-properties target-file 'all))
+
+;;;###autoload
+(defun xmp-remove-external-file-metadata-in-dir (dir)
+  (interactive
+   (list (read-directory-name (xmp-msg "Directory: "))))
+  (dolist (file (xmp-get-external-file-metadata-targets-in-dir dir))
+    (xmp-remove-external-file-metadata file)))
+
 
 ;;;;; Write Properties
 
@@ -2979,10 +3066,12 @@ the properties to set. The values must be in a format recognized by
     (cond
      ((eq storage-location 'db)
       (xmp-sqlite-mod-db-set-file-properties target-file prop-ename-value-alist)
-      (xmp-run-file-property-change-hook target-file prop-ename-value-alist))
+      (xmp-run-file-property-change-hook target-file
+                                         (cons 'set prop-ename-value-alist)))
      ((stringp storage-location)
       (xmp-file-set-properties storage-location prop-ename-value-alist)
-      (xmp-run-file-property-change-hook target-file prop-ename-value-alist))
+      (xmp-run-file-property-change-hook target-file
+                                         (cons 'set prop-ename-value-alist)))
      (t
       (error "Unknown storage location `%s'" storage-location))))
   prop-ename-value-alist)
@@ -2999,10 +3088,10 @@ describing TARGET-FILE to the appropriate location."
 
 ;;;;; Read Properties
 
-(defun xmp-get-file-properties--internal (source
-                                          target-file
-                                          prop-ename-list
-                                          dst-ns-name-prefix-alist)
+(defun xmp-get-file-properties--from-source (source
+                                             target-file
+                                             prop-ename-list
+                                             dst-ns-name-prefix-alist)
   (cond
    ((eq source 'db)
     (xmp-sqlite-mod-db-get-file-properties target-file prop-ename-list
@@ -3012,8 +3101,44 @@ describing TARGET-FILE to the appropriate location."
     (xmp-file-get-properties source prop-ename-list nil t
                              dst-ns-name-prefix-alist))))
 
+(defun xmp-get-file-properties--from-multiple-sources (sources
+                                                       target-file
+                                                       prop-ename-list-or-all
+                                                       dst-ns-name-prefix-alist)
+  (cond
+   ;; Enumerate all properties
+   ((eq prop-ename-list-or-all 'all)
+    (let (result)
+      (while sources
+        (let* ((source (pop sources))
+               (props (xmp-get-file-properties--from-source
+                       source target-file 'all
+                       dst-ns-name-prefix-alist)))
+          (setq result (xmp-xml-ename-alist-merge result props))))
+      result))
+   ;; Get specified properties
+   ((listp prop-ename-list-or-all)
+    (let ((unloaded-prop-ename-list prop-ename-list-or-all)
+          result)
+      (while (and unloaded-prop-ename-list sources)
+        (let* ((source (pop sources))
+               (props (xmp-get-file-properties--from-source
+                       source target-file unloaded-prop-ename-list
+                       dst-ns-name-prefix-alist)))
+          ;; Remove loaded property names from UNLOADED-PROP-ENAME-LIST
+          (setq unloaded-prop-ename-list
+                (seq-remove (lambda (prop-ename)
+                              (xmp-xml-ename-assoc prop-ename props))
+                            unloaded-prop-ename-list))
+          ;; Merge
+          (setq result (nconc result props))))
+      result))
+   (t
+    (error "Invalid prop-ename-list-or-all `%s'" prop-ename-list-or-all))))
+
+
 (defun xmp-get-file-properties (target-file
-                                prop-ename-list
+                                prop-ename-list-or-all
                                 &optional
                                 dst-ns-name-prefix-alist)
   "Get the XMP properties of TARGET-FILE.
@@ -3022,8 +3147,8 @@ Note that this does not mean reading from TARGET-FILE. Get the metadata
 describing TARGET-FILE from the appropriate location. Use
 `xmp-file-get-properties' to read metadata from specified files.
 
-PROP-ENAME-LIST is a list of the expanded names of the properties to
-retrieve or the symbol `all'. nil means to retrieve none. The symbol
+PROP-ENAME-LIST-OR-ALL is a list of the expanded names of the properties
+to retrieve or the symbol `all'. nil means to retrieve none. The symbol
 `all' means to enumerate all properties. The order or duplication of
 properties in the list does not affect the value returned.
 
@@ -3031,43 +3156,40 @@ DST-NS-NAME-PREFIX-ALIST is the destination for name declarations
 encountered during XML parsing. If non-nil, it is treated as a non-empty
 list, and the list of (<namespace name> . <namespace prefix>) is
 concatenated to the end of it."
-  (when prop-ename-list ;; nil means to get nothing
+  (when prop-ename-list-or-all ;; nil means to get nothing
     (let ((storage-location (xmp-file-property-storage-location target-file)))
       ;; TODO: Do not write files
       (when (stringp storage-location)
         (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
 
-      (let ((sources (nconc (unless (equal storage-location target-file)
-                              (list storage-location)) ;; db or sidecar-file
-                            (list target-file)))
-            result)
-        (cond
-         ;; Get specified properties
-         ((listp prop-ename-list)
-          (let ((unloaded-prop-ename-list prop-ename-list))
-            (while (and unloaded-prop-ename-list sources)
-              (let* ((source (pop sources))
-                     (props (xmp-get-file-properties--internal
-                             source target-file unloaded-prop-ename-list
-                             dst-ns-name-prefix-alist)))
-                ;; Remove loaded property names from UNLOADED-PROP-ENAME-LIST
-                (setq unloaded-prop-ename-list
-                      (seq-remove (lambda (prop-ename)
-                                    (xmp-xml-ename-assoc prop-ename props))
-                                  unloaded-prop-ename-list))
-                ;; Merge
-                (setq result (nconc result props))))))
-         ;; Enumerate all properties
-         ((eq prop-ename-list 'all)
-          (while sources
-            (let* ((source (pop sources))
-                   (file-props (xmp-get-file-properties--internal
-                                source target-file 'all
-                                dst-ns-name-prefix-alist)))
-              (setq result (xmp-xml-ename-alist-merge result file-props)))))
-         (t
-          (error "Invalid prop-ename-list `%s'" prop-ename-list)))
-        result))))
+      (xmp-get-file-properties--from-multiple-sources
+       ;; sources
+       (nconc (unless (equal storage-location target-file)
+                (list storage-location)) ;; db or sidecar-file
+              (list target-file))
+       target-file
+       prop-ename-list-or-all
+       dst-ns-name-prefix-alist))))
+
+(defun xmp-get-external-file-properties (target-file
+                                         prop-ename-list-or-all
+                                         &optional
+                                         dst-ns-name-prefix-alist)
+  "Get the external file properties that describe TARGET-FILE."
+  (when (and prop-ename-list-or-all ;; nil means to get nothing
+             ;; Sidecar files cannot have external properties
+             (not (xmp-sidecar-file-p target-file)))
+    (let ((storage-location (xmp-file-property-storage-location target-file)))
+      ;; TODO: Do not write files
+      (when (stringp storage-location)
+        (xmp-file-merge-db-entry-into-sidecar-file target-file storage-location))
+
+      (xmp-get-file-properties--from-multiple-sources
+       ;; sources
+       (list storage-location) ;; db or sidecar-file
+       target-file
+       prop-ename-list-or-all
+       dst-ns-name-prefix-alist))))
 
 (defun xmp-enumerate-file-properties (target-file
                                       &optional
@@ -3090,7 +3212,49 @@ describing TARGET-FILE from the appropriate location."
    prop-ename
    (xmp-get-file-properties target-file (list prop-ename))))
 
+
+;;;;; Move Properties
+
+;;;###autoload
+(defun xmp-move-external-file-metadata (old-target-file new-target-file)
+  "Change all external file properties that describe OLD-TARGET-FILE to
+describe NEW-TARGET-FILE."
+  (interactive
+   (list (read-file-name (xmp-msg "Old target file: "))
+         (read-file-name (xmp-msg "New target file: "))))
+  (when (and (not (equal old-target-file new-target-file))
+             ;; Sidecar files cannot have external properties
+             (not (xmp-sidecar-file-p old-target-file)))
+
+    ;; Note: Only move properties, source and destination may be of
+    ;; different location types (e.g. DB->sidecar, sidecar->DB).
+    (when-let ((prop-ename-value-alist
+                (xmp-get-external-file-properties old-target-file 'all)))
+      (xmp-set-file-properties new-target-file prop-ename-value-alist)
+      (xmp-remove-external-file-metadata old-target-file))))
+
+;;;###autoload
+(defun xmp-move-external-file-metadata-in-dir (old-dir new-dir)
+  (interactive
+   (list (read-directory-name (xmp-msg "Old directory: "))
+         (read-directory-name (xmp-msg "New directory: "))))
+  (dolist (old-file (xmp-get-external-file-metadata-targets-in-dir old-dir))
+    (xmp-move-external-file-metadata
+     old-file
+     (file-name-concat new-dir (file-name-nondirectory old-file)))))
+
+
 ;;;;; List Files
+
+(defun xmp-get-external-file-metadata-targets-in-dir (dir)
+  (seq-uniq
+   (sort
+    (nconc
+     (xmp-sidecar-file-targets-in-dir dir)
+     (xmp-sqlite-mod-db-get-files-in-dir dir))
+    :lessp #'string<)
+   #'string=))
+;; EXAMPLE: (xmp-get-external-file-property-targets-in-dir "~/tmp/")
 
 (defun xmp-get-managed-file-alist-in-dir (dir)
   "Return a list of metadata target files in DIR and their status."
@@ -3116,7 +3280,7 @@ describing TARGET-FILE from the appropriate location."
   "Display a list of metadata target files in DIR and their status."
   (interactive
    (list (if current-prefix-arg
-             (read-directory-name "Directory: " nil nil t)
+             (read-directory-name "Directory: ")
            default-directory)))
   (if-let ((file-alist (xmp-get-managed-file-alist-in-dir dir)))
       (let ((buffer (get-buffer-create "*XMP Managed File List*")))

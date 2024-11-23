@@ -1,17 +1,27 @@
 #+TITLE: Emacs Extensible Metadata Platform Library
 
 * Inbox
+** TODO メタデータが無いことをキャッシュする。
+メタデータが一切無い(検出できない)画像ファイルについて、何も無いことをキャッシュすべき。でなければ、何度もファイルをスキャンしてパフォーマンスが落ちてしまうので。現在はエラーによってキャッシュされない。
+
+** TODO DB/格納場所切り替えコマンドで名前空間接頭辞を再現する
+- [[elisp-function:xmp-switch-file-property-storage-db-to-sidecar]]
+- [[elisp-function:xmp-switch-file-property-storage-sidecar-to-db]]
+
+[[elisp-function:xmp-file-merge-db-entry-into-sidecar-file]]の問題でもあるし、修正データベースが名前空間接頭辞を記録しないという問題でもある。
+
+** TODO DB/格納場所切り替えコマンドでサイドカーファイルが空に出来るか確認する
+- [[elisp-function:xmp-switch-file-property-storage-sidecar-to-db]]
+
+** TODO DB/はぐれDBメタデータを一括でサイドカーファイルへ変換する。
+xmp-extern-stray-file-metadata-in-dir
 ** TODO DB/サイドカーファイルを作成するコマンドを追加する。
 メタデータ格納場所タイプがsidecar-or-dbの時に有用。そのファイルについてはデータベースでは無くサイドカーファイルを使うことを明示できる。
 ** TODO DB/メタデータ格納場所タイプを指定するコマンドを追加する。
 指定したディレクトリ(やファイル?)でどのようにプロパティを記録するかを手軽に設定したい。
 [[elisp-variable:xmp-file-property-storage-type]]の先頭にディレクトリマッチを追加するコマンド。
 
-** TODO DB/変更DB内容をサイドカーファイルへ出力するコマンドを追加する。
-ファイルやディレクトリ単位で、DBに記録されているメタデータをサイドカーファイルへ書き出せるようにする。
-** TODO DB/サイドカーファイルの内容をデータベースに取りこむコマンドを追加する。
-取り込み後はサイドカーファイルを削除する必要があるので、危険かもしれない。
-** TODO DB/からサイドカーファイルへのマージを改善する。
+** TODO DBからサイドカーファイルへのマージを改善する。
 [[elisp-function:xmp-file-merge-db-entry-into-sidecar-file]]の所。
 
 マージ方法設定
@@ -671,3 +681,32 @@ CLOSED: [2024-11-22 Fri 15:28]
 省略して
 
 : Stray SC DB MC DC FILENAME
+** DONE DB/DBとサイドカーファイルの変換コマンドを追加する。
+CLOSED: [2024-11-22 Fri 18:16]
+
+- xmp-move-file-properties-from-db-to-sidecar
+- xmp-move-file-properties-from-sidecar-to-db
+- xmp-move-dir-file-properties-from-db-to-sidecar
+- xmp-move-dir-file-properties-from-sidecar-to-db
+** DONE 外部ファイルプロパティを操作する関数を追加する。
+CLOSED: [2024-11-23 Sat 12:43]
+- 削除:xmp-remove-external-file-properties TARGET-FILE PROP-ENAME-LIST-OR-ALL
+  可能ならキャッシュも消すべき。移動の実装にも使用したい。
+- 削除:xmp-remove-external-file-metadata TARGET-FILE
+- 削除:xmp-file-remove-properties
+- 削除:xmp-remove-all-descriptions
+- 取得:xmp-get-external-file-properties TARGET-FILE PROP-ENAME-LIST-OR-ALL
+  移動の実装に使用したい。
+- 移動:xmp-move-external-file-metadata OLD-TARGET-FILE NEW-TARGET-FILE
+  ターゲットファイルが移動したときに必要になる。
+
+設定は通常のxmp-set-file-propertiesで良いはず。
+
+ディレクトリ指定のバリエーション
+- ファイル名一覧:xmp-get-external-file-metadata-targets-in-dir
+- 削除:xmp-remove-external-file-metadata-in-dir DIR
+- 移動:xmp-move-external-file-metadata-in-dir OLD-DIR NEW-DIR
+
+キャッシュ:
+- 削除:xmp-file-cache-remove-file-entry
+

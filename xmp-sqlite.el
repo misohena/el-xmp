@@ -412,6 +412,20 @@ returned."
    (list object-id)))
 ;; EXAMPLE: (xmp-sqlite-odb-delete-object (xmp-sqlite-cache-odb) 8)
 
+(defun xmp-sqlite-odb-delete-object-properties (odb object-id prop-ename-list)
+  (sqlite-execute
+   (xmp-sqlite-odb-db odb)
+   (concat
+    "delete from object_property_values"
+    " where object_id = ? and property_id in ("
+    (xmp-sqlite-make-string-repeated "?" (length prop-ename-list) ",")
+    ")")
+   (cons
+    object-id
+    (mapcar
+     (apply-partially #'xmp-sqlite-odb-get-property-id odb)
+     prop-ename-list))))
+;; TEST: (let* ((odb (xmp-sqlite-cache-odb)) (oid (xmp-sqlite-odb-new-object odb (list (cons xmp-sqlite-elxmp:ObjectType "Test") (cons xmp-xmp:Rating "5") (cons xmp-xmp:Label "Red") (cons xmp-xmp:CreatorTool "el-xmp"))))) (xmp-sqlite-odb-delete-object-properties odb oid (list xmp-xmp:Label xmp-xmp:Rating)) (prog1 (xmp-sqlite-odb-get-object-properties odb oid) (xmp-sqlite-odb-delete-object odb oid))) => (((:elxmp://el-xmp/xmlns/ . "ObjectType") . "Test") ((:http://ns.adobe.com/xap/1.0/ . "CreatorTool") . "el-xmp"))
 
 (defun xmp-sqlite-odb-show-statistics (odb db-file)
   (let* ((files (xmp-sqlite-odb-count-objects-by-property-value
@@ -572,7 +586,7 @@ object."
            (cons xmp-sqlite-elxmp:FilePath dir)))))
 
 (defun xmp-sqlite-get-directory-id (odb dir)
-  (setq dir (expand-file-name dir))
+  (setq dir (file-name-as-directory (expand-file-name dir)))
   (xmp-sqlite-odb-get-object-by-property-value odb
                                                xmp-sqlite-elxmp:FilePath
                                                dir))
@@ -993,6 +1007,21 @@ you have made to the metadata to be lost."
                      odb xmp-sqlite-elxmp:FilePath target-file)))
     (when object-id
       (xmp-sqlite-odb-delete-object odb object-id))))
+
+(defun xmp-sqlite-mod-db-remove-file-properties (target-file
+                                                 prop-ename-list-or-all)
+  (if (eq prop-ename-list-or-all 'all)
+      (xmp-sqlite-mod-db-remove-file-properties-all target-file)
+    (setq target-file (expand-file-name target-file))
+    (let* ((odb (xmp-sqlite-mod-odb))
+           (object-id (xmp-sqlite-odb-get-object-by-property-value
+                       odb xmp-sqlite-elxmp:FilePath target-file)))
+      (when object-id
+        (xmp-sqlite-odb-delete-object-properties odb
+                                                 object-id
+                                                 prop-ename-list-or-all)
+        ;; TODO: Remove if empty?
+        ))))
 
 (defun xmp-sqlite-mod-db-get-files-in-dir (dir)
   (xmp-sqlite-get-directory-file-paths (xmp-sqlite-mod-odb) dir))

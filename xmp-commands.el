@@ -842,5 +842,64 @@ PROP-SPEC-LIST argument."
    (list (xmp-file-name-list-at-point)))
   (xmp-edit-file-properties files 'default-all))
 
+;;;; DB
+
+;; Move DB To Sidecar
+
+;;;###autoload
+(defun xmp-move-file-properties-from-db-to-sidecar (target-file)
+  "Move the metadata for TARGET-FILE stored in the database to a
+sidecar file."
+  (interactive
+   (list (xmp-file-name-at-point)))
+  (if (xmp-sidecar-file-p target-file)
+      (error "%s is a sidecar file" target-file)
+    ;; TODO: Recover namespace prefix
+    (xmp-file-merge-db-entry-into-sidecar-file
+     target-file (xmp-sidecar-file-name target-file))))
+
+;;;###autoload
+(defun xmp-move-dir-file-properties-from-db-to-sidecar (dir)
+  "Move the metadata for files in DIR stored in the database to
+corresponding sidecar files."
+  (interactive
+   (list (read-directory-name (xmp-msg "Directory: "))))
+  (dolist (file (xmp-sqlite-mod-db-get-files-in-dir dir))
+    (xmp-move-file-properties-from-db-to-sidecar file)))
+
+;; Move Sidecar To DB
+
+;;;###autoload
+(defun xmp-move-file-properties-from-sidecar-to-db (target-file)
+  "Move the metadata for TARGET-FILE stored in the sidecar file into
+the database."
+  (interactive
+   (list (xmp-file-name-at-point)))
+  (when (xmp-sidecar-file-p target-file)
+    (error (xmp-msg "%s is a sidecar file") target-file))
+  (unless (file-regular-p target-file)
+    (error (xmp-msg "Target file %s does not exist") target-file))
+  (let ((sidecar-file (xmp-sidecar-file-name target-file)))
+    (unless (file-regular-p sidecar-file)
+      (error (xmp-msg "Sidecar file %s does not exist") sidecar-file))
+    ;; TODO: Record namespace prefix
+    (xmp-sqlite-mod-db-set-file-properties
+     target-file
+     (xmp-file-get-properties sidecar-file 'all))
+    ;; TODO: Check sidecar-file is empty
+    (delete-file sidecar-file)))
+
+;;;###autoload
+(defun xmp-move-dir-file-properties-from-sidecar-to-db (dir)
+  "Move the metadata for files in DIR stored in the sidecar files into the
+database."
+  (interactive
+   (list (read-directory-name (xmp-msg "Directory: "))))
+
+  (dolist (target-file (directory-files dir t))
+    (when (and (not (xmp-sidecar-file-p target-file))
+               (cdr (xmp-sidecar-file-name-and-exists-p target-file)))
+      (xmp-move-file-properties-from-sidecar-to-db target-file))))
+
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

@@ -48,6 +48,12 @@ Commands to display properties:
 - ~xmp-show-file-description~
 - ~xmp-show-file-creators~
 
+Commands for property storage location:
+- ~xmp-move-file-properties-from-db-to-sidecar~
+- ~xmp-move-file-properties-from-sidecar-to-db~
+- ~xmp-move-dir-file-properties-from-db-to-sidecar~
+- ~xmp-move-dir-file-properties-from-sidecar-to-db~
+
 ** xmp-dired.el
 
 xmp-dired.el adds XMP-related features to Dired.

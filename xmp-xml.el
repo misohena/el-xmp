@@ -580,6 +580,10 @@ that represent namespace declarations."
         (cl-remove-if (lambda (child) (xmp-xml-element-enamed-p child ename))
                       (xmp-xml-element-children elem))))
 
+(defun xmp-xml-element-child-remove-if (elem pred)
+  (setf (xmp-xml-element-children elem)
+        (cl-remove-if pred (xmp-xml-element-children elem))))
+
 (defun xmp-xml-element-child-find-by-ename (elem ename)
   "Find and return the first element in the element ELEM whose expanded
 name is ENAME."

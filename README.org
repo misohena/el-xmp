@@ -16,7 +16,7 @@ xmp-commands.el provides a set of commands for manipulating the XMP properties o
 
 The target file of those commands is inferred from the current point, buffer, etc. by ~xmp-file-name-at-point~ function. By default, filename inference from Dired, Image Dired, org-mode links, thing-at-point, buffer-file-name, and read-file-name is supported.
 
-When the command modifies a property, it does not directly modify the target file, but instead creates a sidecar file (.xmp) to record the new property value. This method protects the contents of the target file while facilitating the sharing of properties, e.g., via network storage.
+When these commands change properties, they do not change the target file directly, but instead create a sidecar file (.xmp file) to record the new property value. This method protects the contents of the target file and allows properties to be shared through network storage, etc. Depending on the settings, properties can also be stored in a SQLite database. This method makes it difficult to share properties, but has the advantage of not having sidecar files scattered all over the place. Depending on the settings, you can choose which to use based on conditions such as directory or extension.
 
 Commands to change properties:
 

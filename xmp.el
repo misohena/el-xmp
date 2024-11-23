@@ -2834,7 +2834,7 @@ return the file name. If not, return the default sidecar file name."
 ;;;;; Storage Location
 
 (defcustom xmp-file-property-storage-type
-  'sidecar-or-db
+  'sidecar
   "The type of storage location for modified file metadata.
 
 The storage type can be one of the symbols `db', `sidecar-or-db', or

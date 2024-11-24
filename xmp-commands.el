@@ -901,5 +901,44 @@ database."
                (cdr (xmp-sidecar-file-name-and-exists-p target-file)))
       (xmp-move-file-properties-from-sidecar-to-db target-file))))
 
+
+;;;; List
+
+;;;###autoload
+(defun xmp-list-managed-files-in-dir (dir)
+  "Display a list of metadata target files in DIR and their status."
+  (interactive
+   (list (if current-prefix-arg
+             (read-directory-name "Directory: ")
+           default-directory)))
+  (if-let ((file-alist (xmp-get-managed-files-and-status-in-dir dir)))
+      (let ((buffer (get-buffer-create "*XMP Managed File List*")))
+        (with-current-buffer buffer
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (princ (format (xmp-msg "Dir: %s") dir) buffer)
+            (princ "\n" buffer)
+            (cl-loop for (file . props) in file-alist
+                     do (princ
+                         (concat
+                          " "
+                          (if (plist-get props :stray) "Stray" "     ")
+                          " "
+                          (if (plist-get props :sidecar) "SC" "  ")
+                          " "
+                          (if (plist-get props :mod-db) "DB" "  ")
+                          " "
+                          (if (plist-get props :cache-mem) "MC" "  ")
+                          " "
+                          (if (plist-get props :cache-db) "DC" "  ")
+                          " "
+                          file
+                          "\n")
+                         buffer))
+            (goto-char (point-min))
+            (setq-local truncate-lines t)
+            (view-mode)))
+        (pop-to-buffer buffer))
+    (message (xmp-msg "No managed files"))))
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

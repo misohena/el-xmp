@@ -60,7 +60,6 @@
 ;;;; Autoloads
 
 ;; xmp.el
-(autoload 'xmp-list-managed-files-in-dir "xmp" nil t)
 
 ;; xmp-commands.el
 (autoload 'xmp-show-file-rating "xmp-commands" nil t)
@@ -88,6 +87,7 @@
 (autoload 'xmp-show-file-properties-all "xmp-commands" nil t)
 (autoload 'xmp-edit-file-properties "xmp-commands" nil t)
 (autoload 'xmp-edit-file-properties-all "xmp-commands" nil t)
+(autoload 'xmp-list-managed-files-in-dir "xmp-commands" nil t)
 
 ;; xmp-dired.el
 (autoload 'xmp-dired-mark-rating "xmp-dired" nil t)

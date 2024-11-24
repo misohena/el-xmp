@@ -3256,7 +3256,7 @@ describe NEW-TARGET-FILE."
    #'string=))
 ;; EXAMPLE: (xmp-get-external-file-property-targets-in-dir "~/tmp/")
 
-(defun xmp-get-managed-file-alist-in-dir (dir)
+(defun xmp-get-managed-files-and-status-in-dir (dir)
   "Return a list of metadata target files in DIR and their status."
   (let (file-alist)
     ;; Collect
@@ -3276,41 +3276,6 @@ describe NEW-TARGET-FILE."
              do (setf (plist-get (cdr file-info) :stray) t))
     file-alist))
 
-(defun xmp-list-managed-files-in-dir (dir)
-  "Display a list of metadata target files in DIR and their status."
-  (interactive
-   (list (if current-prefix-arg
-             (read-directory-name "Directory: ")
-           default-directory)))
-  (if-let ((file-alist (xmp-get-managed-file-alist-in-dir dir)))
-      (let ((buffer (get-buffer-create "*XMP Managed File List*")))
-        (with-current-buffer buffer
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-            (princ (format (xmp-msg "Dir: %s") dir) buffer)
-            (princ "\n" buffer)
-            (cl-loop for (file . props) in file-alist
-                     do (princ
-                         (concat
-                          " "
-                          (if (plist-get props :stray) "Stray" "     ")
-                          " "
-                          (if (plist-get props :sidecar) "SC" "  ")
-                          " "
-                          (if (plist-get props :mod-db) "DB" "  ")
-                          " "
-                          (if (plist-get props :cache-mem) "MC" "  ")
-                          " "
-                          (if (plist-get props :cache-db) "DC" "  ")
-                          " "
-                          file
-                          "\n")
-                         buffer))
-            (goto-char (point-min))
-            (setq-local truncate-lines t)
-            (view-mode)))
-        (pop-to-buffer buffer))
-    (message (xmp-msg "No managed files"))))
 
 (provide 'xmp)
 ;;; xmp.el ends here

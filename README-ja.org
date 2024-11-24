@@ -46,11 +46,12 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-show-file-description~
 - ~xmp-show-file-creators~
 
-プロパティの格納場所に関するコマンド:
+その他データベースの管理用のコマンド:
 - ~xmp-move-file-properties-from-db-to-sidecar~
 - ~xmp-move-file-properties-from-sidecar-to-db~
 - ~xmp-move-dir-file-properties-from-db-to-sidecar~
 - ~xmp-move-dir-file-properties-from-sidecar-to-db~
+- ~xmp-list-managed-files-in-dir~
 
 ** xmp-dired.el
 

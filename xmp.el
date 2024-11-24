@@ -73,6 +73,26 @@
 (require 'xmp-xml)
 (require 'xmp-file-reader)
 
+;;;; Declarations
+
+(autoload 'xmp-exif-read-exif-as-xmp-property-elements-from-bytes "xmp-exif")
+(autoload 'xmp-exif-read-xmp-xml-from-tiff-file "xmp-exif")
+(autoload 'xmp-pdf-read-metadata "xmp-pdf")
+(autoload 'xmp-sqlite-cache-db-make-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-get-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-file-entry "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-file-entries-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-remove-dir-entries "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-clear "xmp-sqlite")
+(autoload 'xmp-sqlite-cache-db-get-files-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-set-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-remove-file-properties "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-files-in-dir "xmp-sqlite")
 ;;;; Message Text Translation
 
 (defun xmp-msg (str)
@@ -1785,8 +1805,6 @@ nil means to scan the entire file."
 ;; I don't have any JPEG files using ExtendedXMP on hand, so I
 ;; won't implement it now.
 
-(autoload 'xmp-exif-read-exif-as-xmp-property-elements-from-bytes "xmp-exif")
-
 (defun xmp-file-read-xml-from-jpeg (file)
   (let* ((segments (xmp-file-scan-jpeg-app1
                     file
@@ -1834,8 +1852,6 @@ PROP-ELEM-LIST is inserted into it."
 
 ;;;;; TIFF File
 
-(autoload 'xmp-exif-read-xmp-xml-from-tiff-file "xmp-exif")
-
 (defun xmp-file-read-xml-from-tiff (file)
   (let* ((dom-exif (xmp-exif-read-xmp-xml-from-tiff-file file))
          (dom (car dom-exif))
@@ -1855,8 +1871,6 @@ variable explicitly."
   :group 'xmp
   :type '(choice (const :tag "Do not use pdfinfo" nil)
                  file))
-
-(autoload 'xmp-pdf-read-metadata "xmp-pdf")
 
 (defun xmp-file-read-xml-from-pdf (file)
   (or
@@ -2155,16 +2169,6 @@ This function calls `xmp-file-get-properties' with a single-element list."
 
 ;;;; File Cache
 
-(autoload 'xmp-sqlite-cache-db-make-file-entry "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-get-file-entry "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-remove-file-entry "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-remove-file-entries-in-dir "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-remove-dir-entries "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-clear "xmp-sqlite")
-(autoload 'xmp-sqlite-cache-db-get-files-in-dir "xmp-sqlite")
-
 ;;;;; Cache Target Properties
 
 (defvar xmp-file-cache-target-prop-ename-list nil
@@ -2287,6 +2291,7 @@ DST-NS-NAME-PREFIX-ALIST."
 
 ;;;;; Cache Maintenance
 
+;;;###autoload
 (defun xmp-clear-file-cache ()
   "Clear all file metadata caches."
   (interactive
@@ -2297,6 +2302,7 @@ DST-NS-NAME-PREFIX-ALIST."
   (xmp-file-cache-memory-clear)
   (xmp-sqlite-cache-db-clear))
 
+;;;###autoload
 (defun xmp-clear-file-cache-in-dir (dir)
   "Clear file metadata caches in DIR."
   (interactive "D")
@@ -2306,6 +2312,7 @@ DST-NS-NAME-PREFIX-ALIST."
    (xmp-file-cache-memory-remove-dir-entry dir)
    (xmp-sqlite-cache-db-remove-file-entries-in-dir dir)))
 
+;;;###autoload
 (defun xmp-clear-file-cache-under-dir (dir)
   "Clear file metadata caches under DIR."
   (interactive "D")
@@ -2317,6 +2324,7 @@ DST-NS-NAME-PREFIX-ALIST."
    (xmp-sqlite-cache-db-remove-dir-entries
     (lambda (entry-dir) (string-prefix-p dir entry-dir)))))
 
+;;;###autoload
 (defun xmp-clear-invalid-file-cache ()
   "Clear invalid file metadata caches."
   (interactive)
@@ -2325,6 +2333,7 @@ DST-NS-NAME-PREFIX-ALIST."
    (xmp-file-cache-memory-remove-invalid-file-entries)
    (xmp-sqlite-cache-db-remove-invalid-file-entries)))
 
+;;;###autoload
 (defun xmp-clear-invalid-file-cache-in-dir (dir)
   "Clear invalid file metadata caches in DIR."
   (interactive "D")
@@ -2334,6 +2343,7 @@ DST-NS-NAME-PREFIX-ALIST."
    (xmp-file-cache-memory-remove-invalid-file-entries-in-dir dir)
    (xmp-sqlite-cache-db-remove-invalid-file-entries-in-dir dir)))
 
+;;;###autoload
 (defun xmp-clear-invalid-file-cache-under-dir (dir)
   "Clear invalid file metadata caches under DIR."
   (interactive "D")
@@ -2671,6 +2681,7 @@ FILE-ENTRY."
 
 ;; Remove
 
+;;;###autoload
 (defun xmp-file-cache-memory-clear ()
   "Clear the in-memory cache."
   (interactive)
@@ -2954,13 +2965,6 @@ sidecar file, return the file name as a string."
         'db
       (car sidecar-file-and-exists-p))))
 ;; EXAMPLE: (xmp-file-property-storage-location "C:/home/a.jpg")
-
-(autoload 'xmp-sqlite-mod-db-set-file-properties "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-get-file-properties-info "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-get-file-properties "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-remove-file-properties "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
-(autoload 'xmp-sqlite-mod-db-get-files-in-dir "xmp-sqlite")
 
 (defun xmp-file-merge-db-entry-into-sidecar-file (target-file sidecar-file)
   (when xmp-sqlite-available-p

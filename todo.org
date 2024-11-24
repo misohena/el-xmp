@@ -4,14 +4,87 @@
 ** TODO メタデータが無いことをキャッシュする。
 メタデータが一切無い(検出できない)画像ファイルについて、何も無いことをキャッシュすべき。でなければ、何度もファイルをスキャンしてパフォーマンスが落ちてしまうので。現在はエラーによってキャッシュされない。
 
+** TODO はぐれメタデータに関するコマンドを追加する。
+はぐれメタデータとは、記述対象のファイルが存在しないメタデータ。
+
+- サイドカーファイル
+- 修正DBファイルエントリー・ディレクトリエントリー
+
+広い意味ではキャッシュエントリーも含むが、キャッシュエントリーの方はタイムスタンプが一致しないことも含めて「無効なキャッシュ」と呼ぶので今回の話の対象外。無効なキャッシュに対してはxmp-clear-で始まるコマンドを追加した。
+
+厳密に言えば使われなくなったDBオブジェクトもあるかもしれない(PropIdList、プロパティ定義、等)。しかしこの辺りは無駄データとして別途考えた方が良い。
+
+どんな処理が必要か。
+- 検出する
+  - どこから: ディレクトリ指定/サブディレクトリ含め/全体
+  - 何を: サイドカーファイル/修正DBファイルエントリー/同ディレクトリエントリー
+- 単純に消す
+  - 各種ディレクトリエントリー ←ファイルが無くなったら自動的に消すべき
+  - サイドカーファイル ←手動で消せば良いので必要性が少ない(ただし最低限マークするコマンドくらいは無いと消しづらいのは確か)
+  - 修正DBファイルエントリー ←結局これが一番問題よね
+- 適切な場所へ移す
+  - すでに他のメタデータがあったらどうするか
+- エクスポートする・クリップボードへコピーする (手動でペーストできるように)
+
+多くの場合、はぐれメタデータ専用のコマンドは必要ない。一般的なメタデータを操作するコマンドがあれば良い。
+
+- メタデータのリストアップ
+  - [X] xmp-list-managed-files-in-dir
+- データベース記録プロパティのサイドカー化またはその逆 (サイドカー化してしまえばファイル操作で何とかなる)
+  - [X] xmp-move-file-properties-from-db-to-sidecar TARGET-FILE
+  - [X] xmp-move-file-properties-from-sidecar-to-db TARGET-FILE
+  - [X] xmp-move-dir-file-properties-from-db-to-sidecar TARGET-FILE
+  - [X] xmp-move-dir-file-properties-from-sidecar-to-db TARGET-FILE
+- メタデータデータベース記録プロパティの移動 (存在しないディレクトリのエントリーをサイドカー化するのは面倒なので必要。適切な場所へ移動すればはぐれ状態から抜け出せる。サイドカーはファイル移動すれば良い)
+  - [X] xmp-move-external-file-metadata OLD-TARGET-FILE NEW-TARGET-FILE
+  - [X] xmp-move-external-file-metadata-in-dir OLD-DIR NEW-DIR
+- メタデータデータベース記録プロパティの削除 (存在しないディレクトリのエントリーをサイドカー化するのは面倒なので必要。要らない場合は消せば良い。サイドカーはファイル削除すれば良い)
+  - [X] xmp-remove-external-file-metadata TARGET-FILE
+  - [X] xmp-remove-external-file-metadata-in-dir DIR
+- エクスポートについては別途TODO
+
+一方ではぐれメタデータ専用のコマンドも欲しい場合がある。
+
+- はぐれメタデータの検出
+  - [X] xmp-list-stray-file-metadata-in-db (all or under-dir) (予想外の場所のはぐれを発見するのに使う)
+  - +xmp-list-stray-sidecar-files (under-dir or in-dir)+ Diredでマークできれば十分
+  - +xmp-list-stray-file-metadata-targets (all or under-dir or in-dir)+ 要らないかな
+  - [ ] xmp-list-stray-file-metadata-in-dir
+       ディレクトリ内のはぐれメタデータの存在を見つけるコマンド (xmp-list-managed-files-in-dirでも分かるけど、もっと直接的にそれだけを見つけるコマンド) ' l S
+- はぐれメタデータの削除
+  - [ ] xmp-remove-stray-file-metadata-in-db (all or under-dir or in-dir)
+- はぐれメタデータの移動
+  - [X] xmp-relocate-stray-file-metadata-in-dir : マッチするファイルを見つけて移動
+  - [ ] xmp-move-stray-file-metadata-in-dir : 単純に移動
+- はぐれメタデータのサイドカー化
+  - [ ] xmp-move-stray-file-metadata-from-db-to-sidecar
+- Diredでマーク
+  - [X] xmp-dired-mark-stray-sidecar-files
+
+基本的な部分で必要なもの
+- サイドカーファイルが空かどうかを判定する
+- 空のサイドカーファイルを削除する
+- DBとサイドカーファイルとのマージ
+
+** TODO はぐれメタデータのrelocateはsidecar同士ならファイル移動する
+ファイルの移動で済むならその方が安全だと思う。予期しないXML要素が消えないように。
+どちらかと言うとxmp-move-external-file-metadataの問題かも？
+
+** TODO DB/修正DBファイルエントリーをXMLで出力するコマンドを追加する
+要するにエクスポート。
+バッファにポップアップするか、指定されたXMLファイルに出力するか。
+Strayメタデータのへの対処や何かのトラブルの時に使うかも。
+[[elisp-function:xmp-move-file-properties-from-db-to-sidecar]]とは別(サイドカー化せずに取得したいし、サイドカー化されるディレクトリがすでに存在しないときは使えないので)。
+必要になったらで良い。
+
 ** TODO DB/格納場所切り替えコマンドで名前空間接頭辞を再現する
-- [[elisp-function:xmp-switch-file-property-storage-db-to-sidecar]]
-- [[elisp-function:xmp-switch-file-property-storage-sidecar-to-db]]
+- [[elisp-function:xmp-move-file-properties-from-db-to-sidecar]]
+- [[elisp-function:xmp-move-file-properties-from-sidecar-to-db]]
 
 [[elisp-function:xmp-file-merge-db-entry-into-sidecar-file]]の問題でもあるし、修正データベースが名前空間接頭辞を記録しないという問題でもある。
 
 ** TODO DB/格納場所切り替えコマンドでサイドカーファイルが空に出来るか確認する
-- [[elisp-function:xmp-switch-file-property-storage-sidecar-to-db]]
+- [[elisp-function:xmp-move-file-properties-from-sidecar-to-db]]
 
 ** TODO DB/はぐれDBメタデータを一括でサイドカーファイルへ変換する。
 xmp-extern-stray-file-metadata-in-dir
@@ -33,8 +106,6 @@ xmp-file-property-storage-merge-precedence
 
 ** TODO DB/プロパティ読み込み時にサイドカーファイルを書き替えないようにする。
 DBにデータがあってサイドカーファイルが見つかったときに現在はサイドカーファイルへマージしているが、サイドカーファイルを書き替えずに内部的にマージして使用できた方が良いのではないか。
-** TODO DB/無くなったファイルやディレクトリをDBから削除するコマンドを追加する。
-修正・キャッシュの両方から。メモリキャッシュからも？
 ** TODO 時間がかかる処理で進捗を表示する。
 スタートから2秒以上経ったら進捗をエコーする(当然message-log-maxはnil)。
 進捗の更新は前回の更新から一定時間(0.2秒くらい)以上経った時に行う。
@@ -710,3 +781,9 @@ CLOSED: [2024-11-23 Sat 12:43]
 キャッシュ:
 - 削除:xmp-file-cache-remove-file-entry
 
+** DONE はぐれメタデータに関するコマンドをいくつか追加する。
+CLOSED: [2024-11-25 Mon 00:16]
+
+- xmp-list-stray-file-metadata-in-db : はぐれを発見するために使う ('lS)
+- xmp-relocate-stray-file-metadata-in-dir : 手軽に修正するために使う ('RS)
+- xmp-dired-mark-stray-sidecar-files : 手軽に修正するために使う ('mS)

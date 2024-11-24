@@ -93,6 +93,10 @@
 (autoload 'xmp-sqlite-mod-db-remove-file-properties "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-remove-file-properties-all "xmp-sqlite")
 (autoload 'xmp-sqlite-mod-db-get-files-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-stray-files "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-stray-files-in-dir "xmp-sqlite")
+(autoload 'xmp-sqlite-mod-db-get-stray-files-under-dir "xmp-sqlite")
+
 ;;;; Message Text Translation
 
 (defun xmp-msg (str)
@@ -2820,6 +2824,16 @@ return the file name. If not, return the default sidecar file name."
   (mapcar #'xmp-sidecar-file-target
           (xmp-sidecar-files-in-dir dir)))
 
+(defun xmp-stray-sidecar-files-in-dir (dir)
+  (let ((sidecar-files (xmp-sidecar-files-in-dir dir)))
+    (cl-loop for file in (directory-files dir t)
+             for (sfile . exists) = (xmp-sidecar-file-name-and-exists-p file)
+             when exists
+             do (setq sidecar-files
+                      (cl-delete-if (lambda (f) (string= f sfile))
+                                    sidecar-files :count 1)))
+    sidecar-files))
+
 ;;;; XMP Properties of Files
 
 ;; Properties describing a file do not need to be embedded within the
@@ -3280,6 +3294,16 @@ describe NEW-TARGET-FILE."
              do (setf (plist-get (cdr file-info) :stray) t))
     file-alist))
 
+(defun xmp-get-stray-file-metadata-targets-in-db (&optional dir include-subdirs)
+  (cond
+   ((stringp dir)
+    (if include-subdirs
+        (xmp-sqlite-mod-db-get-stray-files-under-dir dir)
+      (xmp-sqlite-mod-db-get-stray-files-in-dir dir)))
+   ((null dir)
+    (xmp-sqlite-mod-db-get-stray-files))
+   (t
+    (signal 'wrong-type-argument (list 'string-or-null-p dir)))))
 
 (provide 'xmp)
 ;;; xmp.el ends here

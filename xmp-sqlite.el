@@ -383,6 +383,21 @@ returned."
     (list (xmp-sqlite-odb-get-property-id odb prop-ename) value))))
 ;; EXAMPLE: (xmp-sqlite-odb-get-object-by-property-value (xmp-sqlite-cache-odb) xmp-xmp:Label "Red")
 
+(defun xmp-sqlite-escape-like (pattern)
+  (replace-regexp-in-string "\\([%_\\\\]\\)" "\\\\\\1" pattern t))
+;; TEST: (xmp-sqlite-escape-like "price10%_desu c:\\home\\") => "price10\\%\\_desu c:\\\\home\\\\"
+
+(defun xmp-sqlite-odb-get-objects-by-property-value-like (odb prop-ename
+                                                              value-pattern)
+  "Return a list of object IDs whose property matches VALUE-LIKE."
+  (mapcan
+   #'identity ;; unwrap ((x) (y) (z)) => (x y z)
+   (sqlite-select
+    (xmp-sqlite-odb-db odb)
+    "select object_id from object_property_values
+     where property_id=? and value like ? escape '\\'"
+    (list (xmp-sqlite-odb-get-property-id odb prop-ename) value-pattern))))
+
 (defun xmp-sqlite-odb-count-objects-by-property-value (odb prop-ename value)
   "Return the number of objects whose property matches VALUE."
   (caar
@@ -571,6 +586,30 @@ object."
 (defun xmp-sqlite-get-all-directory-ids (odb)
   (xmp-sqlite-odb-get-objects-by-type odb "Directory"))
 
+(defun xmp-sqlite-get-directory-ids-paths-under-dir (odb dir-path order)
+  ;; Ensure that DIR is `/' terminated and an absolute path.
+  (setq dir-path (file-name-as-directory (expand-file-name dir-path)))
+
+  (mapcar
+   (lambda (x) (setcdr x (cadr x)) x) ;; (id path) => (id . path)
+   (sqlite-select
+    (xmp-sqlite-odb-db odb)
+    (concat
+     "select t2.object_id, t2.value from
+      (select object_id from object_property_values
+                        where property_id=? and value='Directory') as t1
+      inner join object_property_values as t2 on t1.object_id=t2.object_id
+      where property_id=? and (value=? or value like ? escape '\\')"
+     (pcase order
+       ('asc "order by value asc")
+       ('desc "order by value desc")
+       (_ "")))
+    (list (xmp-sqlite-odb-get-property-id odb xmp-sqlite-elxmp:ObjectType)
+          (xmp-sqlite-odb-get-property-id odb xmp-sqlite-elxmp:FilePath)
+          dir-path
+          (concat (xmp-sqlite-escape-like dir-path) "%/")))))
+;; EXAMPLE: (xmp-sqlite-get-directory-ids-paths-under-dir (xmp-sqlite-mod-odb) "c:/home/" 'asc)
+
 (defun xmp-sqlite-get-dir-object-or-create (odb dir)
   ;; Ensure that DIR is `/' terminated and an absolute path.
   (setq dir (file-name-as-directory (expand-file-name dir)))
@@ -586,28 +625,39 @@ object."
            (cons xmp-sqlite-elxmp:FilePath dir)))))
 
 (defun xmp-sqlite-get-directory-id (odb dir)
+  ;; Ensure that DIR is `/' terminated and an absolute path.
   (setq dir (file-name-as-directory (expand-file-name dir)))
   (xmp-sqlite-odb-get-object-by-property-value odb
                                                xmp-sqlite-elxmp:FilePath
                                                dir))
 
+(defun xmp-sqlite-ensure-dir-id (odb dir-path-or-id)
+  (cond
+   ((integerp dir-path-or-id)
+    dir-path-or-id)
+   ((stringp dir-path-or-id)
+    (xmp-sqlite-get-directory-id odb dir-path-or-id))
+   (t
+    (signal 'wrong-type-argument
+            (list 'stringp dir-path-or-id)))))
+
+(defun xmp-sqlite-get-directory-path (odb dir-path-or-id)
+  (xmp-sqlite-odb-get-object-property
+   odb
+   (xmp-sqlite-ensure-dir-id odb dir-path-or-id)
+   xmp-sqlite-elxmp:FilePath))
+
 (defun xmp-sqlite-get-directory-file-ids (odb dir-path-or-id)
-  (when-let ((dir-id (cond
-                      ((integerp dir-path-or-id)
-                       dir-path-or-id)
-                      ((stringp dir-path-or-id)
-                       (xmp-sqlite-get-directory-id odb dir-path-or-id))
-                      (t (signal 'wrong-type-argument
-                                 (list 'stringp dir-path-or-id))))))
+  (when-let ((dir-id (xmp-sqlite-ensure-dir-id odb dir-path-or-id)))
     ;; TODO: Limit object type?
     (xmp-sqlite-odb-get-objects-by-property-value
      odb
      xmp-sqlite-elxmp:FileParent
      dir-id)))
 
-(defun xmp-sqlite-get-directory-file-paths (odb dir)
+(defun xmp-sqlite-get-directory-file-paths (odb dir-path-or-id)
   ;; TODO: Optimize. Write in one SQL.
-  (cl-loop for file-id in (xmp-sqlite-get-directory-file-ids odb dir)
+  (cl-loop for file-id in (xmp-sqlite-get-directory-file-ids odb dir-path-or-id)
            collect (xmp-sqlite-get-file-path odb file-id)))
 
 ;;;; File Object
@@ -753,14 +803,7 @@ object."
                                                        &optional file-pred)
   (let ((odb (xmp-sqlite-cache-odb))
         (num-removed 0))
-    (when-let ((dir-id (cond
-                        ((integerp dir-path-or-id)
-                         dir-path-or-id)
-                        ((stringp dir-path-or-id)
-                         (xmp-sqlite-get-directory-id odb dir-path-or-id))
-                        (t
-                         (signal 'wrong-type-argument
-                                 (list 'stringp dir-path-or-id))))))
+    (when-let ((dir-id (xmp-sqlite-ensure-dir-id odb dir-path-or-id)))
       (let ((dir-has-valid-files nil))
         (dolist (file-id (xmp-sqlite-get-directory-file-ids odb dir-id))
           (if (or (null file-pred)
@@ -1023,9 +1066,34 @@ you have made to the metadata to be lost."
         ;; TODO: Remove if empty?
         ))))
 
-(defun xmp-sqlite-mod-db-get-files-in-dir (dir)
-  (xmp-sqlite-get-directory-file-paths (xmp-sqlite-mod-odb) dir))
+(defun xmp-sqlite-mod-db-get-files-in-dir (dir-path-or-id)
+  (xmp-sqlite-get-directory-file-paths (xmp-sqlite-mod-odb) dir-path-or-id))
 
+(defun xmp-sqlite-mod-db-get-stray-files-in-dir (dir-path-or-id)
+  (let* ((odb (xmp-sqlite-mod-odb))
+         (dir-id (xmp-sqlite-ensure-dir-id odb dir-path-or-id))
+         ;; Check directory exists for optimization
+         (dir-exists (file-directory-p
+                      (xmp-sqlite-get-directory-path odb dir-id))))
+    (if dir-exists
+        (cl-loop for file-id in (xmp-sqlite-get-directory-file-ids
+                                 odb dir-path-or-id)
+                 for file-path = (xmp-sqlite-get-file-path odb file-id)
+                 unless (file-exists-p file-path)
+                 collect file-path)
+      ;; The directory does not exist, so all the files in it are strays.
+      (xmp-sqlite-get-directory-file-paths odb dir-id))))
+
+(defun xmp-sqlite-mod-db-get-stray-files ()
+  (mapcan #'xmp-sqlite-mod-db-get-stray-files-in-dir
+          (xmp-sqlite-get-all-directory-ids (xmp-sqlite-mod-odb))))
+;; EXAMPLE: (xmp-sqlite-mod-db-get-stray-files)
+
+(defun xmp-sqlite-mod-db-get-stray-files-under-dir (dir-path)
+  (mapcan #'xmp-sqlite-mod-db-get-stray-files-in-dir
+          (mapcar #'car (xmp-sqlite-get-directory-ids-paths-under-dir
+                         (xmp-sqlite-mod-odb) dir-path 'asc))))
+;; EXAMPLE: (xmp-sqlite-mod-db-get-stray-files-under-dir "c:/home/")
 
 (provide 'xmp-sqlite)
 ;;; xmp-sqlite.el ends here

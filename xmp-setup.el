@@ -103,6 +103,8 @@
 (autoload 'xmp-move-file-properties-from-sidecar-to-db "xmp-commands" nil t)
 (autoload 'xmp-move-dir-file-properties-from-sidecar-to-db "xmp-commands" nil t)
 (autoload 'xmp-list-managed-files-in-dir "xmp-commands" nil t)
+(autoload 'xmp-list-stray-file-metadata-in-db "xmp-commands" nil t)
+(autoload 'xmp-relocate-stray-file-metadata-in-dir "xmp-commands" nil t)
 
 ;; xmp-dired.el
 (autoload 'xmp-dired-mark-rating "xmp-dired" nil t)
@@ -111,6 +113,7 @@
 (autoload 'xmp-dired-mark-title "xmp-dired" nil t)
 (autoload 'xmp-dired-mark-description "xmp-dired" nil t)
 (autoload 'xmp-dired-mark-creator "xmp-dired" nil t)
+(autoload 'xmp-dired-mark-stray-sidecar-files "xmp-dired" nil t)
 (autoload 'xmp-dired-do-rate "xmp-dired" nil t)
 (autoload 'xmp-dired-do-set-label "xmp-dired" nil t)
 (autoload 'xmp-dired-do-set-subjects "xmp-dired" nil t)
@@ -138,6 +141,7 @@
     (define-key km (kbd "'mt") 'xmp-dired-mark-title)
     (define-key km (kbd "'md") 'xmp-dired-mark-description)
     (define-key km (kbd "'mc") 'xmp-dired-mark-creator)
+    (define-key km (kbd "'mS") 'xmp-dired-mark-stray-sidecar-files)
     (define-key km (kbd "'sr") 'xmp-dired-do-rate)
     (define-key km (kbd "'sl") 'xmp-dired-do-set-label)
     (define-key km (kbd "'ss") 'xmp-dired-do-set-subjects)
@@ -157,6 +161,8 @@
     (define-key km (kbd "'ep") 'xmp-dired-do-edit-properties)
     (define-key km (kbd "'ea") 'xmp-dired-do-edit-properties-all)
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
+    (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
+    (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
     km))
 
 (define-minor-mode xmp-dired-mode

@@ -940,5 +940,64 @@ database."
             (view-mode)))
         (pop-to-buffer buffer))
     (message (xmp-msg "No managed files"))))
+
+;; Stray Metadata
+
+;;;###autoload
+(defun xmp-list-stray-file-metadata-in-db (&optional dir include-subdirs)
+  (interactive
+   (if current-prefix-arg
+       (list default-directory t)
+     nil))
+  (if-let ((files (xmp-get-stray-file-metadata-targets-in-db dir include-subdirs)))
+      (let ((buffer (get-buffer-create "*XMP Stray DB File Entry List*")))
+        (setq files (sort files :lessp #'string<))
+        (pop-to-buffer buffer)
+        (with-current-buffer buffer
+          (let ((inhibit-read-only t))
+            (erase-buffer)
+            (cl-loop for file in files
+                     do (princ (concat file "\n") buffer))
+            (goto-char (point-min))
+            (view-mode)
+            (setq-local truncate-lines t))))
+    (message (xmp-msg "No stray files"))))
+
+;;;; Relocate
+
+;;;###autoload
+(defun xmp-relocate-stray-file-metadata-in-dir (src-dir dst-dir)
+  "Change stray metadata for files in SRC-DIR to metadata for files in
+DST-DIR.
+
+Only changes if a file with the same name as the original target file
+exists in DST-DIR and that file does not already have external metadata.
+
+Processes both sidecar files and in-database file entries."
+  (interactive
+   (list (read-directory-name (xmp-msg "Source directory: "))
+         (read-directory-name (xmp-msg "Destination directory: "))))
+
+  (dolist (src-target-file (xmp-get-stray-file-metadata-targets-in-db src-dir))
+    (let ((dst-target-file (expand-file-name
+                            (file-name-nondirectory src-target-file)
+                            dst-dir)))
+      (when (and (file-exists-p dst-target-file)
+                 (null (xmp-get-external-file-properties dst-target-file 'all)))
+        (xmp-move-external-file-metadata src-target-file dst-target-file))))
+
+  (dolist (src-sidecar-file (xmp-stray-sidecar-files-in-dir src-dir))
+    ;; TODO: src-target-file cannot be guessed accurately.
+    ;;       foo.pdf.xmp => foo.pdf or foo.pdf.gz
+    (let* ((src-target-file (xmp-sidecar-file-target src-sidecar-file))
+           (dst-target-file (expand-file-name
+                             (file-name-nondirectory src-target-file)
+                             dst-dir)))
+      (when (and (file-exists-p dst-target-file)
+                 (null (xmp-get-external-file-properties dst-target-file 'all)))
+        ;; TODO: If the storage type of DST-DIR is sidecar, it is safer
+        ;; to move the sidecar file as is.
+        (xmp-move-external-file-metadata src-target-file dst-target-file)))))
+
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

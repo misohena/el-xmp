@@ -54,6 +54,8 @@ Commands for managing databases:
 - ~xmp-move-dir-file-properties-from-db-to-sidecar~
 - ~xmp-move-dir-file-properties-from-sidecar-to-db~
 - ~xmp-list-managed-files-in-dir~
+- ~xmp-list-stray-file-metadata-in-db~
+- ~xmp-relocate-stray-file-metadata-in-dir~
 
 ** xmp-dired.el
 
@@ -68,6 +70,7 @@ Currently, it provides the following commands:
   - ~xmp-dired-mark-title~
   - ~xmp-dired-mark-description~
   - ~xmp-dired-mark-creator~
+  - ~xmp-dired-mark-stray-sidecar-files~
 - Change properties of marked files
   - ~xmp-dired-do-rate~
   - ~xmp-dired-do-set-label~
@@ -156,6 +159,10 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' m r | Mark by rating           |
 | ' m l | Mark by label            |
 | ' m s | Mark by subjects         |
+| ' m t | Mark by title            |
+| ' m d | Mark by description      |
+| ' m c | Mark by creators         |
+| ' m S | Mark stray sidecar files |
 |-------+--------------------------|
 | ' f r | Filter by rating         |
 | ' f l | Filter by label          |
@@ -163,6 +170,8 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' f - | Clear filter             |
 |-------+--------------------------|
 | ' l m | List managed file status |
+| ' l S | List stray metadata      |
+| ' R S | Relocate stray metadata  |
 
 You can also avoid using this and build your own user interface using Hydra, Transient, etc.
 

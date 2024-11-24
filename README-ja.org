@@ -52,6 +52,8 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-move-dir-file-properties-from-db-to-sidecar~
 - ~xmp-move-dir-file-properties-from-sidecar-to-db~
 - ~xmp-list-managed-files-in-dir~
+- ~xmp-list-stray-file-metadata-in-db~
+- ~xmp-relocate-stray-file-metadata-in-dir~
 
 ** xmp-dired.el
 
@@ -66,6 +68,7 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-mark-title~
   - ~xmp-dired-mark-description~
   - ~xmp-dired-mark-creator~
+  - ~xmp-dired-mark-stray-sidecar-files~
 - マークされたファイルのプロパティの変更
   - ~xmp-dired-do-rate~
   - ~xmp-dired-do-set-label~
@@ -154,6 +157,10 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' m r | Mark by rating           |
 | ' m l | Mark by label            |
 | ' m s | Mark by subjects         |
+| ' m t | Mark by title            |
+| ' m d | Mark by description      |
+| ' m c | Mark by creators         |
+| ' m S | Mark stray sidecar files |
 |-------+--------------------------|
 | ' f r | Filter by rating         |
 | ' f l | Filter by label          |
@@ -161,6 +168,8 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' f - | Clear filter             |
 |-------+--------------------------|
 | ' l m | List managed file status |
+| ' l S | List stray metadata      |
+| ' R S | Relocate stray metadata  |
 
 これを使わずにHydraやTransient等を使用して自分でより使いやすいユーザーインタフェースを構築するのも良いでしょう。
 

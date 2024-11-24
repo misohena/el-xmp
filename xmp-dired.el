@@ -32,7 +32,7 @@
 
 ;;;; Mark
 
-(defun xmp-dired--mark-if (pred unflag-p &optional msg)
+(defun xmp-dired--mark-if (pred unflag-p &optional msg include-sidecar-file)
   (let ((dired-marker-char (if unflag-p ?\s dired-marker-char))
         (msg (or msg "matching file")))
     (dired-mark-if
@@ -40,8 +40,9 @@
           (not (eolp)) ; empty line
           (let ((fn (dired-get-filename nil t)))
             (when (and fn
-                       (not (when-let ((ext (file-name-extension fn)))
-                              (string-equal-ignore-case ext "xmp")))
+                       (or include-sidecar-file
+                           (not (when-let ((ext (file-name-extension fn)))
+                                  (string-equal-ignore-case ext "xmp"))))
                        ;; TODO: Mark directory ?
                        (file-regular-p fn))
               (let ((message-log-max nil))
@@ -150,6 +151,31 @@ A prefix argument means to unmark them instead."
                                     (string-match-p creator-regexp item))
                                   (xmp-get-file-creators file)))
                       unflag-p))
+
+;;;;; Mark Sidecar files
+
+;;;###autoload
+(defun xmp-dired-mark-stray-sidecar-files (unflag-p)
+  "Mark all stray sidecar files.
+A prefix argument means to unmark them instead."
+  (interactive "P" dired-mode)
+  (let (dir-stray-sidecar-files-alist) ;; Cache
+    (xmp-dired--mark-if
+     (lambda (file)
+       (when (xmp-sidecar-file-p file)
+         (let* ((file (expand-file-name file))
+                (dir (file-name-directory file))
+                (stray-sidecar-files
+                 (cdr
+                  (or
+                   (assoc dir dir-stray-sidecar-files-alist #'string=)
+                   (car (push (cons dir (xmp-stray-sidecar-files-in-dir dir))
+                              dir-stray-sidecar-files-alist))))))
+           (not (null (member file stray-sidecar-files))))))
+     unflag-p
+     nil
+     ;; Include .xmp
+     t)))
 
 ;;;; Change properties
 

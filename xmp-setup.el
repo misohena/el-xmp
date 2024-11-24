@@ -60,6 +60,17 @@
 ;;;; Autoloads
 
 ;; xmp.el
+(autoload 'xmp-clear-file-cache "xmp" nil t)
+(autoload 'xmp-clear-file-cache-in-dir "xmp" nil t)
+(autoload 'xmp-clear-file-cache-under-dir "xmp" nil t)
+(autoload 'xmp-clear-invalid-file-cache "xmp" nil t)
+(autoload 'xmp-clear-invalid-file-cache-in-dir "xmp" nil t)
+(autoload 'xmp-clear-invalid-file-cache-under-dir "xmp" nil t)
+(autoload 'xmp-file-cache-memory-clear "xmp" nil t)
+(autoload 'xmp-remove-external-file-metadata "xmp" nil t)
+(autoload 'xmp-remove-external-file-metadata-in-dir "xmp" nil t)
+(autoload 'xmp-move-external-file-metadata "xmp" nil t)
+(autoload 'xmp-move-external-file-metadata-in-dir "xmp" nil t)
 
 ;; xmp-commands.el
 (autoload 'xmp-show-file-rating "xmp-commands" nil t)
@@ -87,6 +98,10 @@
 (autoload 'xmp-show-file-properties-all "xmp-commands" nil t)
 (autoload 'xmp-edit-file-properties "xmp-commands" nil t)
 (autoload 'xmp-edit-file-properties-all "xmp-commands" nil t)
+(autoload 'xmp-move-file-properties-from-db-to-sidecar "xmp-commands" nil t)
+(autoload 'xmp-move-dir-file-properties-from-db-to-sidecar "xmp-commands" nil t)
+(autoload 'xmp-move-file-properties-from-sidecar-to-db "xmp-commands" nil t)
+(autoload 'xmp-move-dir-file-properties-from-sidecar-to-db "xmp-commands" nil t)
 (autoload 'xmp-list-managed-files-in-dir "xmp-commands" nil t)
 
 ;; xmp-dired.el

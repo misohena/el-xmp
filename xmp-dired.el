@@ -441,61 +441,6 @@ Dired commands."
     (let (message-log-max) (message ""))
     sorted-list))
 
-;;;;; Sort functions
-
-;; TODO: Move xmp.el?
-
-(defun xmp-dired-sort-make-key-fun-text (prop-ename)
-  (lambda (file)
-    (or
-     (xmp-pvalue-as-text
-      (xmp-get-file-property file prop-ename))
-     "")))
-
-(defun xmp-dired-sort-make-key-fun-date (prop-ename)
-  (lambda (file)
-    (or (xmp-pvalue-as-emacs-time (xmp-get-file-property file prop-ename))
-        ;; TODO:
-        (file-attribute-modification-time (file-attributes file)))))
-
-(defun xmp-dired-sort-make-key-fun-lang-alt (prop-ename)
-  (lambda (file)
-    (or (xmp-lang-alt-alist-to-single-string
-         (xmp-pvalue-as-lang-alt-alist (xmp-get-file-property file prop-ename)))
-        "")))
-
-(defun xmp-dired-sort-make-key-fun-seq-text (prop-ename)
-  (lambda (file)
-    (mapconcat
-     #'identity
-     (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
-     "\0")))
-
-(defun xmp-dired-sort-make-key-fun-bag-text (prop-ename)
-  (lambda (file)
-    (mapconcat
-     #'identity
-     (sort (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
-           :lessp #'string<)
-     "\0")))
-
-(defun xmp-dired-sort-make-key-and-less-funs-for-property (prop-ename)
-  (pcase (xmp-defined-property-type prop-ename)
-    ('Date
-     (cons (xmp-dired-sort-make-key-fun-date prop-ename) #'time-less-p))
-    ((pred xmp-property-type-derived-from-text-p)
-     (cons (xmp-dired-sort-make-key-fun-text prop-ename) #'string<))
-    ('LangAlt
-     (cons (xmp-dired-sort-make-key-fun-lang-alt prop-ename) #'string<))
-    ;; TODO: Support seq-date and bag-date
-    ((pred xmp-property-type-derived-from-seq-text-p)
-     (cons (xmp-dired-sort-make-key-fun-seq-text prop-ename) #'string<))
-    ((pred xmp-property-type-derived-from-bag-text-p)
-     (cons (xmp-dired-sort-make-key-fun-bag-text prop-ename) #'string<))
-    (type
-     (error "Unsupported property type %s %s"
-            type (xmp-xml-ename-string prop-ename)))))
-
 ;;;;; Sort commands
 
 ;; TODO: Support multiple properties as keys
@@ -512,14 +457,9 @@ If PROP-ENAME is nil, call `xmp-dired-sort-clear'."
   (if (null prop-ename)
       (xmp-dired-sort-clear)
     (xmp-dired-sort-global-setup)
-    (let ((fun-key-less (xmp-dired-sort-make-key-and-less-funs-for-property
-                         prop-ename)))
-      (when reverse
-        (setcdr fun-key-less
-                (let ((fun-less (cdr fun-key-less)))
-                  (lambda (a b) (not (funcall fun-less a b))))))
-      (setq-local xmp-dired-sort-fun-key-less fun-key-less)
-      (revert-buffer))))
+    (setq-local xmp-dired-sort-fun-key-less
+                (xmp-make-file-prop-sort-funs-key-and-less prop-ename reverse))
+    (revert-buffer)))
 
 ;;;###autoload
 (defun xmp-dired-sort-clear ()

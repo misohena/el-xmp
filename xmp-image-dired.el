@@ -67,6 +67,15 @@
 
 (defconst xmp-image-dired-invisible-display "")
 
+(defun xmp-image-dired-remove-all-spaces ()
+  ;; Made with reference to `image-dired-line-up'.
+  (let ((inhibit-read-only t))
+    (goto-char (point-min))
+    (while (not (eobp))
+      (if (image-dired-image-at-point-p)
+          (forward-char)
+        (delete-char 1)))))
+
 ;; Copy from Emacs 30.0.91
 (defun xmp-image-dired-line-up ()
   "Line up thumbnails according to `image-dired-thumbs-per-row'.
@@ -311,6 +320,52 @@ considered a match.")
                 (lambda (sbj) (member sbj (xmp-pvalue-as-text-list v)))
                 subjects))))
   (xmp-image-dired-filter-thumbnails))
+
+;;;; Sort
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-property (prop-ename &optional reverse)
+  "Sort thumbnails in image-dired buffer by the XMP property specified by
+PROP-ENAME.
+If the prefix argument or REVERSE is non-nil, sort in reverse order.
+If PROP-ENAME is nil, call `xmp-image-dired-sort-by-file-name'."
+  (interactive
+   (list (xmp-read-property-ename (xmp-msg "Key property: "))
+         current-prefix-arg)
+   image-dired-thumbnail-mode)
+
+  (if (null prop-ename)
+      (xmp-image-dired-sort-by-file-name reverse)
+    (cl-destructuring-bind (fun-key . fun-less)
+        (xmp-make-file-prop-sort-funs-key-and-less prop-ename
+                                                   reverse)
+      (xmp-image-dired-remove-all-spaces)
+      (let ((inhibit-read-only t))
+        (goto-char (point-min))
+        (sort-subr nil #'forward-char nil
+                   (lambda ()
+                     (funcall fun-key (image-dired-original-file-name)))
+                   nil
+                   fun-less))
+      ;; Update spaces and line breaks
+      (image-dired--line-up-with-method))))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-file-name (&optional reverse)
+  "Sort thumbnails in image-dired buffer by filename.
+If the prefix argument or REVERSE is non-nil, sort in reverse order."
+  (interactive "P" image-dired-thumbnail-mode)
+  (xmp-image-dired-remove-all-spaces)
+  (let ((inhibit-read-only t))
+    (goto-char (point-min))
+    (sort-subr reverse #'forward-char nil
+               (lambda ()
+                 (or (image-dired-original-file-name) ""))
+               nil
+               ;; Use string-collate-lessp? See `ls-lisp-string-lessp'
+               #'string<))
+  ;; Update spaces and line breaks
+  (image-dired--line-up-with-method))
 
 ;;;; Marked Files
 

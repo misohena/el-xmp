@@ -3473,5 +3473,74 @@ describe NEW-TARGET-FILE."
    (t
     (signal 'wrong-type-argument (list 'string-or-null-p dir)))))
 
+;;;;; Sort Files
+
+(defun xmp-make-file-prop-sort-fun-key-text (prop-ename)
+  (lambda (file)
+    (or
+     (when file
+       (xmp-pvalue-as-text
+        (xmp-get-file-property file prop-ename)))
+     "")))
+
+(defun xmp-make-file-prop-sort-fun-key-date (prop-ename)
+  (lambda (file)
+    (or
+     (when file
+       (xmp-pvalue-as-emacs-time (xmp-get-file-property file prop-ename)))
+     ;; TODO:
+     (file-attribute-modification-time (file-attributes file)))))
+
+(defun xmp-make-file-prop-sort-fun-key-lang-alt (prop-ename)
+  (lambda (file)
+    (or
+     (when file
+       (xmp-lang-alt-alist-to-single-string
+        (xmp-pvalue-as-lang-alt-alist (xmp-get-file-property file prop-ename))))
+     "")))
+
+(defun xmp-make-file-prop-sort-fun-key-seq-text (prop-ename)
+  (lambda (file)
+    (mapconcat
+     #'identity
+     (when file
+       (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename)))
+     "\0")))
+
+(defun xmp-make-file-prop-sort-fun-key-bag-text (prop-ename)
+  (lambda (file)
+    (mapconcat
+     #'identity
+     (when file
+       (sort (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
+             :lessp #'string<))
+     "\0")))
+
+(defun xmp-make-file-prop-sort-funs-key-and-less--non-reverse (prop-ename)
+  (pcase (xmp-defined-property-type prop-ename)
+    ('Date
+     (cons (xmp-make-file-prop-sort-fun-key-date prop-ename) #'time-less-p))
+    ((pred xmp-property-type-derived-from-text-p)
+     (cons (xmp-make-file-prop-sort-fun-key-text prop-ename) #'string<))
+    ('LangAlt
+     (cons (xmp-make-file-prop-sort-fun-key-lang-alt prop-ename) #'string<))
+    ;; TODO: Support seq-date and bag-date
+    ((pred xmp-property-type-derived-from-seq-text-p)
+     (cons (xmp-make-file-prop-sort-fun-key-seq-text prop-ename) #'string<))
+    ((pred xmp-property-type-derived-from-bag-text-p)
+     (cons (xmp-make-file-prop-sort-fun-key-bag-text prop-ename) #'string<))
+    (type
+     (error "Unsupported property type %s %s"
+            type (xmp-xml-ename-string prop-ename)))))
+
+(defun xmp-make-file-prop-sort-funs-key-and-less (prop-ename reverse)
+  (let ((fun-key-less
+         (xmp-make-file-prop-sort-funs-key-and-less--non-reverse prop-ename)))
+    (when reverse
+      (setcdr fun-key-less
+              (let ((fun-less (cdr fun-key-less)))
+                (lambda (a b) (not (funcall fun-less a b))))))
+    fun-key-less))
+
 (provide 'xmp)
 ;;; xmp.el ends here

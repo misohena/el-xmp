@@ -99,6 +99,9 @@ Currently, it provides the following commands:
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subjects~
+- Sort thumbnails
+  - ~xmp-image-dired-sort-by-property~
+  - ~xmp-image-dired-sort-by-file-name~
 
 In addition, the commands in xmp-commands.el can be used with image-dired.
 

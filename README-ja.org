@@ -97,6 +97,9 @@ xmp-image-dired.elはimage-diredにXMPに関連した機能を追加します。
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subjects~
+- ソート
+  - ~xmp-image-dired-sort-by-property~
+  - ~xmp-image-dired-sort-by-file-name~
 
 これらに加えて、xmp-commands.el内のコマンドがimage-diredで使用できます。
 

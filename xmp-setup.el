@@ -138,6 +138,8 @@
 (autoload 'xmp-image-dired-filter-rating "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-label "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-subjects "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-property "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-file-name "xmp-image-dired" nil t)
 
 ;;;; xmp-dired-mode
 
@@ -205,6 +207,10 @@
     (define-key km (kbd "'ep") 'xmp-edit-file-properties)
     (define-key km (kbd "'ea") 'xmp-edit-file-properties-all)
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
+    (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
+    (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
+    (define-key km (kbd "'Sp") 'xmp-image-dired-sort-by-property)
+    (define-key km (kbd "'S-") 'xmp-image-dired-sort-by-file-name)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

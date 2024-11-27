@@ -392,7 +392,7 @@ SEPARATOR is a string to separate <ns-prefix> and <local-name>. If nil,
 (defun xmp-xml-ename-from-prefixed-string (string)
   "Convert the namespace-prefixed name STRING to an `xmp-xml-ename' object.
 
-The namespace prefix is ​​converted to a namespace name using the
+The namespace prefix is converted to a namespace name using the
 `xmp-xml-default-ns-prefix-to-ns-name' function. Signal an error if the
 conversion is not possible."
   (if-let ((pos (seq-position string ?:)))

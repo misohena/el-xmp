@@ -313,3 +313,5 @@ Emacsが終了しても失われない永続的なキャッシュメカニズム
 コマンド ~xmp-show-file-properties~ がデフォルトで表示するプロパティのリストを変数 ~xmp-show-file-properties-target~ で設定できます。
 
 コマンド ~xmp-edit-file-properties~ や ~xmp-dired-do-edit-properties~ がデフォルトで編集するプロパティのリストを変数 ~xmp-editor-target-properties~ で設定できます。
+
+プロパティが頻繁に読み取られるものの場合、それをキャッシュ対象として登録することをお勧めします。 キャッシュ対象は変数 ~xmp-file-cache-target-properties~ で設定できます。キャッシュ対象になったプロパティは値の読み書きの時にメモリ内キャッシュとSQLiteデータベースキャッシュに保存され、次回以降の読み取りが高速化されます。

@@ -315,3 +315,5 @@ Next, register the property information (name and type) in the variable ~xmp-use
 The list of properties that the command ~xmp-show-file-properties~ displays by default can be set in the variable ~xmp-show-file-properties-target~.
 
 The list of properties that the commands ~xmp-edit-file-properties~ and ~xmp-dired-do-edit-properties~ edit by default can be set in the variable ~xmp-editor-target-properties~
+
+If a property is read frequently, it is recommended to register it as a cache target. The cache target can be set by the variable ~xmp-file-cache-target-properties~. Cached properties are stored in the in-memory cache and the SQLite database cache when their values ​​are read or written, making subsequent reads faster.

@@ -80,6 +80,9 @@ xmp-dired.elはdiredにXMPに関連した機能を追加します。
   - ~xmp-dired-do-set-creators~
   - ~xmp-dired-do-edit-properties~
   - ~xmp-dired-do-edit-properties-all~
+- プロパティによるソート
+  - ~xmp-dired-sort-by-property~
+  - ~xmp-dired-sort-clear~
 
 これらに加えて、xmp-commands.el内のコマンドがDiredで使用できます。
 
@@ -161,6 +164,9 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' m d | Mark by description      |
 | ' m c | Mark by creators         |
 | ' m S | Mark stray sidecar files |
+|-------+--------------------------|
+| ' S p | Sort by property         |
+| ' S - | Clear sort               |
 |-------+--------------------------|
 | ' f r | Filter by rating         |
 | ' f l | Filter by label          |

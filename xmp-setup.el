@@ -50,10 +50,16 @@
 ;; - ' m l : Mark by label
 ;; - ' m s : Mark by subjects
 
+;; - ' s p : Sort by property
+;; - ' s - : Clear sort
+
 ;; - ' f r : Filter by rating
 ;; - ' f l : Filter by label
 ;; - ' f s : Filter by subjects
 ;; - ' f - : Clear filter
+
+;; - ' l m : List managed files
+;; - ' l S : List stray metadata
 
 ;;; Code:
 
@@ -124,6 +130,8 @@
 (autoload 'xmp-dired-do-set-creators "xmp-dired" nil t)
 (autoload 'xmp-dired-do-edit-properties "xmp-dired" nil t)
 (autoload 'xmp-dired-do-edit-properties-all "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-property "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-clear "xmp-dired" nil t)
 
 ;; xmp-image-dired.el
 (autoload 'xmp-image-dired-filter-clear "xmp-image-dired" nil t)
@@ -163,6 +171,8 @@
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
+    (define-key km (kbd "'Sp") 'xmp-dired-sort-by-property)
+    (define-key km (kbd "'S-") 'xmp-dired-sort-clear)
     km))
 
 (define-minor-mode xmp-dired-mode

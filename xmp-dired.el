@@ -315,5 +315,218 @@ Dired commands."
   (xmp-edit-file-properties (dired-get-marked-files t arg nil nil t)
                             'default-all))
 
+;;;; Sort
+
+(defvar-local xmp-dired-sort-fun-key-less nil)
+(defvar xmp-dired-sort-sorted nil)
+
+(defun xmp-dired-sort-global-setup ()
+  (advice-add #'dired-insert-directory :around
+              #'xmp-dired-sort-around-dired-insert-directory)
+  (advice-add #'ls-lisp-handle-switches :around
+              #'xmp-dired-sort-around-ls-lisp-handle-switches))
+
+(defun xmp-dired-sort-global-teardown ()
+  (advice-remove #'dired-insert-directory
+                 #'xmp-dired-sort-around-dired-insert-directory)
+  (advice-remove #'ls-lisp-handle-switches
+                 #'xmp-dired-sort-around-ls-lisp-handle-switches))
+
+;;;;; Sort after `dired-insert-directory'
+
+;; Sorting when not using ls-lisp
+
+(defun xmp-dired-sort-around-dired-insert-directory (oldfun
+                                                     dir switches
+                                                     &optional file-list
+                                                     wildcard hdr
+                                                     &rest unknown-args)
+  ":around advice for `dired-insert-directory'."
+  (let* ((output-beg (point))
+         (xmp-dired-sort-sorted (cons nil nil))
+         (result (apply oldfun dir switches file-list wildcard hdr
+                        unknown-args))
+         (output-end (point)))
+    (when (and xmp-dired-sort-fun-key-less
+               (not (car xmp-dired-sort-sorted)))
+      (xmp-dired-sort-after-dired-insert-directory
+       dir output-beg output-end))
+    result))
+
+(defun xmp-dired-sort-after-dired-insert-directory (dir
+                                                    output-beg output-end)
+  "A file sorting operation that is run after `dired-insert-directory'."
+  (message "Sort after dired-insert-directory")
+  (save-match-data
+    (save-excursion
+      (goto-char output-beg)
+      ;; Skip header (dir, wildard)
+      (while (and (< (point) output-end) (null (dired-move-to-filename)))
+        (forward-line))
+      (when (< (point) output-end)
+        (forward-line 0)
+        ;; Sort
+        (save-restriction
+          (narrow-to-region (point) output-end)
+          (xmp-dired-sort-inserted-file-lines
+           dir
+           (car xmp-dired-sort-fun-key-less)
+           (cdr xmp-dired-sort-fun-key-less)))))))
+
+(defun xmp-dired-sort-inserted-file-lines (dir fun-file-to-key fun-less-keys)
+  (setq dir (expand-file-name (file-name-as-directory dir)))
+  (sort-subr nil
+             #'forward-line #'end-of-line
+             (lambda ()
+               (when-let ((file (xmp-dired-sort-get-filename dir)))
+                 (funcall fun-file-to-key file)))
+             nil fun-less-keys))
+
+(defun xmp-dired-sort-get-filename (dir)
+  (or
+   (cl-letf (;; Don't use `dired-current-directory'.
+             ((symbol-function 'dired-current-directory)
+              (lambda (&optional _localp) dir))
+             ;; `dired-subdir-alist' is not built at the time of
+             ;; calling `dired-insert-directory'.
+             (dired-subdir-alist nil))
+     (dired-get-filename nil t)) ;; return nil if file is . or ..
+
+   ;;The following code does not support various unescape and other conversions.
+   (save-excursion
+     (when-let* ((file-beg (dired-move-to-filename))
+                 (file-end (dired-move-to-end-of-filename))
+                 (file (buffer-substring-no-properties file-beg file-end)))
+       (file-name-concat dir file)))))
+
+;;;;; Sort before `ls-lisp-handle-switches'
+
+;; Sorting in ls-lisp is faster than sorting after
+;; `dired-insert-directory', but ls-lisp is not used in all cases.
+
+(defun xmp-dired-sort-around-ls-lisp-handle-switches (oldfun
+                                                      file-alist switches
+                                                      &rest unknown-args)
+  (when xmp-dired-sort-fun-key-less
+    ;; Sort FILE-ALIST
+    (setq file-alist (xmp-dired-sort-before-ls-lisp-handle-switches file-alist))
+    ;; Add unsorted option (Suppress sorting in `ls-lisp-handle-switches')
+    (setq switches (cons ?U switches))
+    ;; Mark sorted (Suppress sorting after `dired-insert-directory')
+    (when xmp-dired-sort-sorted
+      (setcar xmp-dired-sort-sorted t)))
+
+  (apply oldfun file-alist switches unknown-args))
+
+(defun xmp-dired-sort-before-ls-lisp-handle-switches (file-alist)
+  ;; Note: `default-directory' is the target directory of the listing.
+  ;;       See: `ls-lisp-insert-directory'
+  (let* ((fun-key (car xmp-dired-sort-fun-key-less))
+         (fun-less (cdr xmp-dired-sort-fun-key-less))
+         (_ (let (message-log-max) (message "Retrieving file properties...")))
+         (files-keys (mapcar
+                      (lambda (file-attrs)
+                        (cons
+                         file-attrs
+                         (funcall fun-key (expand-file-name (car file-attrs)))))
+                      file-alist))
+         (_ (let (message-log-max) (message "Sorting files...")))
+         (sorted-list (sort files-keys
+                            :key #'cdr
+                            :lessp fun-less
+                            :reverse t)))
+    ;; Discard key
+    (cl-loop for x on sorted-list
+             do (setcar x (caar x)))
+    (let (message-log-max) (message ""))
+    sorted-list))
+
+;;;;; Sort functions
+
+;; TODO: Move xmp.el?
+
+(defun xmp-dired-sort-make-key-fun-text (prop-ename)
+  (lambda (file)
+    (or
+     (xmp-pvalue-as-text
+      (xmp-get-file-property file prop-ename))
+     "")))
+
+(defun xmp-dired-sort-make-key-fun-date (prop-ename)
+  (lambda (file)
+    (or (xmp-pvalue-as-emacs-time (xmp-get-file-property file prop-ename))
+        ;; TODO:
+        (file-attribute-modification-time (file-attributes file)))))
+
+(defun xmp-dired-sort-make-key-fun-lang-alt (prop-ename)
+  (lambda (file)
+    (or (xmp-lang-alt-alist-to-single-string
+         (xmp-pvalue-as-lang-alt-alist (xmp-get-file-property file prop-ename)))
+        "")))
+
+(defun xmp-dired-sort-make-key-fun-seq-text (prop-ename)
+  (lambda (file)
+    (mapconcat
+     #'identity
+     (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
+     "\0")))
+
+(defun xmp-dired-sort-make-key-fun-bag-text (prop-ename)
+  (lambda (file)
+    (mapconcat
+     #'identity
+     (sort (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
+           :lessp #'string<)
+     "\0")))
+
+(defun xmp-dired-sort-make-key-and-less-funs-for-property (prop-ename)
+  (pcase (xmp-defined-property-type prop-ename)
+    ('Date
+     (cons (xmp-dired-sort-make-key-fun-date prop-ename) #'time-less-p))
+    ((pred xmp-property-type-derived-from-text-p)
+     (cons (xmp-dired-sort-make-key-fun-text prop-ename) #'string<))
+    ('LangAlt
+     (cons (xmp-dired-sort-make-key-fun-lang-alt prop-ename) #'string<))
+    ;; TODO: Support seq-date and bag-date
+    ((pred xmp-property-type-derived-from-seq-text-p)
+     (cons (xmp-dired-sort-make-key-fun-seq-text prop-ename) #'string<))
+    ((pred xmp-property-type-derived-from-bag-text-p)
+     (cons (xmp-dired-sort-make-key-fun-bag-text prop-ename) #'string<))
+    (type
+     (error "Unsupported property type %s %s"
+            type (xmp-xml-ename-string prop-ename)))))
+
+;;;;; Sort commands
+
+;; TODO: Support multiple properties as keys
+
+;;;###autoload
+(defun xmp-dired-sort-by-property (prop-ename &optional reverse)
+  "Sort files in Dired by the XMP property specified by PROP-ENAME.
+If the prefix argument or REVERSE is non-nil, sort in reverse order.
+If PROP-ENAME is nil, call `xmp-dired-sort-clear'."
+  (interactive
+   (list (xmp-read-property-ename (xmp-msg "Key property: "))
+         current-prefix-arg))
+
+  (if (null prop-ename)
+      (xmp-dired-sort-clear)
+    (xmp-dired-sort-global-setup)
+    (let ((fun-key-less (xmp-dired-sort-make-key-and-less-funs-for-property
+                         prop-ename)))
+      (when reverse
+        (setcdr fun-key-less
+                (let ((fun-less (cdr fun-key-less)))
+                  (lambda (a b) (not (funcall fun-less a b))))))
+      (setq-local xmp-dired-sort-fun-key-less fun-key-less)
+      (revert-buffer))))
+
+;;;###autoload
+(defun xmp-dired-sort-clear ()
+  "Clear the sorting effect set by `xmp-dired-sort-by-property'."
+  (interactive)
+  (setq-local xmp-dired-sort-fun-key-less nil)
+  (revert-buffer))
+
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

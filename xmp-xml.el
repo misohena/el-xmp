@@ -389,6 +389,23 @@ SEPARATOR is a string to separate <ns-prefix> and <local-name>. If nil,
 ;; TEST: (xmp-xml-ename-string (xmp-xml-ename nil "prop") nil nil) => "prop"
 ;; TEST: (xmp-xml-ename-string (xmp-xml-ename xmp-xml: "lang") nil nil nil nil t) => "xml:lang"
 
+(defun xmp-xml-ename-from-prefixed-string (string)
+  "Convert the namespace-prefixed name STRING to an `xmp-xml-ename' object.
+
+The namespace prefix is ​​converted to a namespace name using the
+`xmp-xml-default-ns-prefix-to-ns-name' function. Signal an error if the
+conversion is not possible."
+  (if-let ((pos (seq-position string ?:)))
+      (let* ((ns-prefix (substring string 0 pos))
+             (local-name (substring string (1+ pos)))
+             (ns-name (xmp-xml-default-ns-prefix-to-ns-name ns-prefix)))
+        (unless ns-name
+          (error "Unknown namespace prefix `%s'" ns-prefix))
+        (xmp-xml-ename ns-name local-name))
+    (xmp-xml-ename nil string)))
+;; EXAMPLE: (xmp-xml-ename-from-prefixed-string "xmp:Rating")
+
+
 ;;;;; Names Defined in the XML Specification
 
 (defconst xmp-xml:lang (xmp-xml-ename xmp-xml: "lang"))

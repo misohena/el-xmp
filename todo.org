@@ -1,6 +1,14 @@
 #+TITLE: Emacs Extensible Metadata Platform Library
 
 * Inbox
+** TODO ソート/image-diredで任意のプロパティでソートできるようにする。
+image-dired内でのソートは可能なのか。改行等を取り除いてから画像だけをソートすれば良い？
+** TODO ソート/複数プロパティのソートに対応する。
+** TODO ソート/ソートできるプロパティ型を増やす。
+** TODO diredで任意のプロパティを表示したい。
+そもそもdiredの表示項目をカスタマイズ出来るのか調査する必要がある。
+(dired-)insert-directoryやdirectory-listing-before-filename-regexpあたりが気になる。
+当然拙作のdired-details-rにも影響があるかもしれない。
 ** TODO メタデータが無いことをキャッシュする。
 メタデータが一切無い(検出できない)画像ファイルについて、何も無いことをキャッシュすべき。でなければ、何度もファイルをスキャンしてパフォーマンスが落ちてしまうので。現在はエラーによってキャッシュされない。
 
@@ -201,17 +209,6 @@ subjectのような複数の値を持てるようなプロパティの追加・�
 ** TODO set-file-系コマンドで空文字列を指定したときにプロパティを消すべき？
 例えばxmp-set-file-title、xmp-dired-do-set-title、xmp-image-dired-do-set-titleにおいて、空文字列を指定したとき、現状では空のx-defaultなLanguage Altが残ってしまう。これは消した方が良いのだろうか。それとも空のまま残した方が良いのだろうか。
 サイドカーファイルと本体ファイルとの兼ね合いもある。
-** TODO ★diredやimage-diredで撮影日時ソートする。
-撮影日時は exif:DateTimeOriginal で得られる。(DateTimeDigitizedはデジタルカメラの場合だとDateTimeOriginalと同じだが、デジタル化の日時なのでフィルムからスキャンした場合はスキャンした日時になる。スキャンしたときに撮影日時が不明だったらDateTimeOriginalが存在しないこともあり得る。以前はDateTimeDigitizedがxmp:CreateDateにマップされていたが、現在はそうなっていない)
-
-できるだけ「不明」を避けるのであれば次の日時を全部見れば良いが、どうだろう？
-1. exif:DateTimeOriginal
-2. exif:DateTimeDigitized
-3. xmp:CreateDate
-4. xmp:ModifyDate <=どうしても作成日が見つからなければ仕方ない。
-
-作成日無しをソートで割り出せるようにするため純粋にDateTimeOriginalだけでも良いのだけど。
-
 ** TODO sqlite/メモリキャッシュをメンテナンスするコマンドを追加する。
 次のようなコマンドが欲しい。
 - 無くなったファイルやディレクトリへのキャッシュを削除する
@@ -787,3 +784,37 @@ CLOSED: [2024-11-25 Mon 00:16]
 - xmp-list-stray-file-metadata-in-db : はぐれを発見するために使う ('lS)
 - xmp-relocate-stray-file-metadata-in-dir : 手軽に修正するために使う ('RS)
 - xmp-dired-mark-stray-sidecar-files : 手軽に修正するために使う ('mS)
+** CANCELLED diredやimage-diredで撮影日時ソートする。
+CLOSED: [2024-11-27 Wed 11:24]
+撮影日時は exif:DateTimeOriginal で得られる。(DateTimeDigitizedはデジタルカメラの場合だとDateTimeOriginalと同じだが、デジタル化の日時なのでフィルムからスキャンした場合はスキャンした日時になる。スキャンしたときに撮影日時が不明だったらDateTimeOriginalが存在しないこともあり得る。以前はDateTimeDigitizedがxmp:CreateDateにマップされていたが、現在はそうなっていない)
+
+できるだけ「不明」を避けるのであれば次の日時を全部見れば良いが、どうだろう？
+1. exif:DateTimeOriginal
+2. exif:DateTimeDigitized
+3. xmp:CreateDate
+4. xmp:ModifyDate <=どうしても作成日が見つからなければ仕方ない。
+
+作成日無しをソートで割り出せるようにするため純粋にDateTimeOriginalだけでも良いのだけど。
+
+[2024-11-27 Wed]単純に個々のプロパティでソートできるようにした。(Date型の場合、無ければファイルの更新日時を使用)
+** DONE ソート/diredで任意のプロパティでソートできるようにする。
+CLOSED: [2024-11-27 Wed 12:55]
+次の関数またはフックがソート処理のタイミングの候補:
+- ls-lisp-handle-switches
+- insert-directory
+- dired-insert-directory
+- dired-after-readin-hook
+
+ls-lisp-handle-switchesの前が一番速いはず。バッファに挿入する前なので。ただし、ls-lispを使っていない人もいる。
+
+dired-insert-directoryの後は色々と処理が終わったところなのでやりやすい。それでいてsubdir-alistのことを考えなくて良い。
+
+バッファローカル変数にソートに必要な情報(キー取得関数と比較関数)をセットする。ソート処理部はその変数を見て独自のソート処理を行うか判断する。
+
+コマンド:
+- xmp-dired-sort-by-property
+- xmp-dired-sort-clear
+
+プロパティの入力は exif:DateTimeOriginal のように接頭辞付きのプロパティ名で指定したい。 xmp-read-property-ename を追加。名前の変換に関する関数も色々追加。
+
+プロパティの型を判別するための関数も追加。

@@ -304,6 +304,15 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
          BagText BagProperName BagLocale BagDate
          SeqText SeqProperName SeqLocale SeqDate))
 
+(defun xmp-property-type-derived-from-text-p (type)
+  (memq type '(Text URI Real Integer AgentName GUID MIMEType Boolean Date)))
+
+(defun xmp-property-type-derived-from-bag-text-p (type)
+  (memq type '(BagText BagProperName BagLocale BagDate)))
+
+(defun xmp-property-type-derived-from-seq-text-p (type)
+  (memq type '(SeqText SeqProperName SeqLocale SeqDate)))
+
 ;;;; Property Information
 ;;;;; Predefined Properties
 
@@ -361,6 +370,10 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
       ;; [XMP1 8.7 xmpidq namespace]
       ("xmpidq"
        ("Scheme" Text))
+      ;; Exif
+      ("exif"
+       ("DateTimeOriginal" Date)
+       ("DateTimeDigitized" Date))
       )))
 
 ;; Define expanded name variables for properties
@@ -408,6 +421,31 @@ information in `xmp-user-defined-namespaces'."
   (or (xmp-defined-property-type--get ename xmp-user-defined-properties)
       (xmp-defined-property-type--get ename xmp-predefined-properties)))
 ;; TEST: (xmp-defined-property-type xmp-xmp:Rating) => Real
+
+(defun xmp-defined-property-prefixed-name-list--make (prop-info-alist)
+  (cl-loop for (ns-prefix-str . prop-info-list) in prop-info-alist
+           nconc (cl-loop for prop-info in prop-info-list
+                          collect (if ns-prefix-str
+                                      (concat ns-prefix-str ":" (car prop-info))
+                                    (car prop-info)))))
+
+(defun xmp-defined-property-prefixed-name-list ()
+  (nconc
+   (xmp-defined-property-prefixed-name-list--make xmp-user-defined-properties)
+   (xmp-defined-property-prefixed-name-list--make xmp-predefined-properties)))
+;; EXAMPLE: (xmp-defined-property-prefixed-name-list)
+
+(defun xmp-read-property-prefixed-name (prompt)
+  (completing-read prompt (xmp-defined-property-prefixed-name-list)))
+;; EXAMPLE: (xmp-read-property-prefixed-name "Property: ")
+
+(defun xmp-read-property-ename (prompt &optional default)
+  (let ((str (completing-read prompt
+                              (xmp-defined-property-prefixed-name-list))))
+    (if (string-empty-p str)
+        default
+      (xmp-xml-ename-from-prefixed-string str))))
+;; EXAMPLE: (xmp-read-property-ename "Property: ")
 
 
 ;;;; DOM Tree Creation
@@ -1309,7 +1347,137 @@ If the type of PVALUE is not \\='struct, return nil."
 ;;;;;; Date
 ;; [XMP1 8.2.1.2 Date]
 
-;; TODO: implement Date type conversion
+(defun xmp-pvalue-make-date-from-emacs-time (emacs-time
+                                             &optional zone subsec-digits)
+  (xmp-pvalue-make-text
+   (when emacs-time
+     (xmp-parsed-date-to-string
+      (xmp-parsed-date-from-emacs-time emacs-time zone subsec-digits)))))
+;; EXAMPLE: (xmp-pvalue-make-date-from-emacs-time (current-time))
+
+(defun xmp-pvalue-as-emacs-time (pvalue)
+  (when-let ((text (xmp-pvalue-as-text pvalue))
+             (parsed-date (xmp-parse-date text)))
+    (xmp-parsed-date-to-emacs-time parsed-date)))
+
+(defconst xmp-parse-date-regexp
+  (concat
+   "\\`[ \t\r\n]*"
+   "\\([0-9][0-9][0-9][0-9]\\)"
+   "\\(?:[-:]\\([0-9][0-9]\\)" ;; Darktable(4.8.1) outputs 2024:11:22 format
+   "\\(?:[-:]\\([0-9][0-9]\\)"
+   "\\(?:[T ]\\([0-9][0-9]\\):\\([0-9][0-9]\\)"
+   "\\(?::\\([0-9][0-9]\\)\\(?:\\.\\([0-9]+\\)\\)?\\)?"
+   "\\(Z\\|[-+][0-9][0-9]:[0-9][0-9]\\)?\\)?\\)?\\)?"
+   "[ \t\r\n]*\\'"))
+
+(defun xmp-parse-date (time-string)
+  (when (string-match xmp-parse-date-regexp time-string)
+    (list
+     (when (match-beginning 1) (string-to-number (match-string 1 time-string)))
+     (when (match-beginning 2) (string-to-number (match-string 2 time-string)))
+     (when (match-beginning 3) (string-to-number (match-string 3 time-string)))
+     (when (match-beginning 4) (string-to-number (match-string 4 time-string)))
+     (when (match-beginning 5) (string-to-number (match-string 5 time-string)))
+     (when (match-beginning 6) (string-to-number (match-string 6 time-string)))
+     (match-string 7 time-string) ;; string (.000012 => "000012")
+     (when-let ((tz (match-string 8 time-string)))
+       (if (string= tz "Z")
+           0
+         (* (if (= (aref tz 0) ?+) 1 -1)
+            (+ (* (string-to-number (substring tz 1 3)) 3600)
+               (* (string-to-number (substring tz 4 6)) 60))))))))
+;; TEST: (xmp-parse-date "2024") => (2024 nil nil nil nil nil nil nil)
+;; TEST: (xmp-parse-date "2024-11") => (2024 11 nil nil nil nil nil nil)
+;; TEST: (xmp-parse-date "2024-11-26") => (2024 11 26 nil nil nil nil nil)
+;; TEST: (xmp-parse-date "2024-11-26T12:34") => (2024 11 26 12 34 nil nil nil)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50") => (2024 11 26 12 34 50 nil nil)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50.123456") => (2024 11 26 12 34 50 "123456" nil)
+;; TEST: (xmp-parse-date "2024-11-26T12:34Z") => (2024 11 26 12 34 nil nil 0)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50Z") => (2024 11 26 12 34 50 nil 0)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50.123456Z") => (2024 11 26 12 34 50 "123456" 0)
+;; TEST: (xmp-parse-date "2024-11-26T12:34+09:30") => (2024 11 26 12 34 nil nil 34200)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50+09:30") => (2024 11 26 12 34 50 nil 34200)
+;; TEST: (xmp-parse-date "2024-11-26T12:34:50.123456+09:30") => (2024 11 26 12 34 50 "123456" 34200)
+
+(defun xmp-parsed-date-to-emacs-time (parsed-date &optional default-zone)
+  (let ((time (encode-time
+               (list (or (nth 5 parsed-date) 0)
+                     (or (nth 4 parsed-date) 0)
+                     (or (nth 3 parsed-date) 0)
+                     (or (nth 2 parsed-date) 1)
+                     (or (nth 1 parsed-date) 1)
+                     (nth 0 parsed-date)
+                     nil
+                     nil
+                     (or (nth 7 parsed-date) default-zone)))))
+    (when-let ((subsec-str (nth 6 parsed-date)))
+      (setq subsec-str (concat subsec-str "000000000000"))
+      (setq time
+            (time-add
+             time
+             (list 0 0
+                   (string-to-number (substring subsec-str 0 6))
+                   (string-to-number (substring subsec-str 6 12))))))
+    time))
+;; TEST: (format-time-string "%FT%T%z" (xmp-parsed-date-to-emacs-time (xmp-parse-date "2024") 3600) 3600) => "2024-01-01T00:00:00+0100"
+;; TEST: (format-time-string "%FT%T.%12N%z" (xmp-parsed-date-to-emacs-time (xmp-parse-date "2024-11-23T12:34:50.12345678901234+09:00") 32400) 32400) => "2024-11-23T12:34:50.123456789000+0900"
+
+(defun xmp-parsed-date-to-string (parsed-date)
+  (when parsed-date
+    (let (components)
+      (push (format "%04d" (pop parsed-date)) components)
+      (when-let ((mon (pop parsed-date)))
+        (push (format "-%02d" mon) components)
+        (when-let ((day (pop parsed-date)))
+          (push (format "-%02d" day) components)
+          (when-let ((hour (pop parsed-date))
+                     (min (pop parsed-date)))
+            (push (format "T%02d:%02d" hour min) components)
+            (if-let ((sec (pop parsed-date)))
+                (progn
+                  (push (format ":%02d" sec) components)
+                  (when-let ((subsec (pop parsed-date)))
+                    (push "." components)
+                    (push subsec components)))
+              (pop parsed-date))
+            (when-let ((tz (pop parsed-date)))
+              (if (= tz 0)
+                  (push "Z" components)
+                (push (if (< tz 0) "-" "+") components)
+                (setq tz (abs tz))
+                (push (format "%02d:%02d" (/ tz 3600) (% (/ tz 60) 60))
+                      components))))))
+      (apply #'concat (nreverse components)))))
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26T12:34:50.123456+09:30")) => "2024-11-26T12:34:50.123456+09:30"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26T12:34:50.123456Z")) => "2024-11-26T12:34:50.123456Z"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26T12:34:50Z")) => "2024-11-26T12:34:50Z"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26T12:34Z")) "2024-11-26T12:34Z"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26T12:34-09:30")) => "2024-11-26T12:34-09:30"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11-26")) => "2024-11-26"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024-11")) => "2024-11"
+;; TEST: (xmp-parsed-date-to-string (xmp-parse-date "2024")) => "2024"
+
+(defun xmp-parsed-date-from-emacs-time (emacs-time &optional zone subsec-digits)
+  (when emacs-time
+    (let* ((time (time-convert emacs-time 'list))
+           (us (nth 2 time))
+           (ps (nth 3 time))
+           (dtime (decode-time time zone (list (nth 0 time) (nth 1 time) 0 0))))
+      (list
+       (nth 5 dtime) (nth 4 dtime) (nth 3 dtime)
+       (nth 2 dtime) (nth 1 dtime) (nth 0 dtime)
+       (when (and us (or (/= us 0) (and ps (/= ps 0))))
+         (if (integerp subsec-digits)
+             (if (> subsec-digits 0)
+                 (substring (format "%06d%06d" us ps) 0 subsec-digits)
+               nil)
+           (string-trim-right (format "%06d%06d" us ps) "0+")))
+       (nth 8 dtime)))))
+;; EXAMPLE: (xmp-parsed-date-from-emacs-time (current-time))
+;; EXAMPLE: (xmp-parsed-date-from-emacs-time (current-time) nil 0)
+
+
 
 ;;;;;; Integer
 ;; [XMP1 8.2.1.3 Integer]

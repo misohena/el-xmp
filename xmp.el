@@ -1548,6 +1548,87 @@ first language code must be \"x-default\"."
            when text
            collect text))
 
+;;;;; PValue Display String
+
+;; Converts PValue into a loosely formatted string for quick human
+;; recognition, suitable for display in Dired and similar UIs.
+
+(defun xmp-pvalue-to-display-string--text (pvalue)
+  (xmp-pvalue-as-text pvalue))
+
+(defun xmp-pvalue-to-display-string--uri (pvalue)
+  (xmp-pvalue-as-uri pvalue))
+
+(defun xmp-pvalue-to-display-string--bag-text (pvalue)
+  (mapconcat
+   #'identity
+   (sort (delq nil (copy-sequence (xmp-pvalue-as-text-list pvalue)))
+         :lessp #'string<)
+   ","))
+
+(defun xmp-pvalue-to-display-string--seq-text (pvalue)
+  (mapconcat #'identity (xmp-pvalue-as-text-list pvalue) ","))
+
+(defun xmp-pvalue-to-display-string--lang-alt (pvalue)
+  ;; TODO: get x-default or default-lang setting
+  (cdar (xmp-pvalue-as-lang-alt-alist pvalue)))
+
+(defconst xmp-pvalue-to-display-string-types-converters-alist
+  '((Text . xmp-pvalue-to-display-string--text)
+    (URI . xmp-pvalue-to-display-string--uri)
+    (Boolean . xmp-pvalue-to-display-string--text)
+    (Real . xmp-pvalue-to-display-string--text)
+    (Integer . xmp-pvalue-to-display-string--text)
+    (MIMEType . xmp-pvalue-to-display-string--text)
+    (AgentName . xmp-pvalue-to-display-string--text)
+    (LangAlt . xmp-pvalue-to-display-string--lang-alt)
+    (BagText . xmp-pvalue-to-display-string--bag-text)
+    (BagProperName . xmp-pvalue-to-display-string--bag-text)
+    (BagLocale . xmp-pvalue-to-display-string--bag-text)
+    (SeqText . xmp-pvalue-to-display-string--seq-text)
+    (SeqProperName . xmp-pvalue-to-display-string--seq-text)
+    (SeqLocale . xmp-pvalue-to-display-string--seq-text)))
+
+(defun xmp-pvalue-to-display-string--infer-type (pvalue)
+  (cond
+   ;; TODO: Date (match regexp)
+   ((xmp-pvalue-text-p pvalue) 'Text)
+   ((xmp-pvalue-uri-p pvalue) 'URI)
+   ((and (xmp-pvalue-array-p pvalue)
+         (seq-every-p #'xmp-pvalue-text-p (xmp-pvalue-as-list pvalue)))
+    (let ((array-type (xmp-pvalue-array-type pvalue)))
+      (cond
+       ((xmp-xml-ename-equal array-type xmp-rdf:Bag) 'BagText)
+       ((xmp-xml-ename-equal array-type xmp-rdf:Seq) 'SeqText)
+       ((xmp-xml-ename-equal array-type xmp-rdf:Alt)
+        (if (seq-every-p (lambda (child-pv)
+                           (xmp-pvalue-qualifier-get child-pv xmp-xml:lang))
+                         (xmp-pvalue-as-list pvalue))
+            'LangAlt
+          'AltText)))))))
+
+(defun xmp-pvalue-to-display-string (pvalue &optional prop-ename prop-type)
+  "Convert PVALUE into a string to display in a UI, etc.
+
+PROP-ENAME and PROP-TYPE affect how PVALUE is converted.
+
+If PROP-TYPE is a symbol representing the property type, conversion is
+performed based on that. If PROP-TYPE is nil, the property type is
+obtained based on PROP-ENAME. If the property type cannot be determined,
+the property type is inferred from the structure of PVALUE."
+  (or
+   (when-let* ((prop-type
+                (or prop-type
+                    (and prop-ename (xmp-defined-property-type prop-ename))
+                    (xmp-pvalue-to-display-string--infer-type pvalue)))
+               (converter
+                (alist-get
+                 prop-type
+                 xmp-pvalue-to-display-string-types-converters-alist)))
+     (funcall converter pvalue))
+   ""))
+
+
 ;;;;; PValue Dump
 
 (defun xmp-dump-indent (stream indent)
@@ -2950,6 +3031,9 @@ FILE-ENTRY."
 (defun xmp-sidecar-file-p (file)
   (equal (file-name-extension file) "xmp"))
 
+(defun xmp-not-sidecar-file-p (file)
+  (not (xmp-sidecar-file-p file)))
+
 (defun xmp-sidecar-file-name-and-exists-p (target-file)
   (unless (xmp-sidecar-file-p target-file)
     ;; TODO: Customize sidecar file name rules
@@ -3475,72 +3559,91 @@ describe NEW-TARGET-FILE."
 
 ;;;;; Sort Files
 
-(defun xmp-make-file-prop-sort-fun-key-text (prop-ename)
+(defvar xmp-make-file-prop-sort-key-fun-get-property nil)
+
+(defun xmp-make-file-prop-sort-key-fun--get-property (file prop-ename)
+  (if xmp-make-file-prop-sort-key-fun-get-property
+      (funcall xmp-make-file-prop-sort-key-fun-get-property file prop-ename)
+    (xmp-get-file-property file prop-ename)))
+
+(defun xmp-make-file-prop-sort-key-fun-text (prop-ename)
   (lambda (file)
     (or
      (when file
        (xmp-pvalue-as-text
-        (xmp-get-file-property file prop-ename)))
+        (xmp-make-file-prop-sort-key-fun--get-property file prop-ename)))
      "")))
 
-(defun xmp-make-file-prop-sort-fun-key-date (prop-ename)
+(defun xmp-make-file-prop-sort-key-fun-date (prop-ename)
   (lambda (file)
     (or
      (when file
-       (xmp-pvalue-as-emacs-time (xmp-get-file-property file prop-ename)))
+       (xmp-pvalue-as-emacs-time
+        (xmp-make-file-prop-sort-key-fun--get-property file prop-ename)))
      ;; TODO:
      (file-attribute-modification-time (file-attributes file)))))
 
-(defun xmp-make-file-prop-sort-fun-key-lang-alt (prop-ename)
+(defun xmp-make-file-prop-sort-key-fun-lang-alt (prop-ename)
   (lambda (file)
     (or
      (when file
        (xmp-lang-alt-alist-to-single-string
-        (xmp-pvalue-as-lang-alt-alist (xmp-get-file-property file prop-ename))))
+        (xmp-pvalue-as-lang-alt-alist
+         (xmp-make-file-prop-sort-key-fun--get-property file prop-ename))))
      "")))
 
-(defun xmp-make-file-prop-sort-fun-key-seq-text (prop-ename)
+(defun xmp-make-file-prop-sort-key-fun-seq-text (prop-ename)
   (lambda (file)
     (mapconcat
      #'identity
      (when file
-       (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename)))
+       (xmp-pvalue-as-text-list
+        (xmp-make-file-prop-sort-key-fun--get-property file prop-ename)))
      "\0")))
 
-(defun xmp-make-file-prop-sort-fun-key-bag-text (prop-ename)
+(defun xmp-make-file-prop-sort-key-fun-bag-text (prop-ename)
   (lambda (file)
     (mapconcat
      #'identity
      (when file
-       (sort (xmp-pvalue-as-text-list (xmp-get-file-property file prop-ename))
+       (sort (xmp-pvalue-as-text-list
+              (xmp-make-file-prop-sort-key-fun--get-property file prop-ename))
              :lessp #'string<))
      "\0")))
 
-(defun xmp-make-file-prop-sort-funs-key-and-less--non-reverse (prop-ename)
+(defun xmp-make-file-property-sort-key--non-reverse (prop-ename)
   (pcase (xmp-defined-property-type prop-ename)
     ('Date
-     (cons (xmp-make-file-prop-sort-fun-key-date prop-ename) #'time-less-p))
+     (cons (xmp-make-file-prop-sort-key-fun-date prop-ename) #'time-less-p))
     ((pred xmp-property-type-derived-from-text-p)
-     (cons (xmp-make-file-prop-sort-fun-key-text prop-ename) #'string<))
+     (cons (xmp-make-file-prop-sort-key-fun-text prop-ename) #'string<))
     ('LangAlt
-     (cons (xmp-make-file-prop-sort-fun-key-lang-alt prop-ename) #'string<))
+     (cons (xmp-make-file-prop-sort-key-fun-lang-alt prop-ename) #'string<))
     ;; TODO: Support seq-date and bag-date
     ((pred xmp-property-type-derived-from-seq-text-p)
-     (cons (xmp-make-file-prop-sort-fun-key-seq-text prop-ename) #'string<))
+     (cons (xmp-make-file-prop-sort-key-fun-seq-text prop-ename) #'string<))
     ((pred xmp-property-type-derived-from-bag-text-p)
-     (cons (xmp-make-file-prop-sort-fun-key-bag-text prop-ename) #'string<))
+     (cons (xmp-make-file-prop-sort-key-fun-bag-text prop-ename) #'string<))
     (type
      (error "Unsupported property type %s %s"
             type (xmp-xml-ename-string prop-ename)))))
 
-(defun xmp-make-file-prop-sort-funs-key-and-less (prop-ename reverse)
+(defun xmp-make-file-property-sort-key (prop-ename reverse)
   (let ((fun-key-less
-         (xmp-make-file-prop-sort-funs-key-and-less--non-reverse prop-ename)))
-    (when reverse
-      (setcdr fun-key-less
-              (let ((fun-less (cdr fun-key-less)))
-                (lambda (a b) (not (funcall fun-less a b))))))
-    fun-key-less))
+         (xmp-make-file-property-sort-key--non-reverse prop-ename)))
+    (list
+     prop-ename
+     reverse
+     (car fun-key-less)
+     (let ((fun-less (cdr fun-key-less)))
+       (if reverse
+           (lambda (a b) (not (funcall fun-less a b)))
+         fun-less)))))
+
+(defun xmp-file-property-sort-key-ename (key) (nth 0 key))
+(defun xmp-file-property-sort-key-reverse (key) (nth 1 key))
+(defun xmp-file-property-sort-key-fun-key (key) (nth 2 key))
+(defun xmp-file-property-sort-key-fun-less (key) (nth 3 key))
 
 (provide 'xmp)
 ;;; xmp.el ends here

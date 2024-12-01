@@ -50,8 +50,23 @@
 ;; - ' m l : Mark by label
 ;; - ' m s : Mark by subjects
 
-;; - ' s p : Sort by property
-;; - ' s - : Clear sort
+;; - ' S p : Sort by property
+;; - ' S - : Clear sort
+;; - ' S r : Sort by rating
+;; - ' S l : Sort by label
+;; - ' S s : Sort by subjects
+;; - ' S t : Sort by title
+;; - ' S d : Sort by description
+;; - ' S c : Sort by creators
+
+;; - ' C p : Toggle property column
+;; - ' C r : Toggle rating column
+;; - ' C l : Toggle label column
+;; - ' C s : Toggle subjects column
+;; - ' C t : Toggle title column
+;; - ' C d : Toggle description column
+;; - ' C c : Toggle creators column
+;; - ' C - : Remove all columns
 
 ;; - ' f r : Filter by rating
 ;; - ' f l : Filter by label
@@ -132,6 +147,22 @@
 (autoload 'xmp-dired-do-edit-properties-all "xmp-dired" nil t)
 (autoload 'xmp-dired-sort-by-property "xmp-dired" nil t)
 (autoload 'xmp-dired-sort-clear "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-rating "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-label "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-subjects "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-title "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-description "xmp-dired" nil t)
+(autoload 'xmp-dired-sort-by-creators "xmp-dired" nil t)
+(autoload 'xmp-dired-add-column "xmp-dired" nil t)
+(autoload 'xmp-dired-remove-column "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-rating "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-label "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-subjects "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-title "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-description "xmp-dired" nil t)
+(autoload 'xmp-dired-toggle-column-creators "xmp-dired" nil t)
+(autoload 'xmp-dired-remove-all-columns "xmp-dired" nil t)
 
 ;; xmp-image-dired.el
 (autoload 'xmp-image-dired-filter-clear "xmp-image-dired" nil t)
@@ -140,6 +171,12 @@
 (autoload 'xmp-image-dired-filter-subjects "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-sort-by-property "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-sort-by-file-name "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-rating "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-label "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-subjects "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-title "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-description "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-sort-by-creators "xmp-image-dired" nil t)
 
 ;;;; xmp-dired-mode
 
@@ -152,6 +189,10 @@
     (define-key km (kbd "'md") 'xmp-dired-mark-description)
     (define-key km (kbd "'mc") 'xmp-dired-mark-creator)
     (define-key km (kbd "'mS") 'xmp-dired-mark-stray-sidecar-files)
+    (define-key km (kbd "'f-") 'xmp-dired-filter-clear)
+    (define-key km (kbd "'fr") 'xmp-dired-filter-rating)
+    (define-key km (kbd "'fl") 'xmp-dired-filter-label)
+    (define-key km (kbd "'fs") 'xmp-dired-filter-subjects)
     (define-key km (kbd "'sr") 'xmp-dired-do-rate)
     (define-key km (kbd "'sl") 'xmp-dired-do-set-label)
     (define-key km (kbd "'ss") 'xmp-dired-do-set-subjects)
@@ -175,6 +216,20 @@
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
     (define-key km (kbd "'Sp") 'xmp-dired-sort-by-property)
     (define-key km (kbd "'S-") 'xmp-dired-sort-clear)
+    (define-key km (kbd "'Sr") 'xmp-dired-sort-by-rating)
+    (define-key km (kbd "'Sl") 'xmp-dired-sort-by-label)
+    (define-key km (kbd "'Ss") 'xmp-dired-sort-by-subjects)
+    (define-key km (kbd "'St") 'xmp-dired-sort-by-title)
+    (define-key km (kbd "'Sd") 'xmp-dired-sort-by-description)
+    (define-key km (kbd "'Sc") 'xmp-dired-sort-by-creators)
+    (define-key km (kbd "'Cp") 'xmp-dired-toggle-column)
+    (define-key km (kbd "'C-") 'xmp-dired-remove-all-columns)
+    (define-key km (kbd "'Cr") 'xmp-dired-toggle-column-rating)
+    (define-key km (kbd "'Cl") 'xmp-dired-toggle-column-label)
+    (define-key km (kbd "'Cs") 'xmp-dired-toggle-column-subjects)
+    (define-key km (kbd "'Ct") 'xmp-dired-toggle-column-title)
+    (define-key km (kbd "'Cd") 'xmp-dired-toggle-column-description)
+    (define-key km (kbd "'Cc") 'xmp-dired-toggle-column-creators)
     km))
 
 (define-minor-mode xmp-dired-mode
@@ -211,6 +266,12 @@
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
     (define-key km (kbd "'Sp") 'xmp-image-dired-sort-by-property)
     (define-key km (kbd "'S-") 'xmp-image-dired-sort-by-file-name)
+    (define-key km (kbd "'Sr") 'xmp-image-dired-sort-by-rating)
+    (define-key km (kbd "'Sl") 'xmp-image-dired-sort-by-label)
+    (define-key km (kbd "'Ss") 'xmp-image-dired-sort-by-subjects)
+    (define-key km (kbd "'St") 'xmp-image-dired-sort-by-title)
+    (define-key km (kbd "'Sd") 'xmp-image-dired-sort-by-description)
+    (define-key km (kbd "'Sc") 'xmp-image-dired-sort-by-creators)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

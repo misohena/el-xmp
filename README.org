@@ -82,11 +82,39 @@ Currently, it provides the following commands:
   - ~xmp-dired-do-set-creators~
   - ~xmp-dired-do-edit-properties~
   - ~xmp-dired-do-edit-properties-all~
-- Sort by property
+- Filter by properties
+  - ~xmp-dired-filter-rating~
+  - ~xmp-dired-filter-label~
+  - ~xmp-dired-filter-subjects~
+  - ~xmp-dired-filter-toggle-sidecar~
+  - ~xmp-dired-filter-hide-sidecar~
+  - ~xmp-dired-filter-show-sidecar~
+- Sort by properties
   - ~xmp-dired-sort-by-property~
   - ~xmp-dired-sort-clear~
+  - ~xmp-dired-sort-by-rating~
+  - ~xmp-dired-sort-by-label~
+  - ~xmp-dired-sort-by-subjects~
+  - ~xmp-dired-sort-by-title~
+  - ~xmp-dired-sort-by-description~
+  - ~xmp-dired-sort-by-creators~
+- Add columns to display properties
+  - ~xmp-dired-add-column~
+  - ~xmp-dired-remove-column~
+  - ~xmp-dired-remove-all-columns~
+  - ~xmp-dired-toggle-column~
+  - ~xmp-dired-toggle-column-rating~
+  - ~xmp-dired-toggle-column-label~
+  - ~xmp-dired-toggle-column-subjects~
+  - ~xmp-dired-toggle-column-title~
+  - ~xmp-dired-toggle-column-description~
+  - ~xmp-dired-toggle-column-creators~
 
 In addition, the commands in xmp-commands.el can be used with Dired.
+
+[[file:screenshot/xmp-dired-filter-and-add-columns.png]]
+
+(Figure: Filtering files by Rating in Dired and adding Rating and Subject as columns)
 
 ** xmp-image-dired.el
 
@@ -105,8 +133,9 @@ Currently, it provides the following commands:
 
 In addition, the commands in xmp-commands.el can be used with image-dired.
 
-#+CAPTION: Photos are marked in Dired based on their ratings and displayed in image-dired
 [[file:./screenshot/xmp-image-dired.png]]
+
+(Figure: Photos are marked based on their ratings in Dired and displayed in image-dired)
 
 ** xmp-editor.el
 
@@ -123,8 +152,9 @@ For example, you can open an editor to edit XMP properties with the following co
 (xmp-editor-open-files (dired-get-marked-files) (list xmp-dc:title))
 #+end_src
 
-#+CAPTION: Editing photo metadata
 [[file:./screenshot/xmp-editor.png]]
+
+(Figure: Editing photo metadata)
 
 ** xmp-setup.el
 
@@ -138,49 +168,64 @@ xmp-setup.el provides an example of el-xmp configuration. You can use it by addi
 
 Assign keys to operate XMP properties to dired and image-dired.
 
-| Keys  | Function                 |
-|-------+--------------------------|
-| ' s r | Set rating               |
-| ' s l | Set label                |
-| ' s s | Set subjects             |
-| ' a s | Add subjects             |
-| ' r s | Remove subjects          |
-| ' s t | Set title                |
-| ' s d | Set description          |
-| ' s c | Set creators             |
-|-------+--------------------------|
-| ' e p | Edit properties          |
-| ' e a | Edit all properties      |
-|-------+--------------------------|
-| ' g r | Get rating               |
-| ' g l | Get label                |
-| ' g s | Get subjects             |
-| ' g t | Get title                |
-| ' g d | Get description          |
-| ' g c | Get creators             |
-|-------+--------------------------|
-| ' g p | Get properties           |
-| ' g a | Get all properties       |
-|-------+--------------------------|
-| ' m r | Mark by rating           |
-| ' m l | Mark by label            |
-| ' m s | Mark by subjects         |
-| ' m t | Mark by title            |
-| ' m d | Mark by description      |
-| ' m c | Mark by creators         |
-| ' m S | Mark stray sidecar files |
-|-------+--------------------------|
-| ' S p | Sort by property         |
-| ' S - | Clear sort               |
-|-------+--------------------------|
-| ' f r | Filter by rating         |
-| ' f l | Filter by label          |
-| ' f s | Filter by subjects       |
-| ' f - | Clear filter             |
-|-------+--------------------------|
-| ' l m | List managed file status |
-| ' l S | List stray metadata      |
-| ' R S | Relocate stray metadata  |
+| Keys  | Function                  |
+|-------+---------------------------|
+| ' s r | Set rating                |
+| ' s l | Set label                 |
+| ' s s | Set subjects              |
+| ' a s | Add subjects              |
+| ' r s | Remove subjects           |
+| ' s t | Set title                 |
+| ' s d | Set description           |
+| ' s c | Set creators              |
+|-------+---------------------------|
+| ' e p | Edit properties           |
+| ' e a | Edit all properties       |
+|-------+---------------------------|
+| ' g r | Get rating                |
+| ' g l | Get label                 |
+| ' g s | Get subjects              |
+| ' g t | Get title                 |
+| ' g d | Get description           |
+| ' g c | Get creators              |
+|-------+---------------------------|
+| ' g p | Get properties            |
+| ' g a | Get all properties        |
+|-------+---------------------------|
+| ' m r | Mark by rating            |
+| ' m l | Mark by label             |
+| ' m s | Mark by subjects          |
+| ' m t | Mark by title             |
+| ' m d | Mark by description       |
+| ' m c | Mark by creators          |
+| ' m S | Mark stray sidecar files  |
+|-------+---------------------------|
+| ' S p | Sort by property          |
+| ' S - | Clear sort                |
+| ' S r | Sort by rating            |
+| ' S l | Sort by label             |
+| ' S s | Sort by subjects          |
+| ' S t | Sort by title             |
+| ' S d | Sort by description       |
+| ' S c | Sort by creators          |
+|-------+---------------------------|
+| ' C p | Toggle property column    |
+| ' C - | Remove all columns        |
+| ' C r | Toggle rating column      |
+| ' C l | Toggle label column       |
+| ' C s | Toggle subjects column    |
+| ' C t | Toggle title column       |
+| ' C d | Toggle description column |
+| ' C c | Toggle creators column    |
+|-------+---------------------------|
+| ' f r | Filter by rating          |
+| ' f l | Filter by label           |
+| ' f s | Filter by subjects        |
+| ' f - | Clear filter              |
+|-------+---------------------------|
+| ' l m | List managed file status  |
+| ' l S | List stray metadata       |
+| ' R S | Relocate stray metadata   |
 
 You can also avoid using this and build your own user interface using Hydra, Transient, etc.
 
@@ -319,4 +364,4 @@ The list of properties that the command ~xmp-show-file-properties~ displays by d
 
 The list of properties that the commands ~xmp-edit-file-properties~ and ~xmp-dired-do-edit-properties~ edit by default can be set in the variable ~xmp-editor-target-properties~
 
-If a property is read frequently, it is recommended to register it as a cache target. The cache target can be set by the variable ~xmp-file-cache-target-properties~. Cached properties are stored in the in-memory cache and the SQLite database cache when their values ​​are read or written, making subsequent reads faster.
+If a property is read frequently, it is recommended to register it as a cache target. The cache target can be set by the variable ~xmp-file-cache-target-properties~. Cached properties are stored in the in-memory cache and the SQLite database cache when their values are read or written, making subsequent reads faster.

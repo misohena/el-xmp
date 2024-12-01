@@ -1,13 +1,16 @@
 #+TITLE: Emacs Extensible Metadata Platform Library
 
 * Inbox
+** TODO ファイルの移動・削除時にできるだけメタデータも追従させる。
+dired等でファイルを移動・削除したときに、サイドカーファイルやデータベース内のエントリーも可能な限り移動する。
+サイドカーファイルはちょっと微妙な所がある。
 ** TODO メタデータが無いことをキャッシュする。
 メタデータが一切無い(検出できない)画像ファイルについて、何も無いことをキャッシュすべき。でなければ、何度もファイルをスキャンしてパフォーマンスが落ちてしまうので。現在はエラーによってキャッシュされない。
 
-** TODO diredで任意のプロパティを表示したい。
-そもそもdiredの表示項目をカスタマイズ出来るのか調査する必要がある。
-(dired-)insert-directoryやdirectory-listing-before-filename-regexpあたりが気になる。
-当然拙作のdired-details-rにも影響があるかもしれない。
+** TODO diredとimage-diredのフィルタ機構を改善する。
+- not対応
+- 任意のプロパティ対応
+
 ** TODO ソート/複数プロパティのソートに対応する。
 ** TODO ソート/ソートできるプロパティ型を増やす。
 ** TODO ソート/複数プロパティで表されるような作成日でソートできるようにする。
@@ -822,3 +825,22 @@ CLOSED: [2024-11-27 Wed 18:35]
 image-dired内でのソートは可能なのか。改行等を取り除いてから画像だけをソートすれば良い？
 
 まず[[elisp-function:image-dired-line-up]]の最初で行っているように全ての画像以外の文字を削除する。そうすると画像がバッファ内の1文字で表される。その文字の列に対して[[elisp-function:sort-subr]]を使用すれば画像をソートすることが出来る。その後[[elisp-function:image-dired-line-up]]を呼び出せばちゃんとしたレイアウトで並べ直してくれる。とても簡単だった。diredよりも。
+** DONE diredで任意のプロパティを列として表示したい。
+CLOSED: [2024-12-01 Sun 15:10]
+そもそもdiredの表示項目をカスタマイズ出来るのか調査する必要がある。
+(dired-)insert-directoryやdirectory-listing-before-filename-regexpあたりが気になる。
+当然拙作のdired-details-rにも影響があるかもしれない。
+
+diredで項目(フィールド)を追加できるのだろうか。
+
+Diredはファイル名部分にdired-filename tというテキストプロパティを付与するので、dired-move-to-filenameやdired-get-filename自体は機能する。問題はその付与する部分がちゃんと正確な位置を割り出せるのかだろう。
+
++テキストプロパティを付与するのは[[elisp-function:dired-insert-set-properties]]だけ(dired.el内では)。この関数は基本的にdired-insert-directoryの最後で呼ばれる。+
+
+意外な事実！　dired-filenameというテキストプロパティはinsert-directory関数の時点ですでに設定されている！　GNUのlsコマンドは --diredというオプションを付けると出力の最後に「//DIRED// 59 60 109 111 ...」といった数値が出力される。これがファイル名の位置を示しているらしい。insert-directoryはこの情報に基づいてdired-filenameというテキストプロパティを付与する。もちろんls-lispも同様に付与する。
+
+従ってファイル名部分の前に後からどんなテキストを挿入してもちゃんとファイル名部分を検出することが可能。
+
+拙作のdired-details-rはファイル名の先頭からlooking-backで情報を取得していて、タイムスタンプは残りの任意の文字の繰り返しとして収集されている。なので、タイムスタンプとファイル名の間に何かを追加したら、タイムスタンプの一部として扱われる。とりあえず何か動作に支障を来すわけではないので安心。
+** DONE diredでフィルタしたい。
+CLOSED: [2024-12-01 Sun 15:09]

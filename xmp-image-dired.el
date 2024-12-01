@@ -336,9 +336,9 @@ If PROP-ENAME is nil, call `xmp-image-dired-sort-by-file-name'."
 
   (if (null prop-ename)
       (xmp-image-dired-sort-by-file-name reverse)
-    (cl-destructuring-bind (fun-key . fun-less)
-        (xmp-make-file-prop-sort-funs-key-and-less prop-ename
-                                                   reverse)
+    (let* ((sort-key (xmp-make-file-property-sort-key prop-ename reverse))
+           (fun-key (xmp-file-property-sort-key-fun-key sort-key))
+           (fun-less (xmp-file-property-sort-key-fun-less sort-key)))
       (xmp-image-dired-remove-all-spaces)
       (let ((inhibit-read-only t))
         (goto-char (point-min))
@@ -366,6 +366,36 @@ If the prefix argument or REVERSE is non-nil, sort in reverse order."
                #'string<))
   ;; Update spaces and line breaks
   (image-dired--line-up-with-method))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-rating (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-xmp:Rating reverse))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-label (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-xmp:Label reverse))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-subjects (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-dc:subject reverse))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-title (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-dc:title reverse))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-description (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-dc:description reverse))
+
+;;;###autoload
+(defun xmp-image-dired-sort-by-creators (&optional reverse)
+  (interactive "P")
+  (xmp-image-dired-sort-by-property xmp-dc:creator reverse))
 
 ;;;; Marked Files
 

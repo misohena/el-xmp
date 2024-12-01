@@ -49,6 +49,18 @@
 ;; - ' m r : Mark by rating
 ;; - ' m l : Mark by label
 ;; - ' m s : Mark by subjects
+;; - ' m t : Mark by title
+;; - ' m d : Mark by description
+;; - ' m c : Mark by creators
+
+;; - ' f p : Filter by property
+;; - ' f - : Clear filter
+;; - ' f r : Filter by rating
+;; - ' f l : Filter by label
+;; - ' f s : Filter by subjects
+;; - ' f t : Filter by title
+;; - ' f d : Filter by description
+;; - ' f c : Filter by creators
 
 ;; - ' S p : Sort by property
 ;; - ' S - : Clear sort
@@ -67,11 +79,6 @@
 ;; - ' C d : Toggle description column
 ;; - ' C c : Toggle creators column
 ;; - ' C - : Remove all columns
-
-;; - ' f r : Filter by rating
-;; - ' f l : Filter by label
-;; - ' f s : Filter by subjects
-;; - ' f - : Clear filter
 
 ;; - ' l m : List managed files
 ;; - ' l S : List stray metadata
@@ -145,6 +152,17 @@
 (autoload 'xmp-dired-do-set-creators "xmp-dired" nil t)
 (autoload 'xmp-dired-do-edit-properties "xmp-dired" nil t)
 (autoload 'xmp-dired-do-edit-properties-all "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-property "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-clear "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-rating "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-label "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-subjects "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-title "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-description "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-creators "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-toggle-sidecar "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-show-sidecar "xmp-dired" nil t)
+(autoload 'xmp-dired-filter-hide-sidecar "xmp-dired" nil t)
 (autoload 'xmp-dired-sort-by-property "xmp-dired" nil t)
 (autoload 'xmp-dired-sort-clear "xmp-dired" nil t)
 (autoload 'xmp-dired-sort-by-rating "xmp-dired" nil t)
@@ -165,10 +183,14 @@
 (autoload 'xmp-dired-remove-all-columns "xmp-dired" nil t)
 
 ;; xmp-image-dired.el
+(autoload 'xmp-image-dired-filter-property "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-clear "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-rating "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-label "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-filter-subjects "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-filter-title "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-filter-description "xmp-image-dired" nil t)
+(autoload 'xmp-image-dired-filter-creators "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-sort-by-property "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-sort-by-file-name "xmp-image-dired" nil t)
 (autoload 'xmp-image-dired-sort-by-rating "xmp-image-dired" nil t)
@@ -189,10 +211,6 @@
     (define-key km (kbd "'md") 'xmp-dired-mark-description)
     (define-key km (kbd "'mc") 'xmp-dired-mark-creator)
     (define-key km (kbd "'mS") 'xmp-dired-mark-stray-sidecar-files)
-    (define-key km (kbd "'f-") 'xmp-dired-filter-clear)
-    (define-key km (kbd "'fr") 'xmp-dired-filter-rating)
-    (define-key km (kbd "'fl") 'xmp-dired-filter-label)
-    (define-key km (kbd "'fs") 'xmp-dired-filter-subjects)
     (define-key km (kbd "'sr") 'xmp-dired-do-rate)
     (define-key km (kbd "'sl") 'xmp-dired-do-set-label)
     (define-key km (kbd "'ss") 'xmp-dired-do-set-subjects)
@@ -214,6 +232,14 @@
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
+    (define-key km (kbd "'fp") 'xmp-dired-filter-property)
+    (define-key km (kbd "'f-") 'xmp-dired-filter-clear)
+    (define-key km (kbd "'fr") 'xmp-dired-filter-rating)
+    (define-key km (kbd "'fl") 'xmp-dired-filter-label)
+    (define-key km (kbd "'fs") 'xmp-dired-filter-subjects)
+    (define-key km (kbd "'ft") 'xmp-dired-filter-title)
+    (define-key km (kbd "'fd") 'xmp-dired-filter-description)
+    (define-key km (kbd "'fc") 'xmp-dired-filter-creators)
     (define-key km (kbd "'Sp") 'xmp-dired-sort-by-property)
     (define-key km (kbd "'S-") 'xmp-dired-sort-clear)
     (define-key km (kbd "'Sr") 'xmp-dired-sort-by-rating)
@@ -239,10 +265,6 @@
 
 (defvar xmp-image-dired-thumbnail-mode-map
   (let ((km (make-sparse-keymap)))
-    (define-key km (kbd "'f-") 'xmp-image-dired-filter-clear)
-    (define-key km (kbd "'fr") 'xmp-image-dired-filter-rating)
-    (define-key km (kbd "'fl") 'xmp-image-dired-filter-label)
-    (define-key km (kbd "'fs") 'xmp-image-dired-filter-subjects)
     (define-key km (kbd "'sr") 'xmp-rate-file)
     (define-key km (kbd "'sl") 'xmp-set-file-label)
     (define-key km (kbd "'ss") 'xmp-set-file-subjects)
@@ -264,6 +286,14 @@
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
+    (define-key km (kbd "'fp") 'xmp-image-dired-filter-property)
+    (define-key km (kbd "'f-") 'xmp-image-dired-filter-clear)
+    (define-key km (kbd "'fr") 'xmp-image-dired-filter-rating)
+    (define-key km (kbd "'fl") 'xmp-image-dired-filter-label)
+    (define-key km (kbd "'fs") 'xmp-image-dired-filter-subjects)
+    (define-key km (kbd "'ft") 'xmp-image-dired-filter-title)
+    (define-key km (kbd "'fd") 'xmp-image-dired-filter-description)
+    (define-key km (kbd "'fc") 'xmp-image-dired-filter-creators)
     (define-key km (kbd "'Sp") 'xmp-image-dired-sort-by-property)
     (define-key km (kbd "'S-") 'xmp-image-dired-sort-by-file-name)
     (define-key km (kbd "'Sr") 'xmp-image-dired-sort-by-rating)

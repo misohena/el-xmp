@@ -29,20 +29,20 @@
 
 ;;;; Read metadata and set it to thumbnail
 
-(defconst xmp-image-dired-metadata-properties
-  '(("http://ns.adobe.com/xap/1.0/" "Rating")
-    ("http://ns.adobe.com/xap/1.0/" "Label")
-    ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
-    ;;("http://purl.org/dc/elements/1.1/" "title")
-    ;;("http://purl.org/dc/elements/1.1/" "description")
-    ("http://purl.org/dc/elements/1.1/" "subject")
-    ;;("http://purl.org/dc/elements/1.1/" "creator")
-    ))
+;; (defconst xmp-image-dired-metadata-properties
+;;   '(("http://ns.adobe.com/xap/1.0/" "Rating")
+;;     ("http://ns.adobe.com/xap/1.0/" "Label")
+;;     ;;("http://ns.adobe.com/xap/1.0/" "CreateDate")
+;;     ;;("http://purl.org/dc/elements/1.1/" "title")
+;;     ;;("http://purl.org/dc/elements/1.1/" "description")
+;;     ("http://purl.org/dc/elements/1.1/" "subject")
+;;     ;;("http://purl.org/dc/elements/1.1/" "creator")
+;;     ))
 
-(defun xmp-image-dired-metadata-properties ()
-  (cl-loop for (ns-name local-name)
-           in xmp-image-dired-metadata-properties
-           collect (xmp-xml-ename (xmp-xml-ns-name ns-name) local-name)))
+;; (defun xmp-image-dired-metadata-properties ()
+;;   (cl-loop for (ns-name local-name)
+;;            in xmp-image-dired-metadata-properties
+;;            collect (xmp-xml-ename (xmp-xml-ns-name ns-name) local-name)))
 
 (defun xmp-image-dired-get-metadata-at-point ()
   (when (image-dired-image-at-point-p)
@@ -57,9 +57,12 @@
 
     ;; It's simpler to retrieve it every time, and since caching works
     ;; it shouldn't be that slow.
-    (xmp-get-file-properties
-     (get-text-property (point) 'original-file-name)
-     (xmp-image-dired-metadata-properties))))
+    (when-let ((required-props
+                (xmp-image-dired-filter-required-properties)))
+      (xmp-get-file-properties
+       (get-text-property (point) 'original-file-name)
+       ;;(xmp-image-dired-metadata-properties)
+       required-props))))
 
 
 ;;;; Filter thumbnails
@@ -258,6 +261,10 @@ point is on the last image, move to the last one and vice versa."
 nil, it is considered a match. If all elements match, the whole is
 considered a match.")
 
+(defun xmp-image-dired-filter-required-properties ()
+  "Return a list of expanded names of properties required for filtering."
+  (mapcar #'car xmp-image-dired-filter-alist))
+
 ;;;###autoload
 (defun xmp-image-dired-filter-clear ()
   (interactive nil image-dired-thumbnail-mode)
@@ -274,51 +281,71 @@ considered a match.")
            t))
        xmp-image-dired-filter-alist))))
 
+(defun xmp-image-dired-filter-set (prop-ename pred)
+  (if pred
+      (setf (xmp-xml-ename-alist-get prop-ename
+                                     xmp-image-dired-filter-alist)
+            pred)
+    (setf (xmp-xml-ename-alist-get prop-ename
+                                   xmp-image-dired-filter-alist nil t)
+          nil)))
+
 ;;;###autoload
-(defun xmp-image-dired-filter-rating (condition)
-  (interactive
-   (list
-    (let ((input (read-string (xmp-msg "Filter rating (e.g. 1 3 >=5): "))))
-      (if (string-empty-p input)
-          nil
-        input)))
-   image-dired-thumbnail-mode)
-  (setf (xmp-xml-ename-alist-get xmp-xmp:Rating xmp-image-dired-filter-alist)
-        (and condition
-             (lambda (v) (xmp-rating-match-p v condition))))
+(defun xmp-image-dired-filter-property (prop-ename pred &optional arg)
+  "Display files for which the value of the property specified by
+PROP-ENAME satisfies the predicate PRED.
+
+If the prefix argument is - or 0, remove the filter for the property. If
+the prefix argument is any other non-nil value, invert the specified
+condition."
+  (interactive (xmp-filter-read-property-condition) image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set prop-ename
+                              (xmp-filter-gen-property-predicate pred arg))
   (xmp-image-dired-filter-thumbnails))
 
 ;;;###autoload
-(defun xmp-image-dired-filter-label (label)
-  (interactive
-   (let ((input (completing-read (xmp-msg "Filter label: ")
-                                 (mapcar #'car xmp-label-strings))))
-     (list
-      (if (string-empty-p input)
-          nil
-        input)))
-   image-dired-thumbnail-mode)
-  (setf (xmp-xml-ename-alist-get xmp-xmp:Label xmp-image-dired-filter-alist)
-        (and label
-             (lambda (v) (equal (xmp-pvalue-as-text v) label))))
+(defun xmp-image-dired-filter-rating (condition &optional arg)
+  (interactive (xmp-filter-read-rating-condition) image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-xmp:Rating
+                              (xmp-filter-gen-rating-predicate condition arg))
   (xmp-image-dired-filter-thumbnails))
 
 ;;;###autoload
-(defun xmp-image-dired-filter-subjects (subjects)
-  (interactive
-   (list
-    (xmp-read-text-list
-     (xmp-msg "Filter subjects (AND): %s\nSubject to toggle (empty to end): ")
-     nil
-     xmp-read-subjects-candidates
-     'xmp-read-subjects--hist))
-   image-dired-thumbnail-mode)
-  (setf (xmp-xml-ename-alist-get xmp-dc:subject xmp-image-dired-filter-alist)
-        (and subjects
-             (lambda (v)
-               (seq-every-p
-                (lambda (sbj) (member sbj (xmp-pvalue-as-text-list v)))
-                subjects))))
+(defun xmp-image-dired-filter-label (label &optional arg)
+  (interactive (xmp-filter-read-label-condition) image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-xmp:Label
+                              (xmp-filter-gen-label-predicate label arg))
+  (xmp-image-dired-filter-thumbnails))
+
+;;;###autoload
+(defun xmp-image-dired-filter-subjects (subjects &optional arg)
+  (interactive (xmp-filter-read-subjects-condition) image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-dc:subject
+                              (xmp-filter-gen-subjects-predicate subjects arg))
+  (xmp-image-dired-filter-thumbnails))
+
+;;;###autoload
+(defun xmp-image-dired-filter-title (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:title)
+               image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-dc:title
+                              (xmp-filter-gen-property-predicate pred arg))
+  (xmp-image-dired-filter-thumbnails))
+
+;;;###autoload
+(defun xmp-image-dired-filter-description (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:description)
+               image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-dc:description
+                              (xmp-filter-gen-property-predicate pred arg))
+  (xmp-image-dired-filter-thumbnails))
+
+;;;###autoload
+(defun xmp-image-dired-filter-creators (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:creator)
+               image-dired-thumbnail-mode)
+  (xmp-image-dired-filter-set xmp-dc:creator
+                              (xmp-filter-gen-property-predicate pred arg))
   (xmp-image-dired-filter-thumbnails))
 
 ;;;; Sort

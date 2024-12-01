@@ -999,5 +999,177 @@ Processes both sidecar files and in-database file entries."
         ;; to move the sidecar file as is.
         (xmp-move-external-file-metadata src-target-file dst-target-file)))))
 
+;;;; Input PValue Condition
+
+(defun xmp-read-pvalue-condition-text (msg prop-ename not)
+  (let ((str
+         (read-string
+          (format (xmp-msg "%s with %s %s: ")
+                  msg
+                  (xmp-xml-ename-string prop-ename)
+                  (if not (xmp-msg "not equal to") (xmp-msg "equal to"))))))
+    (lambda (pvalue) (xor not
+                          (equal (or (xmp-pvalue-as-text pvalue) "") str)))))
+;; EXAMPLE: (xmp-read-pvalue-condition-text "Show files" xmp-xmp:Label t)
+
+(defun xmp-read-pvalue-condition-uri (msg prop-ename not)
+  (let ((str
+         (read-string
+          (format (xmp-msg "%s with %s %s: ")
+                  msg
+                  (xmp-xml-ename-string prop-ename)
+                  (if not (xmp-msg "not equal to") (xmp-msg "equal to"))))))
+    (lambda (pvalue) (xor not
+                          (equal (or (xmp-pvalue-as-uri pvalue) "") str)))))
+
+(defun xmp-read-pvalue-condition-lang-alt (msg prop-ename not)
+  (let ((str
+         (read-string
+          (format (xmp-msg "%s with %s %s: ")
+                  msg
+                  (xmp-xml-ename-string prop-ename)
+                  (if not (xmp-msg "not equal to") (xmp-msg "equal to"))))))
+    (lambda (pvalue)
+      (xor not
+           (let ((alist (xmp-pvalue-as-lang-alt-alist pvalue)))
+             (if alist
+                 (seq-some (lambda (x) (equal (cdr x) str)) alist)
+               (string-empty-p str)))))))
+
+(defun xmp-read-pvalue-condition-text-list (msg prop-ename not)
+  (let ((strs
+         (xmp-read-text-list
+          (format
+           (xmp-msg "%s whose %s %s (AND): %%s\nText to toggle (empty to end): ")
+           msg
+           (xmp-xml-ename-string prop-ename)
+           (if not (xmp-msg "not contains") (xmp-msg "contains")))
+          nil)))
+    (if (null strs)
+        ;; Match empty
+        (lambda (pvalue)
+          (xor not
+               (null (xmp-pvalue-as-list pvalue))))
+      (lambda (pvalue)
+        (xor not
+             (seq-every-p
+              (lambda (str)
+                (member str (xmp-pvalue-as-text-list pvalue)))
+              strs))))))
+;; EXAMPLE: (xmp-read-pvalue-condition-bag-text "Show files" xmp-dc:subject t)
+
+;; TODO: impl
+;; (defun xmp-read-pvalue-condition-seq-text (prop-ename))
+;; (defun xmp-read-pvalue-condition-real (prop-ename))
+
+(defconst xmp-read-pvalue-condition-type-reader-alist
+  '((Text . xmp-read-pvalue-condition-text)
+    (URI . xmp-read-pvalue-condition-uri)
+    (Boolean . xmp-read-pvalue-condition-text)
+    (Real . xmp-read-pvalue-condition-text)
+    (Integer . xmp-read-pvalue-condition-text)
+    (MIMEType . xmp-read-pvalue-condition-text)
+    (AgentName . xmp-read-pvalue-condition-text)
+    (LangAlt . xmp-read-pvalue-condition-lang-alt)
+    (BagText . xmp-read-pvalue-condition-text-list)
+    (BagProperName . xmp-read-pvalue-condition-text-list)
+    (BagLocale . xmp-read-pvalue-condition-text-list)
+    (SeqText . xmp-read-pvalue-condition-text-list)
+    (SeqProperName . xmp-read-pvalue-condition-text-list)
+    (SeqLocale . xmp-read-pvalue-condition-text-list)))
+
+(defun xmp-read-pvalue-condition (msg prop-ename not)
+  (unless prop-ename
+    (error "No property name"))
+  (let* ((prop-type (or (xmp-defined-property-type prop-ename)
+                        (error "Undefined property %s" prop-ename)))
+         (reader (or (alist-get prop-type
+                                xmp-read-pvalue-condition-type-reader-alist)
+                     (error "Unknown property type %s" prop-type))))
+    (funcall reader msg prop-ename not)))
+
+;;;;; Input Filter Condition
+
+(defun xmp-filter-clear-arg-p (arg)
+  (and arg (memq arg '(0 -))))
+
+(defun xmp-filter-apply-predicate-arg (pred arg)
+  (when pred
+    (if arg
+        (if (xmp-filter-clear-arg-p arg)
+            nil
+          (lambda (&rest args) (not (apply pred args))))
+      pred)))
+
+(defun xmp-filter-read-property-condition (&optional target-prop-ename)
+  (let* ((prop-ename (or target-prop-ename
+                         (xmp-read-property-ename
+                          (xmp-msg "Filter target property: "))))
+         (arg current-prefix-arg)
+         (pred (if (xmp-filter-clear-arg-p arg)
+                   nil
+                 (or (xmp-read-pvalue-condition "Show files with"
+                                                prop-ename
+                                                arg)
+                     (error "No condition")))))
+    (if target-prop-ename
+        (list pred nil)
+      (list prop-ename pred nil))))
+;; EXAMPLE: (xmp-read-property-filter-condition)
+
+(defun xmp-filter-gen-property-predicate (pred arg)
+  (xmp-filter-apply-predicate-arg pred arg))
+
+(defun xmp-filter-read-rating-condition ()
+  (if (xmp-filter-clear-arg-p current-prefix-arg)
+      (list nil nil)
+    (list
+     (let ((input (read-string (xmp-msg "Filter rating (e.g. 1 3 >=5): "))))
+       (if (string-empty-p input)
+           nil
+         input))
+     current-prefix-arg)))
+
+(defun xmp-filter-gen-rating-predicate (condition arg)
+  (and condition
+       (xmp-filter-apply-predicate-arg
+        (lambda (v) (xmp-rating-match-p v condition)) arg)))
+
+(defun xmp-filter-read-label-condition ()
+  (if (xmp-filter-clear-arg-p current-prefix-arg)
+      (list nil nil)
+    (list
+     (let ((input (completing-read (xmp-msg "Filter label: ")
+                                   (mapcar #'car xmp-label-strings))))
+       (if (string-empty-p input)
+           nil
+         input))
+     current-prefix-arg)))
+
+(defun xmp-filter-gen-label-predicate (label arg)
+  (and label
+       (xmp-filter-apply-predicate-arg
+        (lambda (v) (equal (xmp-pvalue-as-text v) label)) arg)))
+
+(defun xmp-filter-read-subjects-condition ()
+  (if (xmp-filter-clear-arg-p current-prefix-arg)
+      (list nil nil)
+    (list
+     (xmp-read-text-list
+      (xmp-msg "Filter subjects (AND): %s\nSubject to toggle (empty to end): ")
+      nil
+      xmp-read-subjects-candidates
+      'xmp-read-subjects--hist)
+     current-prefix-arg)))
+
+(defun xmp-filter-gen-subjects-predicate (subjects arg)
+  (and subjects
+       (xmp-filter-apply-predicate-arg
+        (lambda (v)
+          (seq-every-p
+           (lambda (sbj) (member sbj (xmp-pvalue-as-text-list v)))
+           subjects))
+        arg)))
+
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

@@ -83,9 +83,14 @@ Currently, it provides the following commands:
   - ~xmp-dired-do-edit-properties~
   - ~xmp-dired-do-edit-properties-all~
 - Filter by properties
+  - ~xmp-dired-filter-property~
+  - ~xmp-dired-filter-clear~
   - ~xmp-dired-filter-rating~
   - ~xmp-dired-filter-label~
   - ~xmp-dired-filter-subjects~
+  - ~xmp-dired-filter-title~
+  - ~xmp-dired-filter-description~
+  - ~xmp-dired-filter-creators~
   - ~xmp-dired-filter-toggle-sidecar~
   - ~xmp-dired-filter-hide-sidecar~
   - ~xmp-dired-filter-show-sidecar~
@@ -123,13 +128,23 @@ xmp-image-dired.el adds XMP-related features to image-dired.
 Currently, it provides the following commands:
 
 - Filter thumbnails (temporarily hide thumbnails depending on conditions)
+  - ~xmp-image-dired-filter-property~
   - ~xmp-image-dired-filter-clear~
   - ~xmp-image-dired-filter-rating~
   - ~xmp-image-dired-filter-label~
   - ~xmp-image-dired-filter-subjects~
+  - ~xmp-image-dired-filter-title~
+  - ~xmp-image-dired-filter-description~
+  - ~xmp-image-dired-filter-creators~
 - Sort thumbnails
   - ~xmp-image-dired-sort-by-property~
   - ~xmp-image-dired-sort-by-file-name~
+  - ~xmp-image-dired-sort-by-rating~
+  - ~xmp-image-dired-sort-by-label~
+  - ~xmp-image-dired-sort-by-subjects~
+  - ~xmp-image-dired-sort-by-title~
+  - ~xmp-image-dired-sort-by-description~
+  - ~xmp-image-dired-sort-by-creators~
 
 In addition, the commands in xmp-commands.el can be used with image-dired.
 
@@ -182,15 +197,14 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' e p | Edit properties           |
 | ' e a | Edit all properties       |
 |-------+---------------------------|
+| ' g p | Get properties            |
+| ' g a | Get all properties        |
 | ' g r | Get rating                |
 | ' g l | Get label                 |
 | ' g s | Get subjects              |
 | ' g t | Get title                 |
 | ' g d | Get description           |
 | ' g c | Get creators              |
-|-------+---------------------------|
-| ' g p | Get properties            |
-| ' g a | Get all properties        |
 |-------+---------------------------|
 | ' m r | Mark by rating            |
 | ' m l | Mark by label             |
@@ -199,6 +213,15 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' m d | Mark by description       |
 | ' m c | Mark by creators          |
 | ' m S | Mark stray sidecar files  |
+|-------+---------------------------|
+| ' f p | Filter by property        |
+| ' f - | Clear filter              |
+| ' f r | Filter by rating          |
+| ' f l | Filter by label           |
+| ' f s | Filter by subjects        |
+| ' f t | Filter by title           |
+| ' f d | Filter by description     |
+| ' f c | Filter by creators        |
 |-------+---------------------------|
 | ' S p | Sort by property          |
 | ' S - | Clear sort                |
@@ -217,11 +240,6 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' C t | Toggle title column       |
 | ' C d | Toggle description column |
 | ' C c | Toggle creators column    |
-|-------+---------------------------|
-| ' f r | Filter by rating          |
-| ' f l | Filter by label           |
-| ' f s | Filter by subjects        |
-| ' f - | Clear filter              |
 |-------+---------------------------|
 | ' l m | List managed file status  |
 | ' l S | List stray metadata       |

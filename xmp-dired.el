@@ -571,54 +571,62 @@ the file based on the list of property names returned by the function
       (xmp-dired-filter-show-sidecar t))))
 
 ;;;###autoload
-(defun xmp-dired-filter-rating (condition)
-  ;; TODO: Unify with `xmp-image-dired-filter-rating'
+(defun xmp-dired-filter-property (prop-ename pred &optional arg)
+  "Display files for which the value of the property specified by
+PROP-ENAME satisfies the predicate PRED.
+
+If the prefix argument is - or 0, remove the filter for the property. If
+the prefix argument is any other non-nil value, invert the specified
+condition."
   (interactive
-   (list
-    (let ((input (read-string (xmp-msg "Filter rating (e.g. 1 3 >=5): "))))
-      (if (string-empty-p input)
-          nil
-        input)))
+   (xmp-filter-read-property-condition)
    dired-mode)
+
+  (xmp-dired-filter-set prop-ename
+                        (xmp-filter-gen-property-predicate pred arg))
+  (revert-buffer))
+
+;;;###autoload
+(defun xmp-dired-filter-rating (condition &optional arg)
+  (interactive (xmp-filter-read-rating-condition) dired-mode)
   (xmp-dired-filter-set xmp-xmp:Rating
-                        (and condition
-                             (lambda (v) (xmp-rating-match-p v condition))))
+                        (xmp-filter-gen-rating-predicate condition arg))
   (revert-buffer))
 
 ;;;###autoload
-(defun xmp-dired-filter-label (label)
-  ;; TODO: Unify with `xmp-image-dired-filter-label'
-  (interactive
-   (let ((input (completing-read (xmp-msg "Filter label: ")
-                                 (mapcar #'car xmp-label-strings))))
-     (list
-      (if (string-empty-p input)
-          nil
-        input)))
-   dired-mode)
+(defun xmp-dired-filter-label (label &optional arg)
+  (interactive (xmp-filter-read-label-condition) dired-mode)
   (xmp-dired-filter-set xmp-xmp:Label
-                        (and label
-                             (lambda (v) (equal (xmp-pvalue-as-text v) label))))
+                        (xmp-filter-gen-label-predicate label arg))
   (revert-buffer))
 
 ;;;###autoload
-(defun xmp-dired-filter-subjects (subjects)
-  ;; TODO: Unify with `xmp-image-dired-filter-subjects'
-  (interactive
-   (list
-    (xmp-read-text-list
-     (xmp-msg "Filter subjects (AND): %s\nSubject to toggle (empty to end): ")
-     nil
-     xmp-read-subjects-candidates
-     'xmp-read-subjects--hist))
-   dired-mode)
+(defun xmp-dired-filter-subjects (subjects &optional arg)
+  (interactive (xmp-filter-read-subjects-condition) dired-mode)
   (xmp-dired-filter-set xmp-dc:subject
-                        (and subjects
-                             (lambda (v)
-                               (seq-every-p
-                                (lambda (sbj)
-                                  (member sbj (xmp-pvalue-as-text-list v)))
-                                subjects))))
+                        (xmp-filter-gen-subjects-predicate subjects arg))
+  (revert-buffer))
+
+;;;###autoload
+(defun xmp-dired-filter-title (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:title) dired-mode)
+  (xmp-dired-filter-set xmp-dc:title
+                        (xmp-filter-gen-property-predicate pred arg))
+  (revert-buffer))
+
+;;;###autoload
+(defun xmp-dired-filter-description (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:description)
+               dired-mode)
+  (xmp-dired-filter-set xmp-dc:description
+                        (xmp-filter-gen-property-predicate pred arg))
+  (revert-buffer))
+
+;;;###autoload
+(defun xmp-dired-filter-creators (pred &optional arg)
+  (interactive (xmp-filter-read-property-condition xmp-dc:creator) dired-mode)
+  (xmp-dired-filter-set xmp-dc:creator
+                        (xmp-filter-gen-property-predicate pred arg))
   (revert-buffer))
 
 ;;;###autoload

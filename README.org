@@ -232,14 +232,14 @@ Assign keys to operate XMP properties to dired and image-dired.
 | ' S d | Sort by description       |
 | ' S c | Sort by creators          |
 |-------+---------------------------|
-| ' C p | Toggle property column    |
-| ' C - | Remove all columns        |
-| ' C r | Toggle rating column      |
-| ' C l | Toggle label column       |
-| ' C s | Toggle subjects column    |
-| ' C t | Toggle title column       |
-| ' C d | Toggle description column |
-| ' C c | Toggle creators column    |
+| ' c p | Toggle property column    |
+| ' c - | Remove all columns        |
+| ' c r | Toggle rating column      |
+| ' c l | Toggle label column       |
+| ' c s | Toggle subjects column    |
+| ' c t | Toggle title column       |
+| ' c d | Toggle description column |
+| ' c c | Toggle creators column    |
 |-------+---------------------------|
 | ' l m | List managed file status  |
 | ' l S | List stray metadata       |

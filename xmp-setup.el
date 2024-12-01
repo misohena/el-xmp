@@ -71,14 +71,14 @@
 ;; - ' S d : Sort by description
 ;; - ' S c : Sort by creators
 
-;; - ' C p : Toggle property column
-;; - ' C r : Toggle rating column
-;; - ' C l : Toggle label column
-;; - ' C s : Toggle subjects column
-;; - ' C t : Toggle title column
-;; - ' C d : Toggle description column
-;; - ' C c : Toggle creators column
-;; - ' C - : Remove all columns
+;; - ' c p : Toggle property column
+;; - ' c r : Toggle rating column
+;; - ' c l : Toggle label column
+;; - ' c s : Toggle subjects column
+;; - ' c t : Toggle title column
+;; - ' c d : Toggle description column
+;; - ' c c : Toggle creators column
+;; - ' c - : Remove all columns
 
 ;; - ' l m : List managed files
 ;; - ' l S : List stray metadata
@@ -248,14 +248,14 @@
     (define-key km (kbd "'St") 'xmp-dired-sort-by-title)
     (define-key km (kbd "'Sd") 'xmp-dired-sort-by-description)
     (define-key km (kbd "'Sc") 'xmp-dired-sort-by-creators)
-    (define-key km (kbd "'Cp") 'xmp-dired-toggle-column)
-    (define-key km (kbd "'C-") 'xmp-dired-remove-all-columns)
-    (define-key km (kbd "'Cr") 'xmp-dired-toggle-column-rating)
-    (define-key km (kbd "'Cl") 'xmp-dired-toggle-column-label)
-    (define-key km (kbd "'Cs") 'xmp-dired-toggle-column-subjects)
-    (define-key km (kbd "'Ct") 'xmp-dired-toggle-column-title)
-    (define-key km (kbd "'Cd") 'xmp-dired-toggle-column-description)
-    (define-key km (kbd "'Cc") 'xmp-dired-toggle-column-creators)
+    (define-key km (kbd "'cp") 'xmp-dired-toggle-column)
+    (define-key km (kbd "'c-") 'xmp-dired-remove-all-columns)
+    (define-key km (kbd "'cr") 'xmp-dired-toggle-column-rating)
+    (define-key km (kbd "'cl") 'xmp-dired-toggle-column-label)
+    (define-key km (kbd "'cs") 'xmp-dired-toggle-column-subjects)
+    (define-key km (kbd "'ct") 'xmp-dired-toggle-column-title)
+    (define-key km (kbd "'cd") 'xmp-dired-toggle-column-description)
+    (define-key km (kbd "'cc") 'xmp-dired-toggle-column-creators)
     km))
 
 (define-minor-mode xmp-dired-mode

@@ -183,17 +183,17 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 
 | キー  | 機能                      |
 |-------+---------------------------|
-| ' s r | Set rating                |
-| ' s l | Set label                 |
-| ' s s | Set subjects              |
-| ' a s | Add subjects              |
-| ' r s | Remove subjects           |
-| ' s t | Set title                 |
-| ' s d | Set description           |
-| ' s c | Set creators              |
+| ' S r | Set rating                |
+| ' S l | Set label                 |
+| ' S s | Set subjects              |
+| ' A s | Add subjects              |
+| ' R s | Remove subjects           |
+| ' S t | Set title                 |
+| ' S d | Set description           |
+| ' S c | Set creators              |
 |-------+---------------------------|
-| ' e p | Edit properties           |
-| ' e a | Edit all properties       |
+| ' E p | Edit properties           |
+| ' E a | Edit all properties       |
 |-------+---------------------------|
 | ' g p | Get properties            |
 | ' g a | Get all properties        |
@@ -221,14 +221,14 @@ diredやimage-diredにXMPプロパティを操作するためのキーを割り�
 | ' f d | Filter by description     |
 | ' f c | Filter by creators        |
 |-------+---------------------------|
-| ' S p | Sort by property          |
-| ' S - | Clear sort                |
-| ' S r | Sort by rating            |
-| ' S l | Sort by label             |
-| ' S s | Sort by subjects          |
-| ' S t | Sort by title             |
-| ' S d | Sort by description       |
-| ' S c | Sort by creators          |
+| ' s p | Sort by property          |
+| ' s - | Clear sort                |
+| ' s r | Sort by rating            |
+| ' s l | Sort by label             |
+| ' s s | Sort by subjects          |
+| ' s t | Sort by title             |
+| ' s d | Sort by description       |
+| ' s c | Sort by creators          |
 |-------+---------------------------|
 | ' c p | Toggle property column    |
 | ' c - | Remove all columns        |

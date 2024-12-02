@@ -24,14 +24,14 @@
 ;; Call `xmp-setup-default'
 
 ;; Assign keys to manipulate XMP properties in dired and image-dired.
-;; - ' s r : Set rating
-;; - ' s l : Set label
-;; - ' s s : Set subjects
-;; - ' a s : Add subjects
-;; - ' r s : Remove subjects
-;; - ' s t : Set title
-;; - ' s d : Set description
-;; - ' s c : Set creators
+;; - ' S r : Set rating
+;; - ' S l : Set label
+;; - ' S s : Set subjects
+;; - ' A s : Add subjects
+;; - ' R s : Remove subjects
+;; - ' S t : Set title
+;; - ' S d : Set description
+;; - ' S c : Set creators
 
 ;; - ' g r : Get rating
 ;; - ' g l : Get label
@@ -43,8 +43,8 @@
 ;; - ' g p : Get properties
 ;; - ' g a : Get all properties
 
-;; - ' e p : Edit properties
-;; - ' e a : Edit all properties
+;; - ' E p : Edit properties
+;; - ' E a : Edit all properties
 
 ;; - ' m r : Mark by rating
 ;; - ' m l : Mark by label
@@ -62,14 +62,14 @@
 ;; - ' f d : Filter by description
 ;; - ' f c : Filter by creators
 
-;; - ' S p : Sort by property
-;; - ' S - : Clear sort
-;; - ' S r : Sort by rating
-;; - ' S l : Sort by label
-;; - ' S s : Sort by subjects
-;; - ' S t : Sort by title
-;; - ' S d : Sort by description
-;; - ' S c : Sort by creators
+;; - ' s p : Sort by property
+;; - ' s - : Clear sort
+;; - ' s r : Sort by rating
+;; - ' s l : Sort by label
+;; - ' s s : Sort by subjects
+;; - ' s t : Sort by title
+;; - ' s d : Sort by description
+;; - ' s c : Sort by creators
 
 ;; - ' c p : Toggle property column
 ;; - ' c r : Toggle rating column
@@ -82,6 +82,7 @@
 
 ;; - ' l m : List managed files
 ;; - ' l S : List stray metadata
+;; - ' R S : Relocate stray metadata
 
 ;;; Code:
 
@@ -211,14 +212,14 @@
     (define-key km (kbd "'md") 'xmp-dired-mark-description)
     (define-key km (kbd "'mc") 'xmp-dired-mark-creator)
     (define-key km (kbd "'mS") 'xmp-dired-mark-stray-sidecar-files)
-    (define-key km (kbd "'sr") 'xmp-dired-do-rate)
-    (define-key km (kbd "'sl") 'xmp-dired-do-set-label)
-    (define-key km (kbd "'ss") 'xmp-dired-do-set-subjects)
-    (define-key km (kbd "'as") 'xmp-dired-do-add-subjects)
-    (define-key km (kbd "'rs") 'xmp-dired-do-remove-subjects)
-    (define-key km (kbd "'st") 'xmp-dired-do-set-title)
-    (define-key km (kbd "'sd") 'xmp-dired-do-set-description)
-    (define-key km (kbd "'sc") 'xmp-dired-do-set-creators)
+    (define-key km (kbd "'Sr") 'xmp-dired-do-rate)
+    (define-key km (kbd "'Sl") 'xmp-dired-do-set-label)
+    (define-key km (kbd "'Ss") 'xmp-dired-do-set-subjects)
+    (define-key km (kbd "'As") 'xmp-dired-do-add-subjects)
+    (define-key km (kbd "'Rs") 'xmp-dired-do-remove-subjects)
+    (define-key km (kbd "'St") 'xmp-dired-do-set-title)
+    (define-key km (kbd "'Sd") 'xmp-dired-do-set-description)
+    (define-key km (kbd "'Sc") 'xmp-dired-do-set-creators)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)
     (define-key km (kbd "'gs") 'xmp-show-file-subjects)
@@ -227,8 +228,8 @@
     (define-key km (kbd "'gc") 'xmp-show-file-creators)
     (define-key km (kbd "'gp") 'xmp-show-file-properties)
     (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
-    (define-key km (kbd "'ep") 'xmp-dired-do-edit-properties)
-    (define-key km (kbd "'ea") 'xmp-dired-do-edit-properties-all)
+    (define-key km (kbd "'Ep") 'xmp-dired-do-edit-properties)
+    (define-key km (kbd "'Ea") 'xmp-dired-do-edit-properties-all)
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
@@ -240,14 +241,14 @@
     (define-key km (kbd "'ft") 'xmp-dired-filter-title)
     (define-key km (kbd "'fd") 'xmp-dired-filter-description)
     (define-key km (kbd "'fc") 'xmp-dired-filter-creators)
-    (define-key km (kbd "'Sp") 'xmp-dired-sort-by-property)
-    (define-key km (kbd "'S-") 'xmp-dired-sort-clear)
-    (define-key km (kbd "'Sr") 'xmp-dired-sort-by-rating)
-    (define-key km (kbd "'Sl") 'xmp-dired-sort-by-label)
-    (define-key km (kbd "'Ss") 'xmp-dired-sort-by-subjects)
-    (define-key km (kbd "'St") 'xmp-dired-sort-by-title)
-    (define-key km (kbd "'Sd") 'xmp-dired-sort-by-description)
-    (define-key km (kbd "'Sc") 'xmp-dired-sort-by-creators)
+    (define-key km (kbd "'sp") 'xmp-dired-sort-by-property)
+    (define-key km (kbd "'s-") 'xmp-dired-sort-clear)
+    (define-key km (kbd "'sr") 'xmp-dired-sort-by-rating)
+    (define-key km (kbd "'sl") 'xmp-dired-sort-by-label)
+    (define-key km (kbd "'ss") 'xmp-dired-sort-by-subjects)
+    (define-key km (kbd "'st") 'xmp-dired-sort-by-title)
+    (define-key km (kbd "'sd") 'xmp-dired-sort-by-description)
+    (define-key km (kbd "'sc") 'xmp-dired-sort-by-creators)
     (define-key km (kbd "'cp") 'xmp-dired-toggle-column)
     (define-key km (kbd "'c-") 'xmp-dired-remove-all-columns)
     (define-key km (kbd "'cr") 'xmp-dired-toggle-column-rating)
@@ -265,14 +266,14 @@
 
 (defvar xmp-image-dired-thumbnail-mode-map
   (let ((km (make-sparse-keymap)))
-    (define-key km (kbd "'sr") 'xmp-rate-file)
-    (define-key km (kbd "'sl") 'xmp-set-file-label)
-    (define-key km (kbd "'ss") 'xmp-set-file-subjects)
-    (define-key km (kbd "'as") 'xmp-add-file-subjects)
-    (define-key km (kbd "'rs") 'xmp-remove-file-subjects)
-    (define-key km (kbd "'st") 'xmp-set-file-title)
-    (define-key km (kbd "'sd") 'xmp-set-file-description)
-    (define-key km (kbd "'sc") 'xmp-set-file-creators)
+    (define-key km (kbd "'Sr") 'xmp-rate-file)
+    (define-key km (kbd "'Sl") 'xmp-set-file-label)
+    (define-key km (kbd "'Ss") 'xmp-set-file-subjects)
+    (define-key km (kbd "'As") 'xmp-add-file-subjects)
+    (define-key km (kbd "'Rs") 'xmp-remove-file-subjects)
+    (define-key km (kbd "'St") 'xmp-set-file-title)
+    (define-key km (kbd "'Sd") 'xmp-set-file-description)
+    (define-key km (kbd "'Sc") 'xmp-set-file-creators)
     (define-key km (kbd "'gr") 'xmp-show-file-rating)
     (define-key km (kbd "'gl") 'xmp-show-file-label)
     (define-key km (kbd "'gs") 'xmp-show-file-subjects)
@@ -281,8 +282,8 @@
     (define-key km (kbd "'gc") 'xmp-show-file-creators)
     (define-key km (kbd "'gp") 'xmp-show-file-properties)
     (define-key km (kbd "'ga") 'xmp-show-file-properties-all)
-    (define-key km (kbd "'ep") 'xmp-edit-file-properties)
-    (define-key km (kbd "'ea") 'xmp-edit-file-properties-all)
+    (define-key km (kbd "'Ep") 'xmp-edit-file-properties)
+    (define-key km (kbd "'Ea") 'xmp-edit-file-properties-all)
     (define-key km (kbd "'lm") 'xmp-list-managed-files-in-dir)
     (define-key km (kbd "'lS") 'xmp-list-stray-file-metadata-in-db)
     (define-key km (kbd "'RS") 'xmp-relocate-stray-file-metadata-in-dir)
@@ -294,14 +295,14 @@
     (define-key km (kbd "'ft") 'xmp-image-dired-filter-title)
     (define-key km (kbd "'fd") 'xmp-image-dired-filter-description)
     (define-key km (kbd "'fc") 'xmp-image-dired-filter-creators)
-    (define-key km (kbd "'Sp") 'xmp-image-dired-sort-by-property)
-    (define-key km (kbd "'S-") 'xmp-image-dired-sort-by-file-name)
-    (define-key km (kbd "'Sr") 'xmp-image-dired-sort-by-rating)
-    (define-key km (kbd "'Sl") 'xmp-image-dired-sort-by-label)
-    (define-key km (kbd "'Ss") 'xmp-image-dired-sort-by-subjects)
-    (define-key km (kbd "'St") 'xmp-image-dired-sort-by-title)
-    (define-key km (kbd "'Sd") 'xmp-image-dired-sort-by-description)
-    (define-key km (kbd "'Sc") 'xmp-image-dired-sort-by-creators)
+    (define-key km (kbd "'sp") 'xmp-image-dired-sort-by-property)
+    (define-key km (kbd "'s-") 'xmp-image-dired-sort-by-file-name)
+    (define-key km (kbd "'sr") 'xmp-image-dired-sort-by-rating)
+    (define-key km (kbd "'sl") 'xmp-image-dired-sort-by-label)
+    (define-key km (kbd "'ss") 'xmp-image-dired-sort-by-subjects)
+    (define-key km (kbd "'st") 'xmp-image-dired-sort-by-title)
+    (define-key km (kbd "'sd") 'xmp-image-dired-sort-by-description)
+    (define-key km (kbd "'sc") 'xmp-image-dired-sort-by-creators)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

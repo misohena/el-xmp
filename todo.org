@@ -870,3 +870,8 @@ CLOSED: [2024-12-02 Mon 18:21]
 - DATE => +ModifyDate?+ xmp:CreateDate
 - +CREATOR => xmp:CreatorTool? (AgentName)+
 - +? FILETAGS => orgmode:FileTags+
+** DONE diredの列にサイドカーファイルのプロパティを表示しないようにする。
+CLOSED: [2024-12-02 Mon 18:37]
+ターゲットファイルと重複して表示されるので気持ち悪い。
+これはカスタマイズ変数にする必要すら無いと思う。
+はぐれサイドカーファイルの時に表示したい気持ちも若干あるけど、それもとりあえずいいや。

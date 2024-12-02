@@ -800,7 +800,8 @@ Dired."
     (cl-loop while (< (point) output-end)
              for file = (xmp-dired-lsmod-get-filename dir)
              collect
-             (when file
+             (when (and file
+                        (not (xmp-sidecar-file-p file)))
                (let ((prop-alist (xmp-dired-lsmod-get-file-properties file)))
                  (cl-loop
                   for prop-ename in xmp-dired-add-column-properties

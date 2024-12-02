@@ -2375,24 +2375,28 @@ from, use `xmp-get-file-properties'."
           ;; From cache
           cached-result
         ;; From FILE
-        (when-let ((dom (if noerror
-                            ;; non-nil or nil(error)
-                            (ignore-errors (xmp-file-read-rdf file))
-                          ;; non-nil or error
-                          (xmp-file-read-rdf file))))
+        ;; Note: Errors are not cached. The next call should signal
+        ;; the same error.
+        (let ((dom
+               (if noerror
+                   ;; non-nil | nil(not contained xml) | 'error
+                   (condition-case _err (xmp-file-read-xml file) (error 'error))
+                 ;; non-nil | nil(not contained xml) | signal error
+                 (xmp-file-read-xml file))))
 
-          ;; Make a cache entry
-          ;; Do not update when `not-covered' or `do-not-use-cache'
-          (when (eq cached-result 'no-cache)
-            (xmp-file-cache-make-entry file dom))
+          (unless (eq dom 'error) ;; non-nil | nil(not contained xml)
+            ;; Make a cache entry
+            ;; Do not update when `not-covered' or `do-not-use-cache'
+            (when (eq cached-result 'no-cache)
+              (xmp-file-cache-make-entry file dom))
 
-          ;; Collect namespace prefixes
-          (when (consp dst-ns-name-prefix-alist)
-            (nconc dst-ns-name-prefix-alist
-                   (xmp-xml-collect-nsdecls dom)))
+            ;; Collect namespace prefixes
+            (when (consp dst-ns-name-prefix-alist)
+              (nconc dst-ns-name-prefix-alist
+                     (xmp-xml-collect-nsdecls dom)))
 
-          ;; Return properties
-          (xmp-get-properties dom prop-ename-list about noerror))))))
+            ;; Return properties
+            (xmp-get-properties dom prop-ename-list about noerror)))))))
 ;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt2"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val") ((:http://misohena.jp/ns1/ . "LiteralPropElt2") :pv-type text :value "LiteralPropElt1Val" :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja"))))
 ;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1") (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "LiteralPropElt1"))) => (((:http://misohena.jp/ns1/ . "LiteralPropElt1") :pv-type text :value "LiteralPropElt1Val"))
 ;; TEST: (xmp-file-get-properties "test/xmp-test-syntax-property-elements.xmp" (list (xmp-xml-ename (xmp-xml-ns-name "http://misohena.jp/ns1/") "ResPropElt3"))) => (((:http://misohena.jp/ns1/ . "ResPropElt3") :pv-type array :value ((:pv-type text :value "ResPropElt3Item1") (:pv-type text :value "ResPropElt3Item2")) :qualifiers (((:http://www.w3.org/XML/1998/namespace . "lang") :pv-type text :value "ja")) :array-type (:http://www.w3.org/1999/02/22-rdf-syntax-ns\# . "Bag")))

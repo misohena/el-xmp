@@ -6,7 +6,7 @@ el-xmp is an Emacs library for getting and setting metadata based on the XMP (Ex
 
 ** Supported file formats
 
-XMP / JPEG / PDF / TIFF (including ARW, CR2, NEF) / any other format that can scan files and find XMPPackets
+XMP / JPEG / PDF / TIFF (including ARW, CR2, NEF) / ORG / any other format that can scan files and find XMPPackets
 
 See the variable ~xmp-file-name-handler-alist~ for more information.
 

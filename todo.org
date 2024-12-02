@@ -860,3 +860,13 @@ CLOSED: [2024-12-02 Mon 10:33]
 
 - xmp-file-read-rdfではなくxmp-file-read-xmlを直接呼び出す。結果はnon-nil、nil、エラーの三通りだが、noerrorの時はエラーを握りつぶさなければならない。ここでのnilはエラーでは無くファイルにXMLが含まれていないことを意味するので握りつぶしてはならない。プロパティが無いことをキャッシュしなければならない。
 - RDFの存在チェックは行わない。行わなくても後続の処理はプロパティ無しとして機能する。noerror=nil時に ~(error "No RDF elements in file: %s" file)~ がシグナルされなくなるが、この性質は利用していないので諦める。
+** DONE org-mode文書のメタデータを抽出する。
+CLOSED: [2024-12-02 Mon 18:21]
+[[https://orgmode.org/manual/Export-Settings.html][Export Settings (The Org Manual)]] / [[elisp-variable:org-export-options-alist]]
+
+- TITLE => dc:title
+- AUTHOR => dc:creator
+- +EMAIL => ?+
+- DATE => +ModifyDate?+ xmp:CreateDate
+- +CREATOR => xmp:CreatorTool? (AgentName)+
+- +? FILETAGS => orgmode:FileTags+

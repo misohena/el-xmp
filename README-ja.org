@@ -4,7 +4,7 @@ el-xmpは、ファイル等に対するXMP(Extensible Metadata Platform)仕様�
 
 ** サポートファイル形式
 
-XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
+XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / ORG / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
 
 詳しくは変数 ~xmp-file-name-handler-alist~ を参照してください。
 

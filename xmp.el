@@ -592,6 +592,15 @@ elements. Specifying nil is the same as specifying an empty string."
                   (xmp-desc-get-property-element desc prop-ename)))
               (xmp-xml-element-children rdf))))
 
+(defun xmp-set-property-value (dom prop-ename value &optional about)
+  (let ((desc (or
+               (xmp-find-description dom prop-ename about)
+               (xmp-find-description dom nil about)
+               (xmp-xml-element-insert-last
+                dom
+                (xmp-empty-top-description about)))))
+    (xmp-desc-set-property-value desc prop-ename value)))
+
 (defun xmp-set-property-elements-if-not-exists (dom prop-elem-list
                                                     &optional about)
   "Insert the property elements specified by PROP-ELEM-LIST into the
@@ -2149,6 +2158,68 @@ variable explicitly."
    ;; Search xpacket (There is a possibility of reading the wrong packet.)
    (xmp-file-read-xml-from-scanned-packet file)))
 
+;;;;; org-mode File
+
+(defconst xmp-file-org-options
+  (list (list "TITLE" xmp-dc:title
+              #'xmp-file-org-make-pvalue-text)
+        (list "AUTHOR" xmp-dc:creator
+              #'xmp-file-org-make-pvalue-lang-alt)
+        (list "DATE" xmp-xmp:CreateDate
+              #'xmp-file-org-make-pvalue-date)))
+
+(defun xmp-file-org-make-pvalue-text (str)
+  (xmp-pvalue-make-text str))
+
+(defun xmp-file-org-make-pvalue-lang-alt (str)
+  (xmp-pvalue-from-lang-alt-alist (list (cons "x-default" str))))
+
+(defun xmp-file-org-make-pvalue-date (str)
+  (require 'org)
+  (declare-function org-at-timestamp-p "org")
+  (with-temp-buffer
+    (insert str)
+    (goto-char (point-min))
+    (when (org-at-timestamp-p 'lax)
+      (let ((y (match-string 2)) (m (match-string 3)) (d (match-string 4))
+            (H (match-string 7)) (M (match-string 8)))
+        (xmp-pvalue-make-text
+         (concat
+          (format "%04d-%02d-%02d"
+                  (string-to-number y)
+                  (string-to-number m)
+                  (string-to-number d))
+          (when (and H M)
+            (format "T%02d:%02d"
+                    (string-to-number H)
+                    (string-to-number M)))))))))
+;; TEST: (xmp-file-org-make-pvalue-date "[2024-11-30 Sat 22:03]") => (:pv-type text :value "2024-11-30T22:03")
+;; TEST: (xmp-file-org-make-pvalue-date "[2024-11-30 Sat 2:03]") => (:pv-type text :value "2024-11-30T02:03")
+;; TEST: (xmp-file-org-make-pvalue-date "[2024-11-02 Sat]") => (:pv-type text :value "2024-11-02")
+
+(defun xmp-file-read-xml-from-org (file)
+  (let (dom props)
+    (with-temp-buffer
+      (insert-file-contents file)
+      (goto-char (point-min))
+      (while (let ((case-fold-search t))
+               ;; TODO: Ignore in src blocks
+               (re-search-forward
+                "^#\\+\\([A-Za-z0-9_]+\\): *\\([^\n]+\\)" nil t))
+        (when-let ((option-info (assoc
+                                 (upcase (match-string-no-properties 1))
+                                 xmp-file-org-options)))
+          (let* ((option-str (match-string-no-properties 2))
+                 (prop-ename (nth 1 option-info))
+                 (converter (nth 2 option-info))
+                 (pvalue (funcall converter option-str)))
+            (when (and pvalue (not (xmp-xml-ename-member prop-ename props)))
+              (push prop-ename props)
+              (unless dom
+                (setq dom (xmp-empty-dom)))
+              (xmp-set-property-value dom prop-ename pvalue))))))
+    dom))
+
 
 ;;;;; XML File
 
@@ -2182,8 +2253,10 @@ variable explicitly."
      :write-xml nil) ;; TODO: Implement pdf writer
     ("\\.\\(?:tiff?\\|arw\\|cr2\\|dng\\|nef\\)\\'"
      :read-xml xmp-file-read-xml-from-tiff
-     ;; TODO: Implement writer
-     :write-xml nil)
+     :write-xml nil) ;; TODO: Implement writer
+    ("\\.\\(?:org\\)\\'"
+     :read-xml xmp-file-read-xml-from-org
+     :write-xml nil) ;; TODO: Implement writer
     ))
 
 (defconst xmp-file-magic-handler-alist
@@ -2312,14 +2385,7 @@ to, use `xmp-set-file-properties'."
 
     ;; Modify
     (cl-loop for (prop-ename . value) in prop-ename-value-alist
-             do
-             (let ((desc (or
-                          (xmp-find-description dom prop-ename about)
-                          (xmp-find-description dom nil about)
-                          (xmp-xml-element-insert-last
-                           dom
-                           (xmp-empty-top-description about)))))
-               (xmp-desc-set-property-value desc prop-ename value)))
+             do (xmp-set-property-value dom prop-ename value about))
 
     ;; Write
     (xmp-file-write-xml file dom)

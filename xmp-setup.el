@@ -303,6 +303,13 @@
     (define-key km (kbd "'st") 'xmp-image-dired-sort-by-title)
     (define-key km (kbd "'sd") 'xmp-image-dired-sort-by-description)
     (define-key km (kbd "'sc") 'xmp-image-dired-sort-by-creators)
+    (define-key km (kbd "-") 'xmp-rate-file--1)
+    (define-key km (kbd "0") 'xmp-rate-file-0)
+    (define-key km (kbd "1") 'xmp-rate-file-1)
+    (define-key km (kbd "2") 'xmp-rate-file-2)
+    (define-key km (kbd "3") 'xmp-rate-file-3)
+    (define-key km (kbd "4") 'xmp-rate-file-4)
+    (define-key km (kbd "5") 'xmp-rate-file-5)
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode

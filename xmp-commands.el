@@ -260,54 +260,82 @@ settings."
   (dolist (file files)
     (xmp-set-file-property file xmp-xmp:Rating (xmp-pvalue-make-real rating))))
 
+(defun xmp-rate-file-confirm (files rating)
+  ;; TODO: Customize condition
+  (unless (listp files) (setq files (list files)))
+  (or (if (cdr files)
+          (y-or-n-p (format (xmp-msg "Change the rating of %d files to %s?")
+                            (length files) rating))
+        ;; (y-or-n-p (format (xmp-msg "Change the rating of %s to %s?")
+        ;;                   (car files) rating))
+        t)
+      (progn (message "Cancelled")
+             nil)))
+
+(defun xmp-rate-file-report (files rating)
+  (unless (listp files) (setq files (list files)))
+  (if (cdr files)
+      (message (format
+                (xmp-msg "Changed the rating of %d files to %s")
+                (length files) rating))
+    (message (format
+              (xmp-msg "Changed the rating of %s to %s")
+              (file-name-nondirectory (car files))
+              rating))))
+
+(defun xmp-rate-file-with-message (files rating)
+  (when (xmp-rate-file-confirm files rating)
+    (xmp-rate-file files rating)
+    (xmp-rate-file-report files rating)))
+
 ;;;###autoload
 (defun xmp-rate-file-1 (files)
   "Set the rating of FILES to 1.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 1."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 1))
+  (xmp-rate-file-with-message files 1))
 
 ;;;###autoload
 (defun xmp-rate-file-2 (files)
   "Set the rating of FILE to 2.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 2."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 2))
+  (xmp-rate-file-with-message files 2))
 
 ;;;###autoload
 (defun xmp-rate-file-3 (files)
   "Set the rating of FILE to 3.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 3."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 3))
+  (xmp-rate-file-with-message files 3))
 
 ;;;###autoload
 (defun xmp-rate-file-4 (files)
   "Set the rating of FILE to 4.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 4."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 4))
+  (xmp-rate-file-with-message files 4))
 
 ;;;###autoload
 (defun xmp-rate-file-5 (files)
   "Set the rating of FILE to 5.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 5."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 5))
+  (xmp-rate-file-with-message files 5))
 
 ;;;###autoload
 (defun xmp-rate-file-0 (files)
   "Set the rating of FILE to 0.
 Equivalent to calling `xmp-rate-file' with a RATING argument of 0."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files 0))
+  (xmp-rate-file-with-message files 0))
 
 ;;;###autoload
 (defun xmp-rate-file--1 (files)
   "Set the rating of FILE to -1.
 Equivalent to calling `xmp-rate-file' with a RATING argument of -1."
   (interactive (list (xmp-file-name-list-at-point)))
-  (xmp-rate-file files -1))
+  (xmp-rate-file-with-message files -1))
 
 (defun xmp-rating-match-p (rating condition)
   "Return non-nil if RATING matches CONDITION.

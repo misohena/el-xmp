@@ -1608,6 +1608,8 @@ first language code must be \"x-default\"."
     (Integer . xmp-pvalue-to-display-string--text)
     (MIMEType . xmp-pvalue-to-display-string--text)
     (AgentName . xmp-pvalue-to-display-string--text)
+    (GUID . xmp-pvalue-to-display-string--text)
+    (Date . xmp-pvalue-to-display-string--text) ;; TODO: Specialize
     (LangAlt . xmp-pvalue-to-display-string--lang-alt)
     (BagText . xmp-pvalue-to-display-string--bag-text)
     (BagProperName . xmp-pvalue-to-display-string--bag-text)

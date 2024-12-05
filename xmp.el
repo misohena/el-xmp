@@ -374,6 +374,16 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
       ("exif"
        ("DateTimeOriginal" Date)
        ("DateTimeDigitized" Date))
+      ;; XMP Dynamic Media (xmp-file-dynamic-media.el)
+      ("xmpDM"
+       ("artist" Text)
+       ("album" Text)
+       ("logComment" Text)
+       ("trackNumber" Integer)
+       ("genre" Text)
+       ("composer" Text)
+       ("engineer" Text)
+       ("discNumber" Text))
       )))
 
 ;; Define expanded name variables for properties
@@ -2229,6 +2239,15 @@ variable explicitly."
     dom))
 
 
+;;;;; MP3 File
+
+(autoload 'xmp-id3-read-file-as-xmp-dom "xmp-file-dynamic-media")
+
+(defun xmp-file-read-xml-from-mp3 (file)
+  (ignore-errors
+    (xmp-id3-read-file-as-xmp-dom file)))
+
+
 ;;;;; XML File
 
 (defun xmp-file-read-xml-from-xmp-xml (file)
@@ -2265,6 +2284,9 @@ variable explicitly."
      :write-xml nil)
     ("\\.org\\'"
      :read-xml xmp-file-read-xml-from-org
+     :write-xml nil)
+    ("\\.mp3\\'"
+     :read-xml xmp-file-read-xml-from-mp3
      :write-xml nil)
     ))
 

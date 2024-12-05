@@ -130,19 +130,21 @@ If there is not enough data, an error is signaled."
   ;; Reduce memory consumption
   (xmp-file-reader-discard-excess-passed-region reader)
 
-  ;; If there is insufficient data, load it at the end
-  (when (> size 0)
-    (let ((shortage (- size (xmp-file-reader-buffer-remainning))))
-      (when (> shortage 0)
-        (xmp-file-reader-append
-         reader
-         (let ((m (% shortage xmp-file-reader-default-buffer-size)))
-           (if (= m 0)
-               shortage
-             (+ (- shortage m) xmp-file-reader-default-buffer-size))))
-        (when (and (not noerror)
-                   (< (xmp-file-reader-buffer-remainning) size))
-          (error "File is too short"))))))
+  ;; If there is insufficient data, load it at the end of buffer
+  (not ;; Return t if there is enough data
+   (when (> size 0)
+     (let ((shortage (- size (xmp-file-reader-buffer-remainning))))
+       (when (> shortage 0)
+         (xmp-file-reader-append
+          reader
+          (let ((m (% shortage xmp-file-reader-default-buffer-size)))
+            (if (= m 0)
+                shortage
+              (+ (- shortage m) xmp-file-reader-default-buffer-size))))
+         (if (< (xmp-file-reader-buffer-remainning) size)
+             (if noerror
+                 t
+               (error "File is too short"))))))))
 
 (defun xmp-file-reader-ensure-bytes-any (reader)
   "Ensure that there is subsequent data (if any) after point.
@@ -203,11 +205,56 @@ the file has been reached and there is no more data to read, return nil."
   (xmp-file-reader-seek reader
                         (+ (xmp-file-reader-current-offset reader) size)))
 
-(defun xmp-file-reader-skip-chars (reader chars-spec)
-  (while (and (xmp-file-reader-ensure-bytes-any reader)
-              (progn
-                (skip-chars-forward chars-spec)
-                (eobp)))))
+(defun xmp-file-reader-skip-chars (reader chars-spec &optional max-distance)
+  (let ((count 0))
+    (if max-distance
+        (while (and (> max-distance 0)
+                    (xmp-file-reader-ensure-bytes-any reader)
+                    (let ((dist (skip-chars-forward chars-spec
+                                                    (+ (point) max-distance))))
+                      (cl-decf max-distance dist)
+                      (cl-incf count dist)
+                      (eobp))))
+      (while (and (xmp-file-reader-ensure-bytes-any reader)
+                  (progn
+                    (cl-incf count (skip-chars-forward chars-spec))
+                    (eobp)))))
+    count))
+
+(defun xmp-file-reader-skip-chars-if (reader pred &optional max-distance)
+  (let ((count 0))
+    (if max-distance
+        (while (and (> max-distance 0)
+                    (xmp-file-reader-ensure-bytes-any reader)
+                    (let* ((beg (point))
+                           (limit (min (+ beg max-distance) (point-max))))
+                      (while (and (< (point) limit)
+                                  (funcall pred (char-after)))
+                        (forward-char))
+                      (cl-decf max-distance (- (point) beg))
+                      (cl-incf count (- (point) beg))
+                      (eobp))))
+      (while (and (xmp-file-reader-ensure-bytes-any reader)
+                  (let ((beg (point)))
+                    (while (and (not (eobp))
+                                (funcall pred (char-after)))
+                      (forward-char))
+                    (cl-incf count (- (point) beg))
+                    (eobp)))))
+    count))
+
+(defun xmp-file-reader-skip-to-u16zero (reader &optional max-bytes)
+  (let ((ch1 nil))
+    (xmp-file-reader-skip-chars-if reader
+                                   (lambda (ch)
+                                     (if ch1
+                                         (if (and (= ch1 0) (= ch 0))
+                                             nil ;; found
+                                           (setq ch1 nil)
+                                           t)
+                                       (setq ch1 ch)
+                                       t))
+                                   max-bytes)))
 
 ;;;; Lookahead
 
@@ -218,6 +265,11 @@ the file has been reached and there is no more data to read, return nil."
 (defun xmp-file-reader-scan-bytes (reader size)
   (xmp-file-reader-ensure-bytes reader size)
   (buffer-substring-no-properties (point) (+ (point) size)))
+
+(defun xmp-file-reader-scan-forward-bytes (reader distance size)
+  (xmp-file-reader-ensure-bytes reader (+ distance size))
+  (buffer-substring-no-properties (+ (point) distance)
+                                  (+ (point) distance size)))
 
 (defun xmp-file-reader-scan-chars-length (reader chars-spec)
   (let ((xmp-file-reader-keep-passed-region-p t)
@@ -242,11 +294,39 @@ the file has been reached and there is no more data to read, return nil."
     (goto-char end)
     (buffer-substring beg end)))
 
-(defun xmp-file-reader-read-chars (reader chars-spec)
+(defun xmp-file-reader-read-chars (reader chars-spec &optional max-length)
   (let ((xmp-file-reader-keep-passed-region-p t)
         (begin (point)))
-    (xmp-file-reader-skip-chars reader chars-spec)
+    (xmp-file-reader-skip-chars reader chars-spec max-length)
     (buffer-substring-no-properties begin (point))))
+
+;;;; Read string
+
+(defun xmp-file-reader-read-asciiz (reader)
+  (prog1 (xmp-file-reader-read-chars reader "^\0")
+    (unless (eobp)
+      (forward-char))))
+
+(defun xmp-file-reader-read-asciiz-field (reader field-length)
+  (let ((value (xmp-file-reader-read-chars reader "^\0" field-length)))
+    (xmp-file-reader-skip reader (- field-length (length value)))
+    value))
+
+(defun xmp-file-reader-read-utf16z-bytes (reader)
+  (let ((xmp-file-reader-keep-passed-region-p t)
+        (begin (point)))
+    (xmp-file-reader-skip-to-u16zero reader)
+    (prog1 (buffer-substring-no-properties begin (point))
+      (when (and (zerop (char-after)) (zerop (char-after (1+ (point)))))
+        (forward-char 2)))))
+
+(defun xmp-file-reader-read-utf16z-bytes-field (reader field-bytes)
+  (let ((xmp-file-reader-keep-passed-region-p t)
+        (begin (point)))
+    (xmp-file-reader-skip-to-u16zero reader)
+    (prog1 (buffer-substring-no-properties begin (point))
+      (xmp-file-reader-seek reader (+ begin field-bytes)))))
+
 
 ;;;; Read integer
 
@@ -261,6 +341,14 @@ the file has been reached and there is no more data to read, return nil."
     (forward-char 2)
     (+ (ash b1 8) (preceding-char))))
 ;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\x12\x34\x56\x78")))) (cons (xmp-file-reader-u16be reader) (point)))) => (4660 . 3)
+
+(defun xmp-file-reader-u24be (reader)
+  (xmp-file-reader-ensure-bytes reader 3)
+  (let ((pos (point)))
+    (forward-char 3)
+    (+ (ash (char-after pos) 16)
+       (ash (char-after (+ pos 1)) 8)
+       (char-after (+ pos 2)))))
 
 (defun xmp-file-reader-u32be (reader)
   (xmp-file-reader-ensure-bytes reader 4)

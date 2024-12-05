@@ -2246,25 +2246,26 @@ variable explicitly."
 
 ;; TODO: Implement more handlers for GIF, PNG, etc. (see [XMP3])
 (defconst xmp-file-name-handler-alist
-  '(("\\.xml$"
+  ;; TODO: Implement writers
+  '(("\\.xml\\'"
      :read-xml xmp-file-read-xml-from-xmp-xml
      :write-xml xmp-file-write-xml-to-xmp-xml)
-    ("\\.xmp$"
+    ("\\.xmp\\'"
      :read-xml xmp-file-read-xml-from-xmp-xml
      :write-xml xmp-file-write-xml-to-xmp-xml)
-    ("\\.jpe?g$"
+    ("\\.jpe?g\\'"
      :read-xml xmp-file-read-xml-from-jpeg
      ;; TODO: Implement jpeg writer
      :write-xml xmp-file-write-xml-to-scanned-packet)
-    ("\\.pdf$"
+    ("\\.pdf\\'"
      :read-xml xmp-file-read-xml-from-pdf
-     :write-xml nil) ;; TODO: Implement pdf writer
+     :write-xml nil)
     ("\\.\\(?:tiff?\\|arw\\|cr2\\|dng\\|nef\\)\\'"
      :read-xml xmp-file-read-xml-from-tiff
-     :write-xml nil) ;; TODO: Implement writer
-    ("\\.\\(?:org\\)\\'"
+     :write-xml nil)
+    ("\\.org\\'"
      :read-xml xmp-file-read-xml-from-org
-     :write-xml nil) ;; TODO: Implement writer
+     :write-xml nil)
     ))
 
 (defconst xmp-file-magic-handler-alist

@@ -1234,6 +1234,7 @@ The type of array is one of the following variable values (expanded names):
     (URI xmp-pvalue-as-uri xmp-pvalue-make-uri)
     (Boolean xmp-pvalue-as-boolean xmp-pvalue-make-boolean)
     (Real xmp-pvalue-as-real xmp-pvalue-make-real)
+    (Integer xmp-pvalue-as-integer xmp-pvalue-make-integer)
     (MIMEType xmp-pvalue-as-text xmp-pvalue-make-text)
     (AgentName xmp-pvalue-as-text xmp-pvalue-make-text)
     (LangAlt xmp-pvalue-as-lang-alt-alist xmp-pvalue-from-lang-alt-alist)
@@ -1246,7 +1247,6 @@ The type of array is one of the following variable values (expanded names):
     ;;(SeqDate xmp-pvalue-as-text-list xmp-pvalue-make-seq-from-text-list)
     ;; GUID
     ;; Date
-    ;; Integer
     ;; RenditionClass
     ;; ResourceRef
     ))
@@ -1256,12 +1256,14 @@ The type of array is one of the following variable values (expanded names):
               (encoder (nth 2 type-info)))
     (funcall encoder value)))
 ;; TEST: (xmp-pvalue-make-by-type 'Real -1) => (:pv-type text :value "-1")
+;; TEST: (xmp-pvalue-make-by-type 'Integer -1.5) => (:pv-type text :value "-1")
 
 (defun xmp-pvalue-as-type (type pvalue)
   (when-let* ((type-info (assq type xmp-pvalue-types))
               (decoder (nth 1 type-info)))
     (funcall decoder pvalue)))
 ;; TEST: (xmp-pvalue-as-type 'Real (xmp-pvalue-make-real 5)) => 5
+;; TEST: (xmp-pvalue-as-type 'Integer (xmp-pvalue-make-integer -3)) => -3
 
 ;;;;;; Convert Predefined Properties
 
@@ -1491,7 +1493,13 @@ If the type of PVALUE is not \\='struct, return nil."
 ;;;;;; Integer
 ;; [XMP1 8.2.1.3 Integer]
 
-;; TODO: implement Integer type conversion
+(defun xmp-pvalue-make-integer (number)
+  (xmp-pvalue-make-text (number-to-string (truncate number))))
+
+(defun xmp-pvalue-as-integer (pvalue)
+  (when-let ((text (xmp-pvalue-as-text pvalue)))
+    (truncate (string-to-number text))))
+
 
 ;;;;;; Real
 ;; [XMP1 8.2.1.4 Real]

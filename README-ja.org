@@ -1,12 +1,22 @@
 * Emacs Extensible Metadata Platform Library
 
-el-xmpは、ファイル等に対するXMP(Extensible Metadata Platform)仕様に基づくメタデータを取得・設定するためのEmacs用ライブラリと、それを応用したいくつかコマンドです。例えば写真のレーティングを取得・設定したり、PDF内の著者情報を取得したりといった使い方ができます。
+el-xmpは、XMP(Extensible Metadata Platform)仕様に基づくファイルのメタデータを処理する能力をEmacsに追加します。Emacs Lispレベルに基本的な関数を追加し、それを応用したいくつかの汎用的なコマンドを追加します。そしてdiredやimage-diredにはファイルのプロパティを取得、設定、表示、ソート、フィルタする機能を追加します。これを使うと例えば写真のレーティングや主題情報を取得・設定したり、PDF内の著者情報を取得したりといった使い方が出来ます。
 
 ** サポートファイル形式
 
 XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / MP3(ID3) / ORG / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
 
+注: いくつかの形式ではファイル形式本来のメタデータをXMPに変換して処理することが出来ます。
+
 詳しくは変数 ~xmp-file-name-handler-alist~ を参照してください。
+
+** 初期設定
+
+応用コマンドやdired、image-diredへの拡張を利用するには、[[*xmp-setup.el][xmp-setup.el]]を使用してください。
+
+** 対応環境
+
+Emacs 29以降で動作確認をしています。
 
 ** xmp-commands.el
 
@@ -47,13 +57,28 @@ xmp-commands.elは任意のファイルのXMPプロパティを操作する一�
 - ~xmp-show-file-creators~
 
 その他データベースの管理用のコマンド:
-- ~xmp-move-file-properties-from-db-to-sidecar~
-- ~xmp-move-file-properties-from-sidecar-to-db~
-- ~xmp-move-dir-file-properties-from-db-to-sidecar~
-- ~xmp-move-dir-file-properties-from-sidecar-to-db~
-- ~xmp-list-managed-files-in-dir~
-- ~xmp-list-stray-file-metadata-in-db~
-- ~xmp-relocate-stray-file-metadata-in-dir~
+- 管理データのリストアップ
+  - ~xmp-list-managed-files-in-dir~
+  - ~xmp-list-stray-file-metadata-in-db~
+- サイドカーファイルとDBの切り替え
+  - ~xmp-move-file-properties-from-db-to-sidecar~
+  - ~xmp-move-file-properties-from-sidecar-to-db~
+  - ~xmp-move-dir-file-properties-from-db-to-sidecar~
+  - ~xmp-move-dir-file-properties-from-sidecar-to-db~
+- はぐれメタデータの移動
+  - ~xmp-relocate-stray-file-metadata-in-dir~
+- キャッシュのクリア
+  - ~xmp-clear-file-cache~
+  - ~xmp-clear-file-cache-in-dir~
+  - ~xmp-clear-file-cache-under-dir~
+  - ~xmp-clear-invalid-file-cache~
+  - ~xmp-clear-invalid-file-cache-in-dir~
+  - ~xmp-clear-invalid-file-cache-under-dir~
+- 対象ファイル外にあるメタデータ(サイドカーファイルやDBなど)の移動と削除
+  - ~xmp-remove-external-file-metadata~
+  - ~xmp-remove-external-file-metadata-in-dir~
+  - ~xmp-move-external-file-metadata~
+  - ~xmp-move-external-file-metadata-in-dir~
 
 ** xmp-dired.el
 
@@ -357,6 +382,10 @@ TIFFを解析してタグ情報を読み取るためのライブラリです。
 PDFを解析してメタデータを読み取るためのライブラリです。
 
 Emacs Lisp実装は読み込めないPDFが多いので、可能であればpdfinfoをインストールして変数 ~xmp-file-pdfinfo-program~ を設定してください。
+
+** xmp-file-dynamic-media.el
+
+ビデオやオーディオを格納するファイル形式からメタデータを読み取るためのライブラリです。
 
 ** xmp-file-reader.el
 

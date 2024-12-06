@@ -2,13 +2,23 @@
 
 (machine translated from [[file:README-ja.org][README-ja.org]])
 
-el-xmp is an Emacs library for getting and setting metadata based on the XMP (Extensible Metadata Platform) specification, and some application commands. For example, it can be used to get and set the rating of a photo, or to get author information in a PDF.
+el-xmp enhances Emacs with the ability to handle file metadata based on the XMP (Extensible Metadata Platform) specification. It introduces fundamental functions at the Emacs Lisp level, along with several general-purpose commands built on top of them. Additionally, it extends dired and image-dired with features for retrieving, setting, displaying, sorting, and filtering file properties. For example, you can use it to set or retrieve photo ratings and subject information, or extract author details from PDF files.
 
 ** Supported file formats
 
 XMP / JPEG / PDF / TIFF (including ARW, CR2, NEF) / MP3(ID3) / ORG / any other format that can scan files and find XMPPackets
 
+Note: For some formats, the native metadata of the file format can be converted to XMP for processing.
+
 See the variable ~xmp-file-name-handler-alist~ for more information.
+
+** Initial settings
+
+To use application commands and extensions to dired and image-dired, use [[*xmp-setup.el][xmp-setup.el]].
+
+** Supported environments
+
+Operation has been confirmed on Emacs 29 and later.
 
 ** xmp-commands.el
 
@@ -49,13 +59,28 @@ Commands to display properties:
 - ~xmp-show-file-creators~
 
 Commands for managing databases:
-- ~xmp-move-file-properties-from-db-to-sidecar~
-- ~xmp-move-file-properties-from-sidecar-to-db~
-- ~xmp-move-dir-file-properties-from-db-to-sidecar~
-- ~xmp-move-dir-file-properties-from-sidecar-to-db~
-- ~xmp-list-managed-files-in-dir~
-- ~xmp-list-stray-file-metadata-in-db~
-- ~xmp-relocate-stray-file-metadata-in-dir~
+- List managed data
+  - ~xmp-list-managed-files-in-dir~
+  - ~xmp-list-stray-file-metadata-in-db~
+- Switch sidecar files and DB
+  - ~xmp-move-file-properties-from-db-to-sidecar~
+  - ~xmp-move-file-properties-from-sidecar-to-db~
+  - ~xmp-move-dir-file-properties-from-db-to-sidecar~
+  - ~xmp-move-dir-file-properties-from-sidecar-to-db~
+- Move stray metadata
+  - ~xmp-relocate-stray-file-metadata-in-dir~
+- Clear cache
+  - ~xmp-clear-file-cache~
+  - ~xmp-clear-file-cache-in-dir~
+  - ~xmp-clear-file-cache-under-dir~
+  - ~xmp-clear-invalid-file-cache~
+  - ~xmp-clear-invalid-file-cache-in-dir~
+  - ~xmp-clear-invalid-file-cache-under-dir~
+- Move and delete metadata stored in sidecar files or databases (metadata stored externally to the target file)
+  - ~xmp-remove-external-file-metadata~
+  - ~xmp-remove-external-file-metadata-in-dir~
+  - ~xmp-move-external-file-metadata~
+  - ~xmp-move-external-file-metadata-in-dir~
 
 ** xmp-dired.el
 
@@ -359,6 +384,10 @@ A library for parsing TIFF and reading tag information.
 A library for parsing PDFs and reading metadata.
 
 The Emacs Lisp implementation cannot read many PDF files, so please install pdfinfo and set the variable ~xmp-file-pdfinfo-program~ if possible.
+
+** xmp-file-dynamic-media.el
+
+A library for reading metadata from file formats that store video and audio.
 
 ** xmp-file-reader.el
 

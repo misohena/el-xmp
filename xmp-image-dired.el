@@ -434,5 +434,75 @@ If the prefix argument or REVERSE is non-nil, sort in reverse order."
       (user-error "No files specified"))
     (nreverse files)))
 
+;;;; Customize header line
+
+(advice-add 'image-dired--update-header-line :after
+            'xmp-image-dired-after-update-header-line)
+
+(defcustom xmp-image-dired-header-line-enabled t
+  "Non-nil means add the XMP property to the image-dired header line."
+  :group 'xmp
+  :type 'boolean)
+
+(defcustom xmp-image-dired-header-line-properties
+  '((("http://ns.adobe.com/xap/1.0/" . "Rating")
+     ;; xmp-image-dired-header-line-format-rating
+     )
+    (("http://purl.org/dc/elements/1.1/" . "subject")))
+  "A list of XMP properties to add to the image-dired header line."
+  :group 'xmp
+  :type '(repeat
+          (list
+           (cons
+            :tag "Property name"
+            (string :tag "Namespace name (URI)") ;;TODO: Choice keyword?
+            (string :tag "Property local name"))
+           (choice
+            (const :tag "No formatter" nil)
+            (function :tag "Formatter")))))
+
+(defun xmp-image-dired-header-line-format-rating (pvalue)
+  (let ((rating (or (xmp-pvalue-as-real pvalue) 0)))
+    (if (= rating -1)
+        "(-)"
+      (format "★%s" rating))))
+
+(defun xmp-image-dired-header-line-property-names ()
+  (cl-loop for prop-info in xmp-image-dired-header-line-properties
+           for prop-name-spec = (nth 0 prop-info)
+           for ename = (ignore-errors (xmp-xml-ename-ensure prop-name-spec))
+           when ename
+           collect ename))
+
+(defun xmp-image-dired-header-line-format (props)
+  (mapconcat
+   #'identity
+   (cl-loop for prop-info in xmp-image-dired-header-line-properties
+            for prop-name-spec = (nth 0 prop-info)
+            for prop-formatter = (nth 1 prop-info)
+            for ename = (ignore-errors (xmp-xml-ename-ensure prop-name-spec))
+            when ename
+            collect
+            (let ((pvalue (xmp-xml-ename-alist-get ename props)))
+              (if prop-formatter
+                  (funcall prop-formatter pvalue)
+                (xmp-pvalue-to-display-string pvalue ename))))
+   " "))
+
+(defun xmp-image-dired-after-update-header-line ()
+  (when (and xmp-image-dired-header-line-enabled
+             xmp-image-dired-header-line-properties
+             (derived-mode-p 'image-dired-thumbnail-mode))
+    (let* ((file-name (image-dired-original-file-name))
+           (props (xmp-get-file-properties
+                   file-name
+                   (xmp-image-dired-header-line-property-names))))
+      ;;header-line-format
+      (setq header-line-format
+            (concat
+             header-line-format
+             (xmp-image-dired-header-line-format props))))))
+
+
 (provide 'xmp-image-dired)
 ;;; xmp-image-dired.el ends here

@@ -907,3 +907,7 @@ See: XMP Specification Part 3 2.3.3 Native metadata in MP3
 CLOSED: [2024-12-07 Sat 13:29]
 サイドカーファイルのプロパティを表示しないようにしているので、その分ファイル名が左にずれて見えてしまう。私はdired-details-rを使っていたので気がつかなかった。
 サイドカーファイルの時はちゃんと空のプロパティ値を挿入しなければならない。
+** DONE xmp:RatingをSVGで綺麗に表示する。
+CLOSED: [2024-12-07 Sat 14:22]
+xmp-pvalue-to-display-string関数でSVG画像を出力する。
+もちろんSVGが表示できない環境にも配慮する。

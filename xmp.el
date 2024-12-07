@@ -1618,6 +1618,9 @@ first language code must be \"x-default\"."
     (SeqProperName . xmp-pvalue-to-display-string--seq-text)
     (SeqLocale . xmp-pvalue-to-display-string--seq-text)))
 
+(defconst xmp-pvalue-to-display-string-pnames-converters-alist
+  (list (cons xmp-xmp:Rating 'xmp-pvalue-to-display-string--rating)))
+
 (defun xmp-pvalue-to-display-string--infer-type (pvalue)
   (cond
    ;; TODO: Date (match regexp)
@@ -1646,16 +1649,145 @@ performed based on that. If PROP-TYPE is nil, the property type is
 obtained based on PROP-ENAME. If the property type cannot be determined,
 the property type is inferred from the structure of PVALUE."
   (or
-   (when-let* ((prop-type
-                (or prop-type
-                    (and prop-ename (xmp-defined-property-type prop-ename))
-                    (xmp-pvalue-to-display-string--infer-type pvalue)))
-               (converter
-                (alist-get
-                 prop-type
-                 xmp-pvalue-to-display-string-types-converters-alist)))
+   (when-let ((converter
+               (or
+                ;; 1. Converter for PROP-TYPE
+                (when prop-type
+                  (alist-get
+                   prop-type
+                   xmp-pvalue-to-display-string-types-converters-alist))
+                ;; 2. Converter for PROP-ENAME
+                (when prop-ename
+                  (xmp-xml-ename-alist-get
+                   prop-ename
+                   xmp-pvalue-to-display-string-pnames-converters-alist))
+                ;; 3. Converter for type of PROP-ENAME or inferred type
+                (let ((prop-type
+                       (or
+                        (and prop-ename (xmp-defined-property-type prop-ename))
+                        (xmp-pvalue-to-display-string--infer-type pvalue))))
+                  (when prop-type
+                    (alist-get
+                     prop-type
+                     xmp-pvalue-to-display-string-types-converters-alist))))))
      (funcall converter pvalue))
    ""))
+
+;;;;;; Rating SVG
+
+(defcustom xmp-svg-rating-enabled t
+  "Non-nil means that SVG rating display is enabled."
+  :group 'xmp
+  :type 'boolean)
+
+(defun xmp-svg-available-p ()
+  (and (display-graphic-p)
+       (image-type-available-p 'svg)))
+
+(defun xmp-svg-default-font-size ()
+  (default-font-height))
+
+(autoload 'svg-create "svg")
+(declare-function svg-polygon "svg")
+(declare-function svg-text "svg")
+(declare-function svg-line "svg")
+(declare-function svg-image "svg")
+
+(defconst xmp-svg-rating-params
+  '(:star-points
+    5
+    ;; Star width = (sin (/ (* 2 float-pi) 5)) = 0.951
+    ;; Star height = (/ (+ 1 (cos (/ (* 2 float-pi) 10))) 2) = 0.905
+    ;; Maximum radius = (/ 1 (sin (/ (* 2 float-pi) 5)) 2) = 0.5257311121191336
+    :star-outer-r 0.52 :star-inner-r 0.25 :star-shift-y 0.05
+    :text-x 0.5 :text-y 0.7 :text-size 0.60
+    :text-args (:font-family "Arial" :text-anchor "middle" :font-weight "bold")
+    ;; [-1 0 1 2 3 4 5]
+    :fill ["none" "none" "#007fde" "#ad00f3" "#ec0085" "#ff9d1e" "#f5ff19"]
+    :stroke ["#888" "#888" "none" "none" "none" "none" "none"]
+    :text-fill ["none" "none" "#012" "#202" "#201" "#221" "#221"]
+    :reject-r 0.40 :reject-shift-y 0.04 :reject-line-w 0.15
+    :reject-line-args (:stroke "#b11" :stroke-linecap "butt" :fill "butt")
+    :subpixel-shift-x -0.5
+    :subpixel-shift-y -0.5
+    ))
+
+(defun xmp-svg-rating--shape (rating size)
+  (setq rating (max -1 (min 5 (truncate rating))))
+  (let* ((params xmp-svg-rating-params)
+         (svg (svg-create size size))
+         (dx (plist-get params :subpixel-shift-x))
+         (dy (plist-get params :subpixel-shift-y))
+         (cx (+ (* 0.5 size) dx))
+         (cy (+ (* 0.5 size) dy))
+         (outer-r (* (plist-get params :star-outer-r) size))
+         (inner-r (* (plist-get params :star-inner-r) size))
+         (star-dy (* (plist-get params :star-shift-y) size))
+         (npoints (* (plist-get params :star-points) 2)))
+    (svg-polygon
+     svg
+     (cl-loop for i below npoints
+              for r = (if (cl-evenp i) outer-r inner-r)
+              for th = (/ (* 2 float-pi i) npoints)
+              collect (cons (+ cx (* (sin th) r))
+                            (+ cy (* (- (cos th)) r) star-dy)))
+     :fill (aref (plist-get params :fill) (1+ rating))
+     :stroke (aref (plist-get params :stroke) (1+ rating)))
+    (apply
+     #'svg-text
+     svg
+     (number-to-string rating)
+     :x (+ (* (plist-get params :text-x) size) dx)
+     :y (+ (* (plist-get params :text-y) size) dy star-dy)
+     :font-size (* size (plist-get params :text-size))
+     :fill (aref (plist-get params :text-fill) (1+ rating))
+     (plist-get params :text-args))
+    (when (< rating 0)
+      (let ((r (* (plist-get params :reject-r) size))
+            (line-w (* (plist-get params :reject-line-w) size))
+            (cy (+ cy (* (plist-get params :reject-shift-y) size))))
+        (apply
+         #'svg-line
+         svg (- cx r) (- cy r) (+ cx r) (+ cy r)
+         :stroke-width line-w
+         (plist-get params :reject-line-args))
+        (apply
+         #'svg-line
+         svg (+ cx r) (- cy r) (- cx r) (+ cy r)
+         :stroke-width line-w
+         (plist-get params :reject-line-args))))
+    svg))
+;; EXAMPLE:
+;; (cl-loop for rating from -1 to 5
+;;          do
+;;          (insert-image
+;;           (svg-image
+;;            (xmp-image-svg-rating--shape rating 100)
+;;            :ascent 'center)))
+
+(defvar xmp-svg-rating-image-cache nil)
+
+(defun xmp-svg-rating-image (rating size)
+  (let ((size-ratings
+         (or (assq size xmp-svg-rating-image-cache)
+             (car (push (cons size nil) xmp-svg-rating-image-cache)))))
+    (cdr (or (assq rating (cdr size-ratings))
+             (car (push (cons rating
+                              (svg-image
+                               (xmp-svg-rating--shape rating size)
+                               :scale 1
+                               :ascent 'center))
+                        (cdr size-ratings)))))))
+
+(defun xmp-svg-rating-text (rating)
+  (if (and xmp-svg-rating-enabled (xmp-svg-available-p))
+      (propertize (format "%2d" rating)
+                  'display
+                  (xmp-svg-rating-image rating (xmp-svg-default-font-size)))
+    (format "%2d" rating)))
+
+(defun xmp-pvalue-to-display-string--rating (pvalue)
+  (xmp-svg-rating-text (or (xmp-pvalue-as-real pvalue) 0)))
 
 
 ;;;;; PValue Dump

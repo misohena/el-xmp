@@ -33,6 +33,7 @@
 ;;; Code:
 
 (require 'xmp-file-reader)
+(require 'xmp)
 
 ;;;; Error
 
@@ -248,8 +249,15 @@
                  for value = (xmp-pdf-read-object reader)
                  collect (cons (cdr key) value))))
 
+(defun xmp-pdf-dic-p (dictionary)
+  (eq (car-safe dictionary) 'dictionary))
+
+(defun xmp-pdf-dic-as-alist (dictionary)
+  (when (xmp-pdf-dic-p dictionary)
+    (cdr dictionary)))
+
 (defun xmp-pdf-dic-get (key dictionary)
-  (alist-get key dictionary nil nil #'equal))
+  (alist-get key (xmp-pdf-dic-as-alist dictionary) nil nil #'equal))
 
 (defconst xmp-pdf-re-stream-begin
   (concat "\\(stream\\(?:\r\n\\|\n\\)\\)")) ;; not by CR alone
@@ -443,7 +451,7 @@
     (xmp-pdf-error reader "No trailer keyword"))
   (goto-char (match-end 0))
   (let ((trailer-dic (xmp-pdf-read-object reader)))
-    (unless (eq (car-safe trailer-dic) 'dictionary)
+    (unless (xmp-pdf-dic-p trailer-dic)
       (xmp-pdf-error reader "No trailer dictionary"))
     trailer-dic))
 
@@ -468,6 +476,82 @@ offset of the first cross-reference section."
         (error "No startxref (file:%s)" file))
       (string-to-number (match-string 1)))))
 
+;;;; Data Structure
+
+(defun xmp-pdf-text-string (bytes)
+  ;; [PDF2] 7.9.2.2 Text string type
+  (let* ((len (length bytes))
+         (ch0 (if (< 0 len) (aref bytes 0) 0))
+         (ch1 (if (< 1 len) (aref bytes 1) 0))
+         (ch2 (if (< 2 len) (aref bytes 2) 0)))
+    (cond
+     ((and (= ch0 239) (= ch1 187) (= ch2 191))
+      (decode-coding-string bytes 'utf-8))
+     ((or (and (= ch0 254) (= ch1 255))
+          (and (= ch0 255) (= ch1 254)))
+      (decode-coding-string bytes 'utf-16))
+     (t
+      (decode-coding-string bytes
+                            (detect-coding-string bytes t))))))
+;; TEST: (xmp-pdf-text-string "") => ""
+;; TEST: (xmp-pdf-text-string "a") => "a"
+;; TEST: (xmp-pdf-text-string "ab") => "ab"
+;; TEST: (xmp-pdf-text-string "abc") => "abc"
+;; TEST: (xmp-pdf-text-string "\xfe\xff\x04\x42\x04\x35\x04\x41\x04\x42") => "тест"
+
+(defconst xmp-pdf-date-regexp
+  ;; [PDF2] 7.9.4 Dates
+  ;; D:YYYYMMDDHHmmSSOHH'mm
+  (concat
+   "\\`D:\\([0-9][0-9][0-9][0-9]\\)\\(?:\\([0-9][0-9]\\)\\(?:\\([0-9][0-9]\\)"
+   "\\(?:\\([0-9][0-9]\\)\\(?:\\([0-9][0-9]\\)\\(?:\\([0-9][0-9]\\)"
+   "\\(?:\\(Z\\)\\|"
+   "\\([-+]\\)\\([0-9][0-9]\\)\\(?:'\\([0-9][0-9]\\)\\)?"
+   "\\)?\\)?\\)?\\)?\\)?\\)?"))
+
+(defun xmp-pdf-date (bytes)
+  ;; [PDF2] 7.9.4 Dates
+  (when (string-match xmp-pdf-date-regexp bytes)
+    (let ((y (match-string 1 bytes))
+          (m (match-string 2 bytes)) ;; or "01"?
+          (d (match-string 3 bytes)) ;; or "01"?
+          (H (match-string 4 bytes)) ;; or "00"?
+          (M (match-string 5 bytes)) ;; or "00"?
+          (S (match-string 6 bytes)) ;; or "00"?
+          (Z (match-string 7 bytes)) ;; Can specify Z12'34 ?
+          (sign (match-string 8 bytes))
+          (oh (match-string 9 bytes))
+          (om (match-string 10 bytes)))
+      (concat
+       y
+       (when m
+         (concat
+          "-" m
+          (when d
+            (concat
+             "-" d
+             (when H
+               (concat
+                "T" H ":" (or M "00")
+                ;; TODO: Is it possible to omit just the S?
+                (when S
+                  (concat
+                   ":" S))
+                (cond
+                 (Z "Z")
+                 (sign
+                  (concat
+                   sign oh ":" (or om "00"))))))))))))))
+;; TEST: (xmp-pdf-date "D:2024") => "2024"
+;; TEST: (xmp-pdf-date "D:202412") => "2024-12"
+;; TEST: (xmp-pdf-date "D:20241204") => "2024-12-04"
+;; TEST: (xmp-pdf-date "D:2024120415") => "2024-12-04T15:00"
+;; TEST: (xmp-pdf-date "D:202412041506") => "2024-12-04T15:06"
+;; TEST: (xmp-pdf-date "D:20241204150629") => "2024-12-04T15:06:29"
+;; TEST: (xmp-pdf-date "D:20241204150629+09'00'") => "2024-12-04T15:06:29+09:00"
+;; TEST: (xmp-pdf-date "D:20241204150629Z") => "2024-12-04T15:06:29Z"
+;; TEST: (xmp-pdf-date "D:20240720122805+10'00'") => "2024-07-20T12:28:05+10:00"
+
 ;;;; Metadata
 
 (defun xmp-pdf-read-metadata (file)
@@ -487,24 +571,83 @@ offset of the first cross-reference section."
                     reader
                     (xmp-pdf-dic-get "Root" trailer-dic)
                     xref-section
-                    trailer-dic))
-             (metadata (xmp-pdf-deref reader
-                                      (xmp-pdf-dic-get "Metadata" root)
+                    trailer-dic)))
+        (or
+         ;; Read metadata stream
+         (ignore-errors
+           (xmp-pdf-read-metadata-stream reader xref-section trailer-dic root))
+
+         ;; Read /Info [PDF2] 7.5.5 File trailer
+         (xmp-pdf-read-info-dic reader xref-section trailer-dic))
+        ))))
+
+(defun xmp-pdf-read-metadata-stream (reader xref-section trailer-dic root)
+  (let ((metadata (xmp-pdf-deref reader
+                                 (xmp-pdf-dic-get "Metadata" root)
+                                 xref-section
+                                 trailer-dic)))
+    (xmp-pdf-read-stream-object-content reader metadata
+                                        xref-section trailer-dic)))
+
+(defconst xmp-pdf-read-info-dic-converters
+  ;; [XMP3] 2.2 Native metadata in PDF files
+  ;; [XMP2] 3.1 Adobe PDF namespace
+  ;;        https://developer.adobe.com/xmp/docs/XMPNamespaces/pdf/
+  '(("Title" "dc:title" xmp-pdf-read-info-dic--lang-alt)
+    ("Author" "dc:creator" xmp-pdf-read-info-dic--author)
+    ("Subject" "dc:description" xmp-pdf-read-info-dic--lang-alt)
+    ("Keywords" "pdf:Keywords" xmp-pdf-read-info-dic--text)
+    ("Creator" "xmp:CreatorTool" xmp-pdf-read-info-dic--text)
+    ("Producer" "pdf:Producer" xmp-pdf-read-info-dic--text)
+    ("CreationDate" "xmp:CreateDate" xmp-pdf-read-info-dic--date)
+    ("ModDate" "xmp:ModifyDate" xmp-pdf-read-info-dic--date)
+    ;;("Trapped" "pdf:Trapped" xmp-pdf-read-info-dic--trapped)
+    ))
+
+(defun xmp-pdf-read-info-dic (reader xref-section trailer-dic)
+  ;; Read /Info [PDF2] 7.5.5 File trailer
+  (when-let ((info-dic (xmp-pdf-deref reader
+                                      (xmp-pdf-dic-get "Info" trailer-dic)
                                       xref-section
                                       trailer-dic)))
+    ;; [PDF2] 14.3.3 Document information dictionary
+    (let (dom)
+      (dolist (prop (xmp-pdf-dic-as-alist info-dic))
+        (when-let* ((key (car prop))
+                    (value (cdr prop))
+                    (info (assoc key xmp-pdf-read-info-dic-converters))
+                    (prefixed-name (nth 1 info))
+                    (converter (nth 2 info))
+                    (prop-ename (ignore-errors
+                                  (xmp-xml-ename-from-prefixed-string
+                                   prefixed-name)))
+                    (pvalue (when (stringp value)
+                              (funcall converter value))))
+          (unless dom
+            (setq dom (xmp-empty-dom)))
+          (xmp-set-property-value dom prop-ename pvalue)))
+      (list :dom dom))))
 
+(defun xmp-pdf-read-info-dic--text (str)
+  (let ((text (xmp-pdf-text-string str)))
+    (unless (string-empty-p text)
+      (xmp-pvalue-make-text text))))
 
-        ;; Read metadata
-        (xmp-pdf-read-stream-object-content reader metadata
-                                            xref-section trailer-dic)
+(defun xmp-pdf-read-info-dic--lang-alt (str)
+  (let ((text (xmp-pdf-text-string str)))
+    (unless (string-empty-p text)
+      (xmp-pvalue-make-lang-alt-x-default text))))
 
-        ;; ;; TODO: Retrieve /Info at the same time?
-        ;; (xmp-pdf-deref reader
-        ;;                (xmp-pdf-dic-get "Info" trailer-dic)
-        ;;                xref-section
-        ;;                trailer-dic)
+(defun xmp-pdf-read-info-dic--author (str)
+  (let ((text (xmp-pdf-text-string str)))
+    (unless (string-empty-p text)
+      ;; Split with ; ?
+      (xmp-pvalue-make-seq-from-text-list (list text)))))
 
-        ))))
+(defun xmp-pdf-read-info-dic--date (str)
+  (when-let ((date-str (xmp-pdf-date str)))
+    (xmp-pvalue-make-text date-str)))
+
 
 (provide 'xmp-pdf)
 ;;; xmp-pdf.el ends here

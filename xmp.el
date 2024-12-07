@@ -1549,6 +1549,9 @@ first language code must be \"x-default\"."
                                                            (car item)))))
            lang-alt-alist)))
 
+(defun xmp-pvalue-make-lang-alt-x-default (text)
+  (xmp-pvalue-from-lang-alt-alist (list (cons "x-default" text))))
+
 (defun xmp-lang-alt-alist-to-single-string (lang-alt-alist)
   (if (cdr lang-alt-alist)
       (mapconcat (lambda (item) (format "[%s]:%s" (car item) (cdr item)))
@@ -2302,11 +2305,14 @@ variable explicitly."
                   (error "pdfinfo exited with status %s" status))
                 (buffer-substring-no-properties (point-min) (point-max))))))))
    ;; Use elisp implementation (Encryption, compression, etc. are not supported)
-   (when-let ((metadata (ignore-errors (xmp-pdf-read-metadata file)))
-              (bytes (plist-get metadata :bytes)))
-     (xmp-xml-move-nsdecls-to-root
-      (xmp-xml-parse-string
-       (decode-coding-string bytes 'utf-8))))
+   (when-let* ((metadata (ignore-errors (xmp-pdf-read-metadata file))))
+     (or
+      (when-let* ((bytes (plist-get metadata :bytes)))
+        (xmp-xml-move-nsdecls-to-root
+         (xmp-xml-parse-string
+          (decode-coding-string bytes 'utf-8))))
+      ;; From native metadata (information dictionary)
+      (plist-get metadata :dom)))
    ;; Search xpacket (There is a possibility of reading the wrong packet.)
    (xmp-file-read-xml-from-scanned-packet file)))
 
@@ -2324,7 +2330,7 @@ variable explicitly."
   (xmp-pvalue-make-text str))
 
 (defun xmp-file-org-make-pvalue-lang-alt (str)
-  (xmp-pvalue-from-lang-alt-alist (list (cons "x-default" str))))
+  (xmp-pvalue-make-lang-alt-x-default str))
 
 (defun xmp-file-org-make-pvalue-date (str)
   (require 'org)

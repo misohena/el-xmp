@@ -126,13 +126,11 @@ I haven't tested ID3v2.2 because I don't have the files to hand.")
   (pcase prop-type
     ('Text (xmp-pvalue-make-text prop-val))
     ('Date (xmp-pvalue-make-text prop-val))
+    ('LangAlt (xmp-pvalue-make-lang-alt-x-default prop-val))
     ('Integer
      ;; Track number: n/m => n
      (when (string-match "\\`\\(-?[0-9]+\\)" prop-val)
-       (xmp-pvalue-make-text (match-string 1 prop-val))))
-    ('LangAlt
-     (xmp-pvalue-from-lang-alt-alist (list (cons "x-default"
-                                                 prop-val))))))
+       (xmp-pvalue-make-text (match-string 1 prop-val))))))
 
 
 ;;;;; ID3v1

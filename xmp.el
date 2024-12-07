@@ -1673,7 +1673,7 @@ the property type is inferred from the structure of PVALUE."
      (funcall converter pvalue))
    ""))
 
-;;;;;; Rating SVG
+;;;;;; SVG Rating Display
 
 (defcustom xmp-svg-rating-enabled t
   "Non-nil means that SVG rating display is enabled."
@@ -1762,7 +1762,7 @@ the property type is inferred from the structure of PVALUE."
 ;;          do
 ;;          (insert-image
 ;;           (svg-image
-;;            (xmp-image-svg-rating--shape rating 100)
+;;            (xmp-svg-rating--shape rating 100)
 ;;            :ascent 'center)))
 
 (defvar xmp-svg-rating-image-cache nil)

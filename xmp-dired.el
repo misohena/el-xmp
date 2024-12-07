@@ -548,12 +548,17 @@ the file based on the list of property names returned by the function
   :group 'xmp
   :type 'boolean)
 
+(defun xmp-dired-filter-sidecar-auto-hide-update ()
+  (when xmp-dired-filter-sidecar-auto-hide
+    (if xmp-dired-filter-property-alist
+        (xmp-dired-filter-hide-sidecar t)
+      (xmp-dired-filter-show-sidecar t))))
+
 ;;;###autoload
 (defun xmp-dired-filter-clear ()
   (interactive nil dired-mode)
   (setq xmp-dired-filter-property-alist nil)
-  (when xmp-dired-filter-sidecar-auto-hide
-    (xmp-dired-filter-show-sidecar t))
+  (xmp-dired-filter-sidecar-auto-hide-update)
   (revert-buffer))
 
 (defun xmp-dired-filter-set (prop-ename pred)
@@ -565,10 +570,7 @@ the file based on the list of property names returned by the function
     (setf (xmp-xml-ename-alist-get prop-ename
                                    xmp-dired-filter-property-alist nil t)
           nil))
-  (when xmp-dired-filter-sidecar-auto-hide
-    (if xmp-dired-filter-property-alist
-        (xmp-dired-filter-hide-sidecar t)
-      (xmp-dired-filter-show-sidecar t))))
+  (xmp-dired-filter-sidecar-auto-hide-update))
 
 ;;;###autoload
 (defun xmp-dired-filter-property (prop-ename pred &optional arg)

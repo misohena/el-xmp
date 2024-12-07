@@ -313,13 +313,16 @@
     km))
 
 (define-minor-mode xmp-image-dired-thumbnail-mode
-  "")
+  ""
+  :group 'xmp
+  (when xmp-image-dired-thumbnail-mode
+    (require 'xmp-image-dired)))
 
 ;;;; Setup default
 
 (define-minor-mode xmp-global-default-mode
   ""
-  :group 'files
+  :group 'xmp
   :global t
   (if xmp-global-default-mode
       (progn

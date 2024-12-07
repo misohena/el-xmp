@@ -156,7 +156,7 @@
             (concat
              result
              ;; Normal characters
-             (xmp-file-reader-read-chars reader "^()\r\\")
+             (xmp-file-reader-read-chars reader "^()\r\\\\")
              ;; Special character
              (pcase (char-after)
                ('nil (xmp-pdf-error reader "String literal not closed")) ;;EOF

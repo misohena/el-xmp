@@ -254,7 +254,14 @@ point is on the last image, move to the last one and vice versa."
            (xmp-image-dired-filter-thumbnail-at-point-p)))
         (forward-char)))
     ;; Update spaces and line breaks
-    (image-dired--line-up-with-method)))
+    (image-dired--line-up-with-method))
+  ;; Move point to a visible thumbnail
+  ;; (See: `image-dired--update-after-move')
+  (xmp-image-dired--movement-ensure-point-pos nil)
+  (xmp-image-dired--movement-ensure-point-pos t)
+  (image-dired--update-header-line)
+  (when image-dired-track-movement
+    (image-dired-track-original-file)))
 
 (defvar-local xmp-image-dired-filter-alist nil
   "An alist of property expanded names and predicates. If the predicate is

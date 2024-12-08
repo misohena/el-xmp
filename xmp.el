@@ -121,8 +121,36 @@ text from source code."
   :prefix "xmp-"
   :group 'files)
 
-;;;; Namespace Information
-;;;;; Predefined Namespaces
+;;;; Names
+
+;;;;; Namespace Information
+
+;; The namespace defined here enables processing using namespaces as
+;; shown below.
+
+;;   Using constants to refer to namespace names:
+;;     xmp-xmp:
+;;       => :http://ns.adobe.com/xap/1.0/
+
+;;   Namespace namespace name to prefix conversion:
+;;     (xmp-xml-default-ns-prefix "http://ns.adobe.com/xap/1.0/")
+;;       => "xmp"
+;;     (xmp-xml-default-ns-prefix (xmp-xml-ns-name "http://ns.adobe.com/xap/1.0/"))
+;;       => "xmp"
+
+;;   Namespace prefix to namespace name conversion:
+;;     (xmp-xml-default-ns-prefix-to-ns-name "xmp")
+;;       => :http://ns.adobe.com/xap/1.0/
+
+;;   Parsing a property name string with a prefix:
+;;     (xmp-xml-ename-from-prefixed-string "xmp:Rating")
+;;       => (:http://ns.adobe.com/xap/1.0/ . "Rating")
+
+;;   Converting a property expanded name to a string with a prefix:
+;;     (xmp-xml-ename-string xmp-xmp:Rating)
+;;       => "xmp:Rating"
+
+;;;;;; Predefined Namespaces
 (eval-and-compile
   (defconst xmp-predefined-namespaces
     ;; (<namespace name string> . (<prefix> ...more info))
@@ -222,7 +250,7 @@ text from source code."
                  collect `(cons (xmp-xml-ns-name ,ns-name) ,ns-prefix)))))
 (xmp-define-ns-namespaces-const)
 
-;;;;; User Defined Namespaces
+;;;;;; User Defined Namespaces
 
 (defvar xmp-user-defined-namespaces)
 
@@ -248,7 +276,7 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
          (xmp-user-defined-namespaces-update)))
 
 
-;;;; Predefined Element and Attribute Names
+;;;;; Predefined Element and Attribute Names
 
 (eval-and-compile
   (defconst xmp-predefined-names
@@ -296,7 +324,7 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
                                          xmp-rdf:ID
                                          xmp-rdf:nodeID))
 
-;;;; Property Type Information
+;;;;; Property Type Information
 
 (defconst xmp-predefined-property-types
   '(Text URI Boolean Real Integer GUID Date AgentName RenditionClass
@@ -313,8 +341,8 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
 (defun xmp-property-type-derived-from-seq-text-p (type)
   (memq type '(SeqText SeqProperName SeqLocale SeqDate)))
 
-;;;; Property Information
-;;;;; Predefined Properties
+;;;;; Property Information
+;;;;;; Predefined Properties
 
 (eval-and-compile
   (defconst xmp-predefined-properties
@@ -387,11 +415,14 @@ Specify namespaces that are not included in `xmp-predefined-namespaces'."
       )))
 
 ;; Define expanded name variables for properties
+;;   (defconst xmp-xmp:Rating ...)
+;;   (defconst xmp-dc:title ...)
+;;   etc.
 (defmacro xmp-define-predefined-properties ()
   `(xmp-define-predefined-names-1 ,xmp-predefined-properties))
 (xmp-define-predefined-properties)
 
-;;;;; User Defined Properties
+;;;;;; User Defined Properties
 
 (defcustom xmp-user-defined-properties nil
   "A list of XMP properties added by user.
@@ -414,9 +445,10 @@ information in `xmp-user-defined-namespaces'."
                                    (lambda (s) `(const ,s))
                                    xmp-predefined-property-types))))))
 
-;;;;; Defined Property Information
+;;;;;; Defined Property Information
 
 (defun xmp-defined-property-type--get (ename prop-info-alist)
+  "Get the type of property ENAME from PROP-INFO-ALIST."
   (when-let* ((ns-prefix-str (xmp-xml-default-ns-prefix
                               (xmp-xml-ename-ns ename)))
               (ns-info (assoc ns-prefix-str
@@ -428,11 +460,14 @@ information in `xmp-user-defined-namespaces'."
     (nth 1 prop-info)))
 
 (defun xmp-defined-property-type (ename)
+  "Return a symbol that represents the type of the property ENAME."
   (or (xmp-defined-property-type--get ename xmp-user-defined-properties)
       (xmp-defined-property-type--get ename xmp-predefined-properties)))
 ;; TEST: (xmp-defined-property-type xmp-xmp:Rating) => Real
 
 (defun xmp-defined-property-prefixed-name-list--make (prop-info-alist)
+  "Create a list of property name strings with namespace prefixes from
+PROP-INFO-ALIST."
   (cl-loop for (ns-prefix-str . prop-info-list) in prop-info-alist
            nconc (cl-loop for prop-info in prop-info-list
                           collect (if ns-prefix-str
@@ -440,16 +475,20 @@ information in `xmp-user-defined-namespaces'."
                                     (car prop-info)))))
 
 (defun xmp-defined-property-prefixed-name-list ()
+  "Return the property name string with namespace prefix for all XMP
+properties defined in this library."
   (nconc
    (xmp-defined-property-prefixed-name-list--make xmp-user-defined-properties)
    (xmp-defined-property-prefixed-name-list--make xmp-predefined-properties)))
 ;; EXAMPLE: (xmp-defined-property-prefixed-name-list)
 
 (defun xmp-read-property-prefixed-name (prompt)
+  "Read a property name with a namespace prefix from the minibuffer."
   (completing-read prompt (xmp-defined-property-prefixed-name-list)))
 ;; EXAMPLE: (xmp-read-property-prefixed-name "Property: ")
 
 (defun xmp-read-property-ename (prompt &optional default)
+  "Read an expanded name of a property from the minibuffer."
   (let ((str (completing-read prompt
                               (xmp-defined-property-prefixed-name-list))))
     (if (string-empty-p str)
@@ -458,7 +497,9 @@ information in `xmp-user-defined-namespaces'."
 ;; EXAMPLE: (xmp-read-property-ename "Property: ")
 
 
-;;;; DOM Tree Creation
+;;;; DOM manipulation
+
+;;;;; DOM Tree Creation
 
 (defun xmp-empty-dom ()
   "Create an empty XMP XML DOM with no properties.
@@ -491,7 +532,7 @@ defaults to the empty string\"\"."
                    (list
                     (xmp-xml-attr xmp-rdf:about (or about "")))))
 
-;;;; RDF Element (XMP DOM)
+;;;;; RDF Element (XMP DOM)
 
 (defun xmp-find-rdf (dom)
   "Return rdf:RDF element in DOM.
@@ -532,6 +573,7 @@ elements. If omitted, it is the empty string."
               (xmp-xml-element-children rdf))))
 
 (defun xmp-remove-all-descriptions (dom &optional about)
+  "Remove all top-level Description elements in the DOM that match ABOUT."
   (when-let ((rdf (xmp-find-rdf dom)))
     (xmp-xml-element-child-remove-if
      rdf
@@ -603,6 +645,13 @@ elements. Specifying nil is the same as specifying an empty string."
               (xmp-xml-element-children rdf))))
 
 (defun xmp-set-property-value (dom prop-ename value &optional about)
+  "Add a property element to DOM.
+
+The property element to be added is created from PROP-ENAME and VALUE
+using the `xmp-property-element-from' function.
+
+Any existing property (whether attribute or element) with the same
+property name will be deleted."
   (let ((desc (or
                (xmp-find-description dom prop-ename about)
                (xmp-find-description dom nil about)
@@ -685,7 +734,7 @@ elements. Specifying nil is the same as specifying an empty string."
     (xmp-dump-named-pvalue-list stream props (xmp-xml-collect-nsdecls dom) 0)))
 ;; EXAMPLE: (xmp-dump-properties nil (xmp-file-read-rdf "test/xmp-test-uzumaki.jpg") nil t)
 
-;;;; Description Element
+;;;;; Description Element
 
 (defun xmp-target-description-p (node about)
   "Return non-nil if NODE is a rdf:Description element to be processed.

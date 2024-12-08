@@ -939,3 +939,7 @@ CLOSED: [2024-12-08 Sun 16:52]
 - string-equal-ignore-case => xmp-sidecar-file-pを使う
 - seq-setq => 素直にletとsetqを使う。
 使わないようにする。
+** DONE which-key-modeで分かりやすい表示をしたい。
+CLOSED: [2024-12-08 Sun 16:54]
+キーマップに項目名を設定する。
+

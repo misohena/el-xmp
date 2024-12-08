@@ -3327,7 +3327,15 @@ FILE-ENTRY."
 ;;;; Sidecar Files
 
 (defun xmp-sidecar-file-p (file)
-  (equal (file-name-extension file) "xmp"))
+  (when-let ((ext (file-name-extension file)))
+    (equal (downcase ext) "xmp")))
+;; TEST: (xmp-sidecar-file-p "hoge") => nil
+;; TEST: (xmp-sidecar-file-p "hoge.xmp/") => nil
+;; TEST: (xmp-sidecar-file-p "hoge.jpg") => nil
+;; TEST: (xmp-sidecar-file-p "hoge.xmp") => t
+;; TEST: (xmp-sidecar-file-p "hoge.jpg.xmp") => t
+;; TEST: (xmp-sidecar-file-p "hoge.XMP") => t
+;; TEST: (xmp-sidecar-file-p "hoge.Xmp") => t
 
 (defun xmp-not-sidecar-file-p (file)
   (not (xmp-sidecar-file-p file)))

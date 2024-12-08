@@ -640,7 +640,7 @@ The results are returned in an alist with language code strings as keys."
 FILES is a filename or a list of filenames.
 
 TITLE is a string or an alist whose keys are language code strings and
-whose values are strings (`xmp-pvalue-from-lang-alt-alist' accepts
+whose values are strings (`xmp-pvalue-make-lang-alt-from-alist' accepts
 it). When specifying an alist, the first language code must be
 \"x-default\"."
   (interactive
@@ -656,7 +656,7 @@ it). When specifying an alist, the first language code must be
     (setq files (list files)))
   (dolist (file files)
     (xmp-set-file-property
-     file xmp-dc:title (xmp-pvalue-from-lang-alt-alist title))))
+     file xmp-dc:title (xmp-pvalue-make-lang-alt-from-alist title))))
 
 ;;;; dc:description
 ;; Type: Language Alternative
@@ -692,7 +692,7 @@ The results are returned in an alist with language code strings as keys."
 FILES is a filename or a list of filenames.
 
 DESCRIPTION is a string or an alist whose keys are language code strings
-and whose values are strings (`xmp-pvalue-from-lang-alt-alist' accepts
+and whose values are strings (`xmp-pvalue-make-lang-alt-from-alist' accepts
 it). When specifying an alist, the first language code must be
 \"x-default\"."
   (interactive
@@ -710,7 +710,8 @@ it). When specifying an alist, the first language code must be
     (setq files (list files)))
   (dolist (file files)
     (xmp-set-file-property
-     file xmp-dc:description (xmp-pvalue-from-lang-alt-alist description))))
+     file xmp-dc:description
+     (xmp-pvalue-make-lang-alt-from-alist description))))
 
 ;;;; dc:creator
 ;; Type: Ordered array of ProperName

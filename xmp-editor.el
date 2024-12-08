@@ -458,7 +458,7 @@
   :value-to-internal (lambda (_widget pvalue)
                        (xmp-pvalue-as-lang-alt-alist pvalue))
   :value-to-external (lambda (_widget value)
-                       (xmp-pvalue-from-lang-alt-alist value)))
+                       (xmp-pvalue-make-lang-alt-from-alist value)))
 
 (define-widget 'xmp-property-bag-text 'xmp-property
   "XMP property of BagText type."

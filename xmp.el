@@ -1296,7 +1296,7 @@ The type of array is one of the following variable values (expanded names):
     (Integer xmp-pvalue-as-integer xmp-pvalue-make-integer)
     (MIMEType xmp-pvalue-as-text xmp-pvalue-make-text)
     (AgentName xmp-pvalue-as-text xmp-pvalue-make-text)
-    (LangAlt xmp-pvalue-as-lang-alt-alist xmp-pvalue-from-lang-alt-alist)
+    (LangAlt xmp-pvalue-as-lang-alt-alist xmp-pvalue-make-lang-alt-from-alist)
     (BagText xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
     (BagProperName xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
     (BagLocale xmp-pvalue-as-text-list xmp-pvalue-make-bag-from-text-list)
@@ -1583,7 +1583,7 @@ If the type of PVALUE is not \\='struct, return nil."
              when text
              collect (cons lang text))))
 
-(defun xmp-pvalue-from-lang-alt-alist (lang-alt-alist)
+(defun xmp-pvalue-make-lang-alt-from-alist (lang-alt-alist)
   "LANG-ALT-ALIST is an alist whose keys are strings or language code
 strings and whose values are strings. When specifying an alist, the
 first language code must be \"x-default\"."
@@ -1599,7 +1599,7 @@ first language code must be \"x-default\"."
            lang-alt-alist)))
 
 (defun xmp-pvalue-make-lang-alt-x-default (text)
-  (xmp-pvalue-from-lang-alt-alist (list (cons "x-default" text))))
+  (xmp-pvalue-make-lang-alt-from-alist (list (cons "x-default" text))))
 
 (defun xmp-lang-alt-alist-to-single-string (lang-alt-alist)
   (if (cdr lang-alt-alist)

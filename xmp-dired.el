@@ -41,8 +41,7 @@
           (let ((fn (dired-get-filename nil t)))
             (when (and fn
                        (or include-sidecar-file
-                           (not (when-let ((ext (file-name-extension fn)))
-                                  (string-equal-ignore-case ext "xmp"))))
+                           (not (xmp-sidecar-file-p fn)))
                        ;; TODO: Mark directory ?
                        (file-regular-p fn))
               (let ((message-log-max nil))
@@ -445,8 +444,9 @@ Dired commands."
   ;; Filter (Reduce files before sorting)
   (setq file-alist (xmp-dired-filter-before-ls-lisp-handle-switches file-alist))
   ;; Sort
-  (seq-setq (file-alist switches)
-            (xmp-dired-sort-before-ls-lisp-handle-switches file-alist switches))
+  (let ((x (xmp-dired-sort-before-ls-lisp-handle-switches file-alist switches)))
+    (setq file-alist (pop x)
+          switches (pop x)))
 
   (apply oldfun file-alist switches unknown-args))
 

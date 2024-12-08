@@ -933,3 +933,9 @@ xmp-read-property-prefixed-nameとxmp-read-property-enameはHIST変数を使う�
 ** DONE 大文字のXMPをサイドカーファイルと判定しない。
 CLOSED: [2024-12-08 Sun 16:46]
 xmp-sidecar-file-pを修正する。
+** DONE Emacs27でエラーになったところを修正する。
+CLOSED: [2024-12-08 Sun 16:52]
+少し試した限り、次の二つの関数が存在しないのでエラーになった。
+- string-equal-ignore-case => xmp-sidecar-file-pを使う
+- seq-setq => 素直にletとsetqを使う。
+使わないようにする。

@@ -926,3 +926,7 @@ xmp-pvalue-from-lang-alt-alist を xmp-pvalue-make-lang-alt-from-alist へ改名
 本当ならmakeとか無い方が良いんだけど。
 xmp-pvalue-alt-from-lang-text-alistとかでもいいんだけど。
 とりあえずxmp-pvalue-make-lang-alt-from-alistで。xmp-pvalue-make-seq-from-text-listとかあるし。
+** DONE プロパティ名入力に履歴を付ける。
+CLOSED: [2024-12-08 Sun 13:20]
+xmp-read-property-prefixed-nameとxmp-read-property-enameはHIST変数を使うべき。
+いや、使っただけではダメだ。 completing-readのCOLLECTIONにも過去に入力した名前を明示的にマージしないと補完対象になってくれない。

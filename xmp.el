@@ -482,15 +482,24 @@ properties defined in this library."
    (xmp-defined-property-prefixed-name-list--make xmp-predefined-properties)))
 ;; EXAMPLE: (xmp-defined-property-prefixed-name-list)
 
+(defvar xmp-read-property-prefixed-name--hist nil)
+
 (defun xmp-read-property-prefixed-name (prompt)
   "Read a property name with a namespace prefix from the minibuffer."
-  (completing-read prompt (xmp-defined-property-prefixed-name-list)))
+  (let* ((defined-names (xmp-defined-property-prefixed-name-list))
+         (candidate-names
+          ;; Merge defined names and previously entered names.
+          (nconc
+           (seq-difference xmp-read-property-prefixed-name--hist defined-names)
+           defined-names)))
+    (completing-read prompt candidate-names
+                     nil nil nil
+                     'xmp-read-property-prefixed-name--hist)))
 ;; EXAMPLE: (xmp-read-property-prefixed-name "Property: ")
 
 (defun xmp-read-property-ename (prompt &optional default)
   "Read an expanded name of a property from the minibuffer."
-  (let ((str (completing-read prompt
-                              (xmp-defined-property-prefixed-name-list))))
+  (let ((str (xmp-read-property-prefixed-name prompt)))
     (if (string-empty-p str)
         default
       (xmp-xml-ename-from-prefixed-string str))))

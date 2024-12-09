@@ -227,8 +227,6 @@ xmp-pdf.elではInfoから読めない場合が存在する。xref streamが使�
 
 ** TODO ファイル形式/PNG対応
 ** TODO ファイル形式/GIF対応
-** TODO ファイル形式/ISOBMFF対応
-** TODO ファイル形式/M4A対応
 ** TODO ファイル形式/書き込みできるタイプを増やす。
 PDFとTIFFは現在書き込めない。JPEGは一応書き込めるが正確な方法に変えた方が良い。
 PDFはpdfinfoを使っている状況では諦めるよりない。
@@ -942,4 +940,12 @@ CLOSED: [2024-12-08 Sun 16:52]
 ** DONE which-key-modeで分かりやすい表示をしたい。
 CLOSED: [2024-12-08 Sun 16:54]
 キーマップに項目名を設定する。
+** DONE ファイル形式/ISOBMFF対応(mp4、m4a、JPEG2000)
+CLOSED: [2024-12-09 Mon 17:01]
+xmp-file-dynamic-media.el に追加した。色々と未解決問題があるしテストも十分ではない。そもそも手元にあまりファイルが無いのでしかたない。
+一応手元のm4aとPhotoshopで出力したJPEG2000(XMP、EXIF付き)で確認した。
 
+m4aのメタデータについては次のサイトを参考にした。
+- https://exiftool.org/TagNames/QuickTime.html#ItemList
+- [[https://code.google.com/archive/p/mp4v2/wikis/iTunesMetadata.wiki][Google Code Archive - Long-term storage for Google Code Project Hosting.]]
+- [[https://www.etsi.org/deliver/etsi_ts/126200_126299/126244/18.00.00_60/ts_126244v180000p.pdf][TS 126 244 - V18.0.0 - Digital cellular telecommunications system (Phase 2+) (GSM); Universal Mobile Telecommunications System (UMTS); LTE; 5G; Transparent end-to-end packet switched streaming service (PSS); 3GPP file format (3GP) (3GPP TS 26.244 version 18.0.0 Release 18)]] (moov/udta/直下のメタデータについて記述がある)

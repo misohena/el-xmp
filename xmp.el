@@ -78,6 +78,8 @@
 (autoload 'xmp-exif-read-exif-as-xmp-property-elements-from-bytes "xmp-exif")
 (autoload 'xmp-exif-read-xmp-xml-from-tiff-file "xmp-exif")
 (autoload 'xmp-pdf-read-metadata "xmp-pdf")
+(autoload 'xmp-id3-read-file-as-xmp-dom "xmp-file-dynamic-media")
+(autoload 'xmp-isobmff-read-xmp-dom "xmp-file-dynamic-media")
 (autoload 'xmp-sqlite-cache-db-make-file-entry "xmp-sqlite")
 (autoload 'xmp-sqlite-cache-db-get-file-entry "xmp-sqlite")
 (autoload 'xmp-sqlite-cache-db-remove-file-entry "xmp-sqlite")
@@ -2439,11 +2441,20 @@ variable explicitly."
 
 ;;;;; MP3 File
 
-(autoload 'xmp-id3-read-file-as-xmp-dom "xmp-file-dynamic-media")
-
 (defun xmp-file-read-xml-from-mp3 (file)
   (ignore-errors
     (xmp-id3-read-file-as-xmp-dom file)))
+
+
+;;;;; ISO Base Media File Format
+
+(defun xmp-file-read-xml-from-isobmff (file)
+  (or
+   ;; Get from boxes
+   (ignore-errors
+     (xmp-isobmff-read-xmp-dom file))
+   ;; Search xpacket
+   (xmp-file-read-xml-from-scanned-packet file)))
 
 
 ;;;;; XML File
@@ -2485,6 +2496,9 @@ variable explicitly."
      :write-xml nil)
     ("\\.mp3\\'"
      :read-xml xmp-file-read-xml-from-mp3
+     :write-xml nil)
+    ("\\.\\(?:m4[avp]\\|mp4\\|jp[2cfhmx]\\|j2[ck]\\|jpg2\\|mj2\\)\\'"
+     :read-xml xmp-file-read-xml-from-isobmff
      :write-xml nil)
     ))
 

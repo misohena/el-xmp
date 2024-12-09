@@ -6,7 +6,7 @@ el-xmp enhances Emacs with the ability to handle file metadata based on the XMP 
 
 ** Supported file formats
 
-XMP / JPEG / PDF / TIFF (including ARW, CR2, NEF) / MP3(ID3) / ORG / any other format that can scan files and find XMPPackets
+XMP / JPEG / PDF / TIFF (including ARW, CR2, NEF) / MP3(ID3) / ISO base media file format (MPEG4, JPEG2000, etc) / ORG / any other format that can scan files and find XMPPackets
 
 Note: For some formats, the native metadata of the file format can be converted to XMP for processing.
 

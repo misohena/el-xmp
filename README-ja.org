@@ -4,7 +4,7 @@ el-xmpは、XMP(Extensible Metadata Platform)仕様に基づくファイルの�
 
 ** サポートファイル形式
 
-XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / MP3(ID3) / ORG / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
+XMP / JPEG / PDF / TIFF (ARW, CR2, NEFを含む) / MP3(ID3) / ISO base media file format (MPEG4, JPEG2000, etc) / ORG / その他ファイルをスキャンしてXMPPacketを見つけられるあらゆる形式
 
 注: いくつかの形式ではファイル形式本来のメタデータをXMPに変換して処理することが出来ます。
 

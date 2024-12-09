@@ -53,11 +53,12 @@
 ;;;; Reader Object
 
 (defun xmp-file-reader-create (file)
-  (list 'xmp-file-reader file 0 nil))
+  (list 'xmp-file-reader file 0 nil nil))
 
 (defmacro xmp-file-reader-file (reader) `(nth 1 ,reader))
 (defmacro xmp-file-reader-buffer-beginning-offset (reader) `(nth 2 ,reader))
 (defmacro xmp-file-reader-eof-loaded-p (reader) `(nth 3 ,reader))
+(defmacro xmp-file-reader-file-size-cache (reader) `(nth 4 ,reader))
 
 (defsubst xmp-file-reader-buffer-remainning () (- (point-max) (point)))
 (defsubst xmp-file-reader-buffer-size () (- (point-max) (point-min)))
@@ -82,6 +83,17 @@
   (let ((reader (xmp-file-reader-create nil)))
     (setf (xmp-file-reader-eof-loaded-p reader) t)
     reader))
+
+;;;; File Size
+
+(defun xmp-file-reader-file-size (reader)
+  (or (xmp-file-reader-file-size-cache reader)
+      (setf (xmp-file-reader-file-size-cache reader)
+            (or (file-attribute-size
+                 (file-attributes
+                  (or (xmp-file-reader-file reader)
+                      (error "No file name assigned to file reader"))))
+                (error "Failed to get file size")))))
 
 ;;;; Preloading
 
@@ -327,6 +339,16 @@ the file has been reached and there is no more data to read, return nil."
     (prog1 (buffer-substring-no-properties begin (point))
       (xmp-file-reader-seek reader (+ begin field-bytes)))))
 
+(defun xmp-file-reader-read-utf8z (reader)
+  (decode-coding-string (xmp-file-reader-read-asciiz reader) 'utf-8))
+
+(defun xmp-file-reader-read-utf-8-or-16-z (reader)
+  (if (and (xmp-file-reader-ensure-bytes reader 2 'noerror)
+           (let ((ch0 (char-after)) (ch1 (char-after (1+ (point)))))
+             (or (and (= ch0 #xfe) (= ch1 #xff))
+                 (and (= ch0 #xff) (= ch1 #xfe)))))
+      (decode-coding-string (xmp-file-reader-read-utf16z-bytes reader) 'utf-16)
+    (decode-coding-string (xmp-file-reader-read-asciiz reader) 'utf-8)))
 
 ;;;; Read integer
 
@@ -359,6 +381,20 @@ the file has been reached and there is no more data to read, return nil."
        (ash (char-after (+ pos 2)) 8)
        (char-after (+ pos 3)))))
 ;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\x12\x34\x56\x78")))) (cons (xmp-file-reader-u32be reader) (point)))) => (305419896 . 5)
+
+(defun xmp-file-reader-u64be (reader)
+  (xmp-file-reader-ensure-bytes reader 8)
+  (let ((pos (point)))
+    (forward-char 8)
+    (+ (ash (char-after pos) 56)
+       (ash (char-after (+ pos 1)) 48)
+       (ash (char-after (+ pos 2)) 40)
+       (ash (char-after (+ pos 3)) 32)
+       (ash (char-after (+ pos 4)) 24)
+       (ash (char-after (+ pos 5)) 16)
+       (ash (char-after (+ pos 6)) 8)
+       (char-after (+ pos 7)))))
+;; TEST: (with-temp-buffer (let ((reader (xmp-file-reader-open (xmp-file-reader-file-string "\x12\x34\x56\x78\x02\x48\x13\x57")))) (cons (xmp-file-reader-u64be reader) (point)))) => (1311768464905999191 . 9)
 
 (defun xmp-file-reader-uint-be (reader bytes)
   (xmp-file-reader-ensure-bytes reader bytes)

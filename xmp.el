@@ -2418,7 +2418,12 @@ variable explicitly."
 (defun xmp-file-read-xml-from-org (file)
   (let (dom props)
     (with-temp-buffer
-      (insert-file-contents file)
+      ;; The default value of `auto-coding-functions' includes
+      ;; `sgml-xml-auto-coding-function', but set it just to be safe.
+      (let ((auto-coding-functions '(sgml-xml-auto-coding-function)))
+        ;; Prefer UTF-8 over the `coding-system-priority-list' setting.
+        (with-coding-priority '(utf-8)
+          (insert-file-contents file)))
       (goto-char (point-min))
       (while (let ((case-fold-search t))
                ;; TODO: Ignore in src blocks

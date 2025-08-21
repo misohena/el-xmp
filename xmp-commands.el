@@ -1183,22 +1183,54 @@ Processes both sidecar files and in-database file entries."
 (defun xmp-filter-read-subjects-condition ()
   (if (xmp-filter-clear-arg-p current-prefix-arg)
       (list nil nil)
-    (list
-     (xmp-read-text-list
-      (xmp-msg "Filter subjects (AND): %s\nSubject to toggle (empty to end): ")
-      nil
-      xmp-read-subjects-candidates
-      'xmp-read-subjects--hist)
-     current-prefix-arg)))
+    (let* ((op-str (if current-prefix-arg
+                       (cadr (read-multiple-choice (xmp-msg "Operator")
+                                                   '((?a "AND")
+                                                     (?A "NOT AND")
+                                                     (?o "OR")
+                                                     (?O "NOT OR")
+                                                     (?e "EQUAL")
+                                                     (?E "NOT EQUAL"))))
+                     "AND")))
+      (list
+       (xmp-read-text-list
+        (format
+         (xmp-msg "Filter subjects (%s): %%s\nSubject to toggle (empty to end): ")
+         op-str)
+        nil
+        xmp-read-subjects-candidates
+        'xmp-read-subjects--hist)
+       op-str))))
 
 (defun xmp-filter-gen-subjects-predicate (subjects arg)
-  (and subjects
-       (xmp-filter-apply-predicate-arg
-        (lambda (v)
-          (seq-every-p
-           (lambda (sbj) (member sbj (xmp-pvalue-as-text-list v)))
-           subjects))
-        arg)))
+  (if (xmp-filter-clear-arg-p arg)
+      nil
+    (let* ((op-str (and (stringp arg) arg))
+           (not-p (if op-str
+                      (string-prefix-p "NOT " op-str)
+                    arg))
+           (op (if op-str
+                   (intern
+                    (downcase (if not-p (substring op-str 4) op-str)))
+                 'and)))
+
+      (xmp-filter-apply-predicate-arg
+       (pcase op
+         ('equal
+          (lambda (v) (seq-set-equal-p (xmp-pvalue-as-text-list v) subjects)))
+         ('or
+          (if subjects
+              (lambda (v)
+                (seq-some (lambda (v-sbj) (member v-sbj subjects))
+                          (xmp-pvalue-as-text-list v)))
+            nil))
+         (_ ;; and
+          (if subjects
+              (lambda (v)
+                (let ((v-lst (xmp-pvalue-as-text-list v)))
+                  (seq-every-p (lambda (sbj) (member sbj v-lst)) subjects)))
+            nil)))
+       not-p))))
 
 (provide 'xmp-commands)
 ;;; xmp-commands.el ends here

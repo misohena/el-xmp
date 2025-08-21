@@ -1,6 +1,9 @@
 #+TITLE: Emacs Extensible Metadata Platform Library
 
 * Inbox
+** TODO image-diredでg gでフィルタを更新出来るようにする。
+subjectを設定してからg gしてもフィルタが適用されていない？
+
 ** TODO 任意の列をdiredに追加できるようにする。
 例えば複数のプロパティから生成されるような列を表示する余地が欲しい。
 例えばxmp-dired-add-column-extrasのような。もし必要なプロパティがあるなら xmp-dired-lsmod-required-properties-source 追加すれば良いわけだし。通常のプロパティ列との並び順はどうするか。一律に決まった順番(通常のプロパティ→追加の列)でも良いけど。
@@ -949,3 +952,8 @@ m4aのメタデータについては次のサイトを参考にした。
 - https://exiftool.org/TagNames/QuickTime.html#ItemList
 - [[https://code.google.com/archive/p/mp4v2/wikis/iTunesMetadata.wiki][Google Code Archive - Long-term storage for Google Code Project Hosting.]]
 - [[https://www.etsi.org/deliver/etsi_ts/126200_126299/126244/18.00.00_60/ts_126244v180000p.pdf][TS 126 244 - V18.0.0 - Digital cellular telecommunications system (Phase 2+) (GSM); Universal Mobile Telecommunications System (UMTS); LTE; 5G; Transparent end-to-end packet switched streaming service (PSS); 3GPP file format (3GP) (3GPP TS 26.244 version 18.0.0 Release 18)]] (moov/udta/直下のメタデータについて記述がある)
+** DONE subjectsをOR条件やEQUAL条件でフィルタ出来るようにする。
+CLOSED: [2025-05-29 Thu 20:04]
+まだsubjectsを設定していないもののみを表示したいが現在はそれができない。
+
+argに文字列で "AND" "NOT AND" "OR" "NOT OR" "EQUAL" "NOT EQUAL" を指定出来るようにする。
